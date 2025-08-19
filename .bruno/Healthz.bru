@@ -1,0 +1,21 @@
+meta {
+  name: Healthz
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/healthz
+  body: none
+  auth: inherit
+}
+
+body:json {
+  {
+    "sourceKubeconfig": ""
+  }
+}
+
+settings {
+  encodeUrl: true
+}

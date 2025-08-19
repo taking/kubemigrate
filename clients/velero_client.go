@@ -50,6 +50,11 @@ func (v *veleroClient) GetBackups(ctx context.Context, namespace string) ([]vele
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "backups")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -62,6 +67,11 @@ func (v *veleroClient) GetRestores(ctx context.Context, namespace string) ([]vel
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "restores")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -74,6 +84,11 @@ func (v *veleroClient) GetBackupRepositories(ctx context.Context, namespace stri
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "backupRepositories")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -86,6 +101,11 @@ func (v *veleroClient) GetBackupStorageLocations(ctx context.Context, namespace 
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "backupStorageLocations")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -98,6 +118,11 @@ func (v *veleroClient) GetVolumeSnapshotLocations(ctx context.Context, namespace
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "volumeSnapshotLocations")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -110,6 +135,11 @@ func (v *veleroClient) GetPodVolumeRestores(ctx context.Context, namespace strin
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "podVolumeRestores")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -122,6 +152,11 @@ func (v *veleroClient) GetDownloadRequests(ctx context.Context, namespace string
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "downloadRequests")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -134,6 +169,11 @@ func (v *veleroClient) GetDataUploads(ctx context.Context, namespace string) ([]
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "dataUploads")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -146,6 +186,11 @@ func (v *veleroClient) GetDataDownloads(ctx context.Context, namespace string) (
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "dataDownloads")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -158,6 +203,11 @@ func (v *veleroClient) GetDeleteBackupRequests(ctx context.Context, namespace st
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "deleteBackupRequests")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }
 
@@ -170,5 +220,10 @@ func (v *veleroClient) GetServerStatusRequests(ctx context.Context, namespace st
 	if err := c.List(ctx, list, kbclient.InNamespace(namespace)); err != nil {
 		return nil, utils.WrapK8sError(namespace, err, "serverStatusRequests")
 	}
+
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
 	return list.Items, nil
 }

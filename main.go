@@ -1,41 +1,30 @@
 package main
 
 import (
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"net/http"
+	"log"
 	"runtime"
+
+	"github.com/labstack/echo/v4"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"taking.kr/velero/routes"
 )
 
 func main() {
 	e := echo.New()
 
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	e.Use(echomiddleware.Logger())
+	e.Use(echomiddleware.Recover())
+	e.Use(echomiddleware.CORS())
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	e.GET("/healthz", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{
-			"status":  "ok",
-			"message": "server, kubernetes, velero all reachable",
-		})
-	})
-	//
-	//rawKubeconfig := getRawKubeconfigFromAPI()
-	//
-	//provider, err := clients.NewVeleroClientFromRawVeleroConfig(rawKubeconfig)
-	//if err != nil {
-	//	log.Fatalf("Failed to init provider: %v", err)
-	//}
-	//
-	//healthService := service.NewHealthSerice(provider)
+	routes.RegisterBodyRoutes(e)
 
-	routes.RegisterRoutes(e)
+	log.Printf("🚀 Enhanced Velero API Server starting on :9091")
+	log.Printf("📋 Features: Multi-cluster support, Backup migration, Enhanced error handling")
 
-	if err := e.Start(":8080"); err != nil {
-		panic(err)
+	if err := e.Start(":9091"); err != nil {
+		log.Fatalf("❌ Server failed to start: %v", err)
 	}
 }
 

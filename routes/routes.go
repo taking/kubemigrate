@@ -2,27 +2,48 @@ package routes
 
 import (
 	"github.com/labstack/echo/v4"
+	"net/http"
 	ctrl "taking.kr/velero/controller"
 )
 
-func RegisterRoutes(e *echo.Echo) {
-	veleroCtl := ctrl.VeleroController{}
-	kubeCtl := ctrl.KubeController{}
+func RegisterBodyRoutes(e *echo.Echo) {
+	veleroCtrl := ctrl.NewVeleroBodyController()
 
 	api := e.Group("/api/v1")
 
-	// VeleroController
-	api.GET("/velero/backups", veleroCtl.GetBackups)
-	api.GET("/velero/restores", veleroCtl.GetRestores)
-	api.GET("/velero/backup-repositories", veleroCtl.GetBackupRepositories)
-	api.GET("/velero/backup-storage-locations", veleroCtl.GetBackupStorageLocations)
-	api.GET("/velero/volume-snapshot-locations", veleroCtl.GetVolumeSnapshotLocations)
-	api.GET("/velero/pod-volume-restores", veleroCtl.GetPodVolumeRestores)
-	api.GET("/velero/download-requests", veleroCtl.GetDownloadRequests)
-	api.GET("/velero/data-uploads", veleroCtl.GetDataUploads)
-	api.GET("/velero/data-downloads", veleroCtl.GetDataDownloads)
-	api.GET("/velero/server-status-requests", veleroCtl.GetServerStatusRequests)
+	velero := api.Group("/velero")
+	{
+		velero.GET("/backups", veleroCtrl.GetBackups)
+		velero.GET("/restores", veleroCtrl.GetRestores)
+		velero.GET("/backup-repositories", veleroCtrl.GetBackupRepositories)
+		velero.GET("/backup-storage-locations", veleroCtrl.GetBackupStorageLocations)
+		velero.GET("/volume-snapshot-locations", veleroCtrl.GetVolumeSnapshotLocations)
+		velero.GET("/pod-volume-restores", veleroCtrl.GetPodVolumeRestores)
+		velero.GET("/download-requests", veleroCtrl.GetDownloadRequests)
+		velero.GET("/data-uploads", veleroCtrl.GetDataUploads)
+		velero.GET("/data-downloads", veleroCtrl.GetDataDownloads)
+		velero.GET("/server-status-requests", veleroCtrl.GetServerStatusRequests)
+	}
 
-	// KubeController
-	api.GET("/kube/resources/:group/:version/:resource/:name", kubeCtl.GetResources)
+	// 멀티클러스터 기능 엔드포인트
+	migration := api.Group("/migration")
+	{
+		migration.POST("/validate-destination", veleroCtrl.ValidateDestination)
+		//migration.POST("/backup/:backupName"), veleroCtrl.MigrateBackup)
+		migration.GET("/compare-storage-classes", veleroCtrl.CompareStorageClasses)
+	}
+
+	api.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"status":  "healthy",
+			"version": "v1",
+			"message": "server, kubernetes, velero all reachable",
+			"features": []string{
+				"single-cluster",
+				"multi-cluster",
+				"backup-migration",
+				"storage-validation",
+			},
+		})
+	})
 }

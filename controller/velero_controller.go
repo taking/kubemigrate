@@ -2,257 +2,223 @@ package controller
 
 import (
 	"context"
+	"github.com/labstack/echo/v4"
 	"log"
 	"net/http"
-
-	"github.com/labstack/echo/v4"
 	"taking.kr/velero/clients"
 	"taking.kr/velero/interfaces"
+	"taking.kr/velero/models"
 	"taking.kr/velero/utils"
 )
 
-type VeleroController struct {
-	service interfaces.VeleroService
+type VeleroBodyController struct{}
+
+func NewVeleroBodyController() *VeleroBodyController {
+	return &VeleroBodyController{}
 }
 
-func NewVeleroController(s interfaces.VeleroService) *VeleroController {
-	return &VeleroController{service: s}
-}
+// getVeleroServiceFromRequest는 요청에서 kubeconfig를 추출하여 서비스를 생성합니다
+func (c *VeleroBodyController) getVeleroServiceFromRequest(ctx echo.Context) (interfaces.VeleroService, string, error) {
+	var req models.VeleroRequest
 
-// 공통 처리 함수
-func (bc *VeleroController) handleWithNamespace(
-	c echo.Context,
-	handler func(ctx context.Context, ns string) (interface{}, error),
-) error {
-	ns := c.QueryParam("namespace")
-	if ns == "" {
-		ns = "velero"
+	if err := ctx.Bind(&req); err != nil {
+		return nil, "", echo.NewHTTPError(http.StatusBadRequest, "Invalid request body: "+err.Error())
 	}
-	result, err := handler(context.Background(), ns)
+
+	// kubeconfig 유효성 검사
+	if req.SourceKubeconfig == "" {
+		return nil, "", echo.NewHTTPError(http.StatusBadRequest, "sourceKubeconfig is required")
+	}
+
+	// namespace 설정
+	namespace := req.Namespace
+	if namespace == "" {
+		namespace = ctx.QueryParam("namespace")
+		if namespace == "" {
+			namespace = "velero"
+		}
+	}
+
+	decodeKubeconfig, err := utils.DecodeIfBase64(req.SourceKubeconfig)
+	if err != nil {
+		return nil, "", echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	// Velero 클라이언트 생성
+	service, err := clients.NewVeleroClientFromRawConfig(decodeKubeconfig)
+	if err != nil {
+		return nil, "", echo.NewHTTPError(http.StatusBadRequest, "Invalid kubeconfig: "+err.Error())
+	}
+
+	return service, namespace, nil
+}
+
+// 공통 요청 처리 함수
+func (c *VeleroBodyController) handleRequest(
+	ctx echo.Context,
+	handler func(context.Context, interfaces.VeleroService, string) (interface{}, error),
+) error {
+	service, namespace, err := c.getVeleroServiceFromRequest(ctx)
+	if err != nil {
+		return err
+	}
+
+	result, err := handler(ctx.Request().Context(), service, namespace)
 	if err != nil {
 		log.Printf("[ERROR] %v\n", err)
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{
+			"error": err.Error(),
+		})
 	}
-	return c.JSON(http.StatusOK, result)
-}
 
-func (bc *VeleroController) GetBackups(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		// Prefer existing service if provided, else construct from header per request
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetBackups(ctx, ns)
+	return ctx.JSON(http.StatusOK, map[string]interface{}{
+		"data":    result,
+		"success": true,
 	})
 }
 
-func (bc *VeleroController) GetRestores(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetRestores(ctx, ns)
+func (c *VeleroBodyController) GetBackups(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetBackups(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetBackupRepositories(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetBackupRepositories(ctx, ns)
+func (c *VeleroBodyController) GetRestores(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetRestores(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetBackupStorageLocations(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetBackupStorageLocations(ctx, ns)
+func (c *VeleroBodyController) GetBackupRepositories(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetBackupRepositories(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetVolumeSnapshotLocations(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetVolumeSnapshotLocations(ctx, ns)
+func (c *VeleroBodyController) GetBackupStorageLocations(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetBackupStorageLocations(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetPodVolumeRestores(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetPodVolumeRestores(ctx, ns)
+func (c *VeleroBodyController) GetVolumeSnapshotLocations(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetVolumeSnapshotLocations(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetDownloadRequests(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetDownloadRequests(ctx, ns)
+func (c *VeleroBodyController) GetPodVolumeRestores(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetPodVolumeRestores(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetDataUploads(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetDataUploads(ctx, ns)
+func (c *VeleroBodyController) GetDownloadRequests(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetDownloadRequests(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetDataDownloads(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetDataDownloads(ctx, ns)
+func (c *VeleroBodyController) GetDataUploads(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetDataUploads(reqCtx, namespace)
 	})
 }
 
-func (bc *VeleroController) GetServerStatusRequests(c echo.Context) error {
-	return bc.handleWithNamespace(c, func(ctx context.Context, ns string) (interface{}, error) {
-		svc := bc.service
-		if svc == nil {
-			raw := c.Request().Header.Get("X-Kubeconfig")
-			if raw == "" {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, "missing X-Kubeconfig header")
-			}
-			cfg, err := utils.ParseRestConfigFromRaw(raw)
-			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-			}
-			v, err := clients.NewVeleroClientFromRestConfig(cfg)
-			if err != nil {
-				return nil, err
-			}
-			svc = v
-		}
-		return svc.GetServerStatusRequests(ctx, ns)
+func (c *VeleroBodyController) GetDataDownloads(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetDataDownloads(reqCtx, namespace)
+	})
+}
+
+func (c *VeleroBodyController) GetServerStatusRequests(ctx echo.Context) error {
+	return c.handleRequest(ctx, func(reqCtx context.Context, service interfaces.VeleroService, namespace string) (interface{}, error) {
+		return service.GetServerStatusRequests(reqCtx, namespace)
+	})
+}
+
+// 대상 클러스터 검증
+func (c *VeleroBodyController) ValidateDestination(ctx echo.Context) error {
+	var req models.VeleroRequest
+	if err := ctx.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body: "+err.Error())
+	}
+
+	if req.DestinationKubeconfig == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "destinationKubeconfig is required")
+	}
+
+	// 대상 클러스터 서비스 생성
+	destService, err := clients.NewVeleroClientFromRawConfig(req.DestinationKubeconfig)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid destination kubeconfig: "+err.Error())
+	}
+
+	namespace := req.Namespace
+	if namespace == "" {
+		namespace = "velero"
+	}
+
+	// Velero 설치 상태 확인
+	_, err = destService.GetBackupStorageLocations(ctx.Request().Context(), namespace)
+	if err != nil {
+		return ctx.JSON(http.StatusOK, map[string]interface{}{
+			"valid":   false,
+			"error":   err.Error(),
+			"message": "Destination cluster validation failed",
+		})
+	}
+
+	return ctx.JSON(http.StatusOK, map[string]interface{}{
+		"valid":   true,
+		"message": "Destination cluster is ready for Velero operations",
+	})
+}
+
+// 스토리지 클래스 비교
+func (c *VeleroBodyController) CompareStorageClasses(ctx echo.Context) error {
+	var req models.VeleroRequest
+	if err := ctx.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body: "+err.Error())
+	}
+
+	if req.SourceKubeconfig == "" || req.DestinationKubeconfig == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Both source and destination kubeconfigs are required")
+	}
+
+	// 소스와 대상 클러스터의 스토리지 클래스를 가져오는 로직
+	// 여기서는 간단한 예시로 구현
+
+	sourceService, err := clients.NewVeleroClientFromRawConfig(req.SourceKubeconfig)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid source kubeconfig: "+err.Error())
+	}
+
+	destService, err := clients.NewVeleroClientFromRawConfig(req.DestinationKubeconfig)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid destination kubeconfig: "+err.Error())
+	}
+
+	namespace := req.Namespace
+	if namespace == "" {
+		namespace = "velero"
+	}
+
+	// 간단한 비교 로직 (실제로는 더 복잡한 구현 필요)
+	sourceLocations, err := sourceService.GetBackupStorageLocations(ctx.Request().Context(), namespace)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get source storage locations: "+err.Error())
+	}
+
+	destLocations, err := destService.GetBackupStorageLocations(ctx.Request().Context(), namespace)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get destination storage locations: "+err.Error())
+	}
+
+	return ctx.JSON(http.StatusOK, map[string]interface{}{
+		"sourceStorageLocations":      len(sourceLocations),
+		"destinationStorageLocations": len(destLocations),
+		"compatible":                  len(sourceLocations) > 0 && len(destLocations) > 0,
+		"message":                     "Storage location comparison completed",
 	})
 }
