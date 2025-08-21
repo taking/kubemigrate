@@ -1,53 +1,69 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
+	"time"
 
 	"github.com/labstack/echo/v4"
-	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v4/middleware"
 	"taking.kr/velero/routes"
 )
 
 func main() {
 	e := echo.New()
 
-	e.Use(echomiddleware.Logger())
-	e.Use(echomiddleware.Recover())
-	e.Use(echomiddleware.CORS())
+	e.HideBanner = true
+	e.HidePort = true
+
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+	e.Use(middleware.Gzip())
+	e.Use(middleware.RequestID())
+	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
+		Timeout: 30 * time.Second,
+	}))
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	routes.RegisterBodyRoutes(e)
 
-	log.Printf("🚀 Enhanced Velero API Server starting on :9091")
-	log.Printf("📋 Features: Multi-cluster support, Backup migration, Enhanced error handling")
-
-	if err := e.Start(":9091"); err != nil {
-		log.Fatalf("❌ Server failed to start: %v", err)
+	server := &http.Server{
+		Addr:         ":9091",
+		Handler:      e,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
-}
+	go func() {
+		log.Printf("🚀 Enhanced Velero API Server starting on %s", ":9091")
+		log.Printf("📋 Features: Multi-cluster, Backup validation, Enhanced error handling")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("❌ Server failed to start: %v", err)
+		}
+	}()
 
-func getRawKubeconfigFromAPI() string {
-	// 실제 구현 필요
-	return `apiVersion: v1
-clusters:
-  - cluster:
-      certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJkekNDQVIyZ0F3SUJBZ0lCQURBS0JnZ3Foa2pPUFFRREFqQWpNU0V3SHdZRFZRUUREQmhyTTNNdGMyVnkKZG1WeUxXTmhRREUzTkRRMU9UUXhOVEl3SGhjTk1qVXdOREUwTURFeU9URXlXaGNOTXpVd05ERXlNREV5T1RFeQpXakFqTVNFd0h3WURWUVFEREJock0zTXRjMlZ5ZG1WeUxXTmhRREUzTkRRMU9UUXhOVEl3V1RBVEJnY3Foa2pPClBRSUJCZ2dxaGtqT1BRTUJCd05DQUFSdFduaDVWbGhrcWJjWTQ3UWFlM3hFT1ZMSDhHVkloaFQ3R1diM3NJcDMKcHRBK2tGUmZPaFZWYW1aRGRFM21CWjlkUG5PMFRBbk5idlRKMmtwd3o2L2FvMEl3UURBT0JnTlZIUThCQWY4RQpCQU1DQXFRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVWpoK0VyS3JCMHpoMVRwSkExZURWCkM3em5SMTh3Q2dZSUtvWkl6ajBFQXdJRFNBQXdSUUloQUtpUXc5eGx2anZ3ejAwYWlOYWVRSWo4Q2JpbURRTXIKU2pYaEhYSlJ3Q2dpQWlCeFVBd3dwblV1VTRGSUk4MDBJVTNlOER0N3FhNmUzTFNuTlRaQ25CSTFidz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
-      server: https://127.0.0.1:26443
-    name: orbstack
-contexts:
-  - context:
-      cluster: orbstack
-      user: orbstack
-    name: orbstack
-current-context: orbstack
-kind: Config
-preferences: {}
-users:
-  - name: orbstack
-    user:
-      client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJrVENDQVRlZ0F3SUJBZ0lJWE5ZNElBdUlqNGt3Q2dZSUtvWkl6ajBFQXdJd0l6RWhNQjhHQTFVRUF3d1kKYXpOekxXTnNhV1Z1ZEMxallVQXhOelEwTlRrME1UVXlNQjRYRFRJMU1EUXhOREF4TWpreE1sb1hEVEkyTURReApOREF4TWpreE1sb3dNREVYTUJVR0ExVUVDaE1PYzNsemRHVnRPbTFoYzNSbGNuTXhGVEFUQmdOVkJBTVRESE41CmMzUmxiVHBoWkcxcGJqQlpNQk1HQnlxR1NNNDlBZ0VHQ0NxR1NNNDlBd0VIQTBJQUJLSUVUZ0hONXozdjNSQ0YKUmtIS2xtMTlBbXp4OElxZ1FGWUdDMXJoa1hQTGlFY3ozM1UzSDZ6dy9XTzZaMDhQZlNvWWFjb0ZQU3NuSFRKRQp1bkx4Ujl1alNEQkdNQTRHQTFVZER3RUIvd1FFQXdJRm9EQVRCZ05WSFNVRUREQUtCZ2dyQmdFRkJRY0RBakFmCkJnTlZIU01FR0RBV2dCVHk2SUxQNzRyUnFCTXNvNVJEaE9NTHUxT1VxVEFLQmdncWhrak9QUVFEQWdOSUFEQkYKQWlCWktCWHNkUndqaW4vNDJTbkNMeG53bTVZNC9GMGJ5VnNPRVdVZnhwVm8yUUloQUtDcVRrRndSblVIMVYwTAp6Sk1FalZoaDlMLzlFUXBIOUZwYmpTU010ZFVpCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJkekNDQVIyZ0F3SUJBZ0lCQURBS0JnZ3Foa2pPUFFRREFqQWpNU0V3SHdZRFZRUUREQmhyTTNNdFkyeHAKWlc1MExXTmhRREUzTkRRMU9UUXhOVEl3SGhjTk1qVXdOREUwTURFeU9URXlXaGNOTXpVd05ERXlNREV5T1RFeQpXakFqTVNFd0h3WURWUVFEREJock0zTXRZMnhwWlc1MExXTmhRREUzTkRRMU9UUXhOVEl3V1RBVEJnY3Foa2pPClBRSUJCZ2dxaGtqT1BRTUJCd05DQUFRaEY4WE4xeDFwYUV3bU00VTZSbUlNMWFxb2czaUc2NkFoTWMyb05LeHIKOTVSWk9MTkN5cGxQdGw3UzhGdlBlTXc5eW1GUTRuZ0Urem5idjUyNys2b3RvMEl3UURBT0JnTlZIUThCQWY4RQpCQU1DQXFRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVTh1aUN6KytLMGFnVExLT1VRNFRqCkM3dFRsS2t3Q2dZSUtvWkl6ajBFQXdJRFNBQXdSUUlnSC9uU2hRQXlNMWdqakd3SHZaQzQ3QUMxNE9YMWc5V3QKbEN4MkpZMG5LK01DSVFDZytpd3Z0Vk9ZQnIxdSsxSTRhWFJ3c21wek1OWFp3a2xSMVJzR0ZQeVlCQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
-      client-key-data: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUFxUk9kMVJQcWxhUUdPV2xnNy8yQjErcDRtTm9nenl2eG1TditQM0dnVHVvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb2dST0FjM25QZS9kRUlWR1FjcVdiWDBDYlBId2lxQkFWZ1lMV3VHUmM4dUlSelBmZFRjZgpyUEQ5WTdwblR3OTlLaGhweWdVOUt5Y2RNa1M2Y3ZGSDJ3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
-`
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("🔄 Shutting down server...")
+
+	// Graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("❌ Server forced to shutdown: %v", err)
+	}
+
+	log.Println("✅ Server exited")
 }

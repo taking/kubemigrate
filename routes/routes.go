@@ -29,8 +29,10 @@ func RegisterBodyRoutes(e *echo.Echo) {
 	migration := api.Group("/migration")
 	{
 		migration.POST("/validate-destination", veleroCtrl.ValidateDestination)
+		//migration.POST("/migrate-backup", veleroCtrl.MigrateBackup)
 		//migration.POST("/backup/:backupName"), veleroCtrl.MigrateBackup)
 		migration.GET("/compare-storage-classes", veleroCtrl.CompareStorageClasses)
+		//migration.GET("/migration/:id/status", veleroCtrl.GetMigrationStatus)
 	}
 
 	api.GET("/health", func(c echo.Context) error {
