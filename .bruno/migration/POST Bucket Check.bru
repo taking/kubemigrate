@@ -1,0 +1,26 @@
+meta {
+  name: POST Bucket Check
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/bucket_check
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "endpoint": "192.168.110.118:9000",
+      "accessKey": "admin",
+      "secretKey": "password",
+      "useSSL": false,
+      "bucketName": "velero",
+      "region": "us-east-1"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

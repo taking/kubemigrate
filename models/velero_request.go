@@ -1,7 +1,7 @@
 package models
 
-type VeleroRequest struct {
-	SourceKubeconfig      string `json:"sourceKubeconfig"`
-	DestinationKubeconfig string `json:"destinationKubeconfig,omitempty"`
-	Namespace             string `json:"namespace,omitempty"`
-}
+//type VeleroRequest struct {
+//	SourceKubeConfig      string `json:"sourceKubeConfig"`
+//	DestinationKubeConfig string `json:"destinationKubeConfig,omitempty"`
+//	Namespace             string `json:"namespace,omitempty"`
+//}

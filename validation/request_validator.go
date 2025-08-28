@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"taking.kr/velero/utils"
 
 	"taking.kr/velero/models"
 )
@@ -20,38 +21,29 @@ func NewRequestValidator() *RequestValidator {
 	}
 }
 
-func (v *RequestValidator) ValidateVeleroRequest(req *models.VeleroRequest) error {
-	if req.SourceKubeconfig == "" {
-		return fmt.Errorf("sourceKubeconfig is required")
+func (v *RequestValidator) ValidateKubeConfigRequest(req *models.KubeConfig) (string, error) {
+	if req.KubeConfig == "" {
+		return "", fmt.Errorf("KubeConfig is required")
 	}
 
-	if len(req.SourceKubeconfig) > 100000 { // 100KB limit
-		return fmt.Errorf("sourceKubeconfig too large (max 100KB)")
+	if len(req.KubeConfig) > 100000 { // 100KB limit
+		return "", fmt.Errorf("KubeConfig too large (max 100KB)")
 	}
+
+	decodeSourceKubeConfig, _ := utils.DecodeIfBase64(req.KubeConfig)
 
 	// Basic kubeconfig format validation
-	if !strings.Contains(req.SourceKubeconfig, "apiVersion") {
-		return fmt.Errorf("sourceKubeconfig appears to be invalid (missing apiVersion)")
+	if !strings.Contains(decodeSourceKubeConfig, "apiVersion") {
+		return "", fmt.Errorf("KubeConfig appears to be invalid (missing apiVersion)")
 	}
 
 	if req.Namespace != "" {
 		if !v.isValidNamespace(req.Namespace) {
-			return fmt.Errorf("invalid namespace format: must be lowercase alphanumeric with hyphens")
+			return "", fmt.Errorf("invalid namespace format: must be lowercase alphanumeric with hyphens")
 		}
 	}
 
-	// Validate destination kubeconfig if provided
-	if req.DestinationKubeconfig != "" {
-		if len(req.DestinationKubeconfig) > 100000 {
-			return fmt.Errorf("destinationKubeconfig too large (max 100KB)")
-		}
-
-		if !strings.Contains(req.DestinationKubeconfig, "apiVersion") {
-			return fmt.Errorf("destinationKubeconfig appears to be invalid (missing apiVersion)")
-		}
-	}
-
-	return nil
+	return decodeSourceKubeConfig, nil
 }
 
 func (v *RequestValidator) isValidNamespace(namespace string) bool {

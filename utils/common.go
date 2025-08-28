@@ -6,7 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// DecodeIfBase64 클러스터의 KubeConfig을 디코딩
+// DecodeIfBase64 클러스터의 KubeConfig을 디코딩Decode
 func DecodeIfBase64(s string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {

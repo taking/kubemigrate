@@ -33,7 +33,7 @@ func main() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	routes.RegisterBodyRoutes(e)
+	routes.RegisterRoutes(e)
 
 	server := &http.Server{
 		Addr:         ":9091",

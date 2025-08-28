@@ -1,11 +1,11 @@
 meta {
-  name: Healthz
+  name: Health
   type: http
   seq: 2
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/healthz
+  url: {{host_ip}}:{{host_port}}/api/v1/health
   body: none
   auth: inherit
 }

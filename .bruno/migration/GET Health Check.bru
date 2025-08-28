@@ -1,0 +1,24 @@
+meta {
+  name: GET Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/health
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "endpoint": "192.168.110.118:9000",
+      "accessKey": "admin",
+      "secretKey": "password",
+      "useSSL": false
+  }
+}
+
+settings {
+  encodeUrl: true
+}
