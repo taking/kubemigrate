@@ -1,11 +1,11 @@
 meta {
-  name: Get Restore List
+  name: [GET] 파드 목록 조회
   type: http
   seq: 3
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/restores
+  url: {{host_ip}}:{{host_port}}/api/v1/kube/pods
   body: json
   auth: inherit
 }

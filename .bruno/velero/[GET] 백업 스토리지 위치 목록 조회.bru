@@ -1,11 +1,11 @@
 meta {
-  name: Get Pods
+  name: [GET] 백업 스토리지 위치 목록 조회
   type: http
-  seq: 3
+  seq: 5
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kube/pods
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/backup-storage-locations
   body: json
   auth: inherit
 }

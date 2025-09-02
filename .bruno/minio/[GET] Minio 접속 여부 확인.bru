@@ -1,23 +1,21 @@
 meta {
-  name: POST Bucket Check
+  name: [GET] Minio 접속 여부 확인
   type: http
-  seq: 2
+  seq: 1
 }
 
-post {
-  url: {{host_ip}}:{{host_port}}/api/v1/minio/bucket_check
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/health
   body: json
   auth: inherit
 }
 
 body:json {
   {
-      "useSSL": false,
       "endpoint": "192.168.110.118:9000",
       "accessKey": "admin",
       "secretKey": "password",
-      "bucketName": "velero",
-      "region": "us-east-1"
+      "useSSL": false
   }
 }
 

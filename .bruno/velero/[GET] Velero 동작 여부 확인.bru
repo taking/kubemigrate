@@ -1,11 +1,11 @@
 meta {
-  name: Get Storage Classes
+  name: [GET] Velero 동작 여부 확인
   type: http
-  seq: 9
+  seq: 1
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kube/storage-classes
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/health
   body: json
   auth: inherit
 }

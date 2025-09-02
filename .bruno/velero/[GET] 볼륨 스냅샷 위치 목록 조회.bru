@@ -1,11 +1,11 @@
 meta {
-  name: Get Backup Storage Locations
+  name: [GET] 볼륨 스냅샷 위치 목록 조회
   type: http
-  seq: 5
+  seq: 6
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/backup-storage-locations
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/volume-snapshot-locations
   body: json
   auth: inherit
 }

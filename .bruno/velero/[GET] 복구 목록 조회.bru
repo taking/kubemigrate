@@ -1,11 +1,11 @@
 meta {
-  name: Get BackupRepositories
+  name: [GET] 복구 목록 조회
   type: http
-  seq: 4
+  seq: 3
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/backup-repositories
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/restores
   body: json
   auth: inherit
 }

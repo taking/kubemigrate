@@ -1,21 +1,23 @@
 meta {
-  name: GET Health Check
+  name: [POST] 버킷 확인 및 생성
   type: http
-  seq: 1
+  seq: 2
 }
 
-get {
-  url: {{host_ip}}:{{host_port}}/api/v1/minio/health
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/bucket_check
   body: json
   auth: inherit
 }
 
 body:json {
   {
+      "useSSL": false,
       "endpoint": "192.168.110.118:9000",
       "accessKey": "admin",
       "secretKey": "password",
-      "useSSL": false
+      "bucketName": "velero",
+      "region": "us-east-1"
   }
 }
 
