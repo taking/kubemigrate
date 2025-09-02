@@ -3,212 +3,157 @@ package controller
 import (
 	"context"
 	"github.com/labstack/echo/v4"
-	"taking.kr/velero/helpers"
+	"taking.kr/velero/interfaces"
+	"taking.kr/velero/utils"
 
 	"net/http"
 	"sort"
 	"taking.kr/velero/clients"
-	"taking.kr/velero/models"
-	"taking.kr/velero/validation"
 )
 
 // VeleroController : Velero 관련 API 컨트롤러
 type VeleroController struct {
-	validator *validation.RequestValidator
+	*BaseController
 }
 
 func NewVeleroController() *VeleroController {
 	return &VeleroController{
-		validator: validation.NewRequestValidator(),
+		BaseController: NewBaseController(),
 	}
 }
 
 // CheckVeleroConnection : Kubernetes 클러스터 Velero 연결 확인
 func (c *VeleroController) CheckVeleroConnection(ctx echo.Context) error {
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
+	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	namespace := helpers.ResolveNamespace(&req, ctx, "velero")
+	namespace := c.ResolveNamespace(&req, ctx, "velero")
+	req.Namespace = namespace
 
-	client, err := clients.NewVeleroClient(models.KubeConfig{
-		KubeConfig: req.KubeConfig,
-		Namespace:  namespace,
-	})
+	client, err := clients.NewVeleroClient(req)
 	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	if err := client.HealthCheck(ctx.Request().Context()); err != nil {
-		return helpers.JSONError(ctx, http.StatusServiceUnavailable, "Velero cluster unhealthy: "+err.Error())
-	}
-
-	return helpers.JSONStatus(ctx, "healthy", "Kubernetes connection successful")
+	return c.HandleHealthCheck(ctx, client, "Velero")
 }
 
-func (c *VeleroController) GetBackups(ctx echo.Context) error {
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
+// handleVeleroResource : Generic resource handler to reduce code duplication
+func (c *VeleroController) handleVeleroResource(ctx echo.Context,
+	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
+
+	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {
 		return err
 	}
-	namespace := helpers.ResolveNamespace(&req, ctx, "velero")
 
-	client, err := clients.NewVeleroClient(models.KubeConfig{
-		KubeConfig: req.KubeConfig,
-		Namespace:  namespace,
-	})
+	namespace := c.ResolveNamespace(&req, ctx, "velero")
+	req.Namespace = namespace
+
+	client, err := clients.NewVeleroClient(req)
 	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	data, err := client.GetBackups(context.Background())
+	data, err := getResource(client, context.Background())
 	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
-	})
-
-	//summary := generateBackupSummary(data)
+	// Sort by creation time if the data has timestamp field
+	if sortable, ok := data.(interface {
+		Len() int
+		Swap(i, j int)
+		Less(i, j int) bool
+	}); ok {
+		sort.Sort(sortable)
+	}
 
 	return ctx.JSON(http.StatusOK, map[string]interface{}{
 		"status": "success",
 		"data":   data,
-		//"summary": summary,
+	})
+}
+
+func (c *VeleroController) GetBackups(ctx echo.Context) error {
+	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetBackups(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// Sort backups by creation time (newest first)
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
+
+		return data, nil
 	})
 }
 
 func (c *VeleroController) GetRestores(ctx echo.Context) error {
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
-	if err != nil {
-		return err
-	}
-	namespace := helpers.ResolveNamespace(&req, ctx, "velero")
+	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetRestores(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	client, err := clients.NewVeleroClient(models.KubeConfig{
-		KubeConfig: req.KubeConfig,
-		Namespace:  namespace,
-	})
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
+		// Sort backups by creation time (newest first)
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
 
-	data, err := client.GetRestores(context.Background())
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
-
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
-	})
-
-	//summary := generateRestoresSummary(data)
-
-	return ctx.JSON(http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"data":   data,
-		//"summary": summary,
+		return data, nil
 	})
 }
 
 func (c *VeleroController) GetBackupRepositories(ctx echo.Context) error {
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
-	if err != nil {
-		return err
-	}
-	namespace := helpers.ResolveNamespace(&req, ctx, "velero")
+	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetBackupRepositories(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	client, err := clients.NewVeleroClient(models.KubeConfig{
-		KubeConfig: req.KubeConfig,
-		Namespace:  namespace,
-	})
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
+		// Sort backups by creation time (newest first)
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
 
-	data, err := client.GetBackupRepositories(context.Background())
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
-
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
-	})
-
-	//summary := generateRestoresSummary(data)
-
-	return ctx.JSON(http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"data":   data,
-		//"summary": summary,
+		return data, nil
 	})
 }
 
 func (c *VeleroController) GetBackupStorageLocations(ctx echo.Context) error {
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
-	if err != nil {
-		return err
-	}
-	namespace := helpers.ResolveNamespace(&req, ctx, "velero")
+	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetBackupStorageLocations(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	client, err := clients.NewVeleroClient(models.KubeConfig{
-		KubeConfig: req.KubeConfig,
-		Namespace:  namespace,
-	})
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
+		// Sort backups by creation time (newest first)
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
 
-	data, err := client.GetBackupStorageLocations(context.Background())
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
-
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
-	})
-
-	//summary := generateRestoresSummary(data)
-
-	return ctx.JSON(http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"data":   data,
-		//"summary": summary,
+		return data, nil
 	})
 }
 
 func (c *VeleroController) GetVolumeSnapshotLocations(ctx echo.Context) error {
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
-	if err != nil {
-		return err
-	}
-	namespace := helpers.ResolveNamespace(&req, ctx, "velero")
+	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetVolumeSnapshotLocations(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	client, err := clients.NewVeleroClient(models.KubeConfig{
-		KubeConfig: req.KubeConfig,
-		Namespace:  namespace,
-	})
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
+		// Sort backups by creation time (newest first)
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
 
-	data, err := client.GetVolumeSnapshotLocations(context.Background())
-	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
-	}
-
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
-	})
-
-	//summary := generateRestoresSummary(data)
-
-	return ctx.JSON(http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"data":   data,
-		//"summary": summary,
+		return data, nil
 	})
 }
 

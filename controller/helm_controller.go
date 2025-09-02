@@ -2,29 +2,28 @@ package controller
 
 import (
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"net/http"
+	"taking.kr/velero/clients"
 	"taking.kr/velero/helpers"
 	"taking.kr/velero/models"
-	"taking.kr/velero/validation"
-
-	"github.com/labstack/echo/v4"
-	"taking.kr/velero/clients"
+	"taking.kr/velero/utils"
 )
 
 type HelmController struct {
-	validator *validation.RequestValidator
+	*BaseController
 }
 
 func NewHelmController() *HelmController {
 	return &HelmController{
-		validator: validation.NewRequestValidator(),
+		BaseController: NewBaseController(),
 	}
 }
 
 // CheckHelmConnection : Helm 연결 및 Kubernetes 접근 확인
 func (c *HelmController) CheckHelmConnection(ctx echo.Context) error {
 	// KubeConfig 바인딩 및 검증
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
+	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -35,22 +34,19 @@ func (c *HelmController) CheckHelmConnection(ctx echo.Context) error {
 	// Helm 클라이언트 생성
 	client, err := clients.NewHelmClient(req)
 	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
+
 	_ = client.InvalidateCache() // 캐시 초기화 후 최신 정보로 동작
 
 	// Helm 연결 상태 확인
-	if err := client.HealthCheck(); err != nil {
-		return helpers.JSONError(ctx, http.StatusServiceUnavailable, fmt.Sprintf("Helm health check failed: %v", err))
-	}
-
-	return helpers.JSONStatus(ctx, "healthy", "Helm client connected successfully")
+	return c.HandleHealthCheck(ctx, client, "Helm")
 }
 
 // IsChartInstalled : 특정 Helm 차트 설치 여부 확인
 func (c *HelmController) IsChartInstalled(ctx echo.Context) error {
 	// KubeConfig 바인딩 및 검증
-	req, err := helpers.BindAndValidateKubeConfig(ctx, c.validator)
+	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -58,17 +54,18 @@ func (c *HelmController) IsChartInstalled(ctx echo.Context) error {
 	// Helm 클라이언트 생성
 	client, err := clients.NewHelmClient(req)
 	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
+
 	_ = client.InvalidateCache() // 캐시 초기화 후 최신 정보로 동작
 
 	// 차트 설치 여부 확인
 	installed, data, err := client.IsChartInstalled(req.ChartName)
 	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, fmt.Sprintf("failed to check chart installation: %v", err))
+		return utils.RespondError(ctx, http.StatusInternalServerError, fmt.Sprintf("failed to check chart installation: %v", err))
 	}
 
-	return helpers.JSONSuccess(ctx, map[string]interface{}{
+	return utils.RespondSuccess(ctx, map[string]interface{}{
 		"chart":     data,
 		"installed": installed,
 	})
@@ -84,20 +81,21 @@ func (c *HelmController) InstallChart(ctx echo.Context) error {
 	}
 
 	if err := ctx.Bind(&req); err != nil {
-		return helpers.JSONError(ctx, http.StatusBadRequest, "invalid request body")
+		return utils.RespondError(ctx, http.StatusBadRequest, "invalid request body")
 	}
 
 	// Helm 클라이언트 생성
 	client, err := clients.NewHelmClient(req.KubeConfig)
 	if err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, err.Error())
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
+
 	_ = client.InvalidateCache() // 캐시 초기화 후 최신 정보로 동작
 
 	// 차트 설치
 	if err := client.InstallChart(req.ChartName, req.ChartPath, req.Values); err != nil {
-		return helpers.JSONError(ctx, http.StatusInternalServerError, fmt.Sprintf("failed to install chart '%s': %v", req.ChartName, err))
+		return utils.RespondError(ctx, http.StatusInternalServerError, fmt.Sprintf("failed to install chart '%s': %v", req.ChartName, err))
 	}
 
-	return helpers.JSONStatus(ctx, "success", fmt.Sprintf("chart installed successfully: %s", req.ChartName))
+	return utils.RespondStatus(ctx, "success", fmt.Sprintf("chart installed successfully: %s", req.ChartName))
 }

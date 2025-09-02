@@ -3,61 +3,55 @@ package clients
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/rest"
+	"taking.kr/velero/interfaces"
 	"taking.kr/velero/models"
 	"time"
 
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	velerov2 "github.com/vmware-tanzu/velero/pkg/apis/velero/v2alpha1"
 	"github.com/vmware-tanzu/velero/pkg/client"
-	"k8s.io/client-go/tools/clientcmd"
 	kbclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"taking.kr/velero/utils"
 )
 
-type VeleroClient struct {
-	client kbclient.Client
-	ns     string
+type veleroClient struct {
+	client  kbclient.Client
+	ns      string
+	factory *ClientFactory
 }
 
 // NewVeleroClient : Velero 클라이언트 초기화
-func NewVeleroClient(cfg models.KubeConfig) (*VeleroClient, error) {
-	var restCfg *rest.Config
-	var err error
+func NewVeleroClient(cfg models.KubeConfig) (interfaces.VeleroClient, error) {
+	clientFactory := NewClientFactory()
 
-	if cfg.KubeConfig != "" {
-		restCfg, err = clientcmd.RESTConfigFromKubeConfig([]byte(cfg.KubeConfig))
-		if err != nil {
-			return nil, fmt.Errorf("❌ failed to parse kubeconfig: %w", err)
-		}
+	restCfg, err := clientFactory.CreateRESTConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	// 네임스페이스 없을 시, "velero"로 설정
-	if cfg.Namespace == "" {
-		cfg.Namespace = "velero"
-	}
+	ns := clientFactory.ResolveNamespace(&cfg, "velero")
 
 	vcl := client.VeleroConfig{
 		"KubeClientConfig": restCfg,
-		"Namespace":        cfg.Namespace,
+		"Namespace":        ns,
 	}
 
-	factory := client.NewFactory("velero", vcl)
-	kb, err := factory.KubebuilderClient()
+	veleroFactory := client.NewFactory("velero", vcl)
+	kb, err := veleroFactory.KubebuilderClient()
 	if err != nil {
-		return nil, fmt.Errorf("❌ failed to create velero factory kubebuilder client: %w", err)
+		return nil, fmt.Errorf("failed to create velero factory kubebuilder client: %w", err)
 	}
 
-	return &VeleroClient{
-		client: kb,
-		ns:     cfg.Namespace,
+	return &veleroClient{
+		client:  kb,
+		ns:      ns,
+		factory: clientFactory,
 	}, nil
-
 }
 
 // HealthCheck : Kubernetes 연결 확인
-func (v *VeleroClient) HealthCheck(ctx context.Context) error {
+func (v *veleroClient) HealthCheck(ctx context.Context) error {
 	// 5초 제한 타임아웃
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -65,13 +59,13 @@ func (v *VeleroClient) HealthCheck(ctx context.Context) error {
 	// 서버 연결 확인 (백업 목록 조회 시도)
 	var pods velerov1.BackupList
 	if err := v.client.List(ctx, &pods, kbclient.InNamespace(v.ns)); err != nil {
-		return fmt.Errorf("❌ failed to velero health check: %w", err)
+		return fmt.Errorf("failed to velero health check: %w", err)
 	}
 	return nil
 }
 
 // GetBackups : 백업 목록 조회
-func (v *VeleroClient) GetBackups(ctx context.Context) ([]velerov1.Backup, error) {
+func (v *veleroClient) GetBackups(ctx context.Context) ([]velerov1.Backup, error) {
 	list := &velerov1.BackupList{}
 
 	// 목록 조회
@@ -86,7 +80,7 @@ func (v *VeleroClient) GetBackups(ctx context.Context) ([]velerov1.Backup, error
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetRestores(ctx context.Context) ([]velerov1.Restore, error) {
+func (v *veleroClient) GetRestores(ctx context.Context) ([]velerov1.Restore, error) {
 	list := &velerov1.RestoreList{}
 
 	// 목록 조회
@@ -101,7 +95,7 @@ func (v *VeleroClient) GetRestores(ctx context.Context) ([]velerov1.Restore, err
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetBackupRepositories(ctx context.Context) ([]velerov1.BackupRepository, error) {
+func (v *veleroClient) GetBackupRepositories(ctx context.Context) ([]velerov1.BackupRepository, error) {
 	list := &velerov1.BackupRepositoryList{}
 
 	// 목록 조회
@@ -116,7 +110,7 @@ func (v *VeleroClient) GetBackupRepositories(ctx context.Context) ([]velerov1.Ba
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetBackupStorageLocations(ctx context.Context) ([]velerov1.BackupStorageLocation, error) {
+func (v *veleroClient) GetBackupStorageLocations(ctx context.Context) ([]velerov1.BackupStorageLocation, error) {
 	list := &velerov1.BackupStorageLocationList{}
 
 	// 목록 조회
@@ -131,7 +125,7 @@ func (v *VeleroClient) GetBackupStorageLocations(ctx context.Context) ([]velerov
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetVolumeSnapshotLocations(ctx context.Context) ([]velerov1.VolumeSnapshotLocation, error) {
+func (v *veleroClient) GetVolumeSnapshotLocations(ctx context.Context) ([]velerov1.VolumeSnapshotLocation, error) {
 	list := &velerov1.VolumeSnapshotLocationList{}
 
 	// 목록 조회
@@ -146,7 +140,7 @@ func (v *VeleroClient) GetVolumeSnapshotLocations(ctx context.Context) ([]velero
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetPodVolumeRestores(ctx context.Context) ([]velerov1.PodVolumeRestore, error) {
+func (v *veleroClient) GetPodVolumeRestores(ctx context.Context) ([]velerov1.PodVolumeRestore, error) {
 	list := &velerov1.PodVolumeRestoreList{}
 
 	// 목록 조회
@@ -161,7 +155,7 @@ func (v *VeleroClient) GetPodVolumeRestores(ctx context.Context) ([]velerov1.Pod
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetDownloadRequests(ctx context.Context) ([]velerov1.DownloadRequest, error) {
+func (v *veleroClient) GetDownloadRequests(ctx context.Context) ([]velerov1.DownloadRequest, error) {
 	list := &velerov1.DownloadRequestList{}
 
 	// 목록 조회
@@ -176,7 +170,7 @@ func (v *VeleroClient) GetDownloadRequests(ctx context.Context) ([]velerov1.Down
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetDataUploads(ctx context.Context) ([]velerov2.DataUpload, error) {
+func (v *veleroClient) GetDataUploads(ctx context.Context) ([]velerov2.DataUpload, error) {
 	list := &velerov2.DataUploadList{}
 
 	// 목록 조회
@@ -191,7 +185,7 @@ func (v *VeleroClient) GetDataUploads(ctx context.Context) ([]velerov2.DataUploa
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetDataDownloads(ctx context.Context) ([]velerov2.DataDownload, error) {
+func (v *veleroClient) GetDataDownloads(ctx context.Context) ([]velerov2.DataDownload, error) {
 	list := &velerov2.DataDownloadList{}
 
 	// 목록 조회
@@ -206,7 +200,7 @@ func (v *VeleroClient) GetDataDownloads(ctx context.Context) ([]velerov2.DataDow
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetDeleteBackupRequests(ctx context.Context) ([]velerov1.DeleteBackupRequest, error) {
+func (v *veleroClient) GetDeleteBackupRequests(ctx context.Context) ([]velerov1.DeleteBackupRequest, error) {
 	list := &velerov1.DeleteBackupRequestList{}
 
 	// 목록 조회
@@ -221,7 +215,7 @@ func (v *VeleroClient) GetDeleteBackupRequests(ctx context.Context) ([]velerov1.
 	return list.Items, nil
 }
 
-func (v *VeleroClient) GetServerStatusRequests(ctx context.Context) ([]velerov1.ServerStatusRequest, error) {
+func (v *veleroClient) GetServerStatusRequests(ctx context.Context) ([]velerov1.ServerStatusRequest, error) {
 	list := &velerov1.ServerStatusRequestList{}
 
 	// 목록 조회
@@ -239,7 +233,7 @@ func (v *VeleroClient) GetServerStatusRequests(ctx context.Context) ([]velerov1.
 //
 //// CreateBackupStorageLocation ensures a BackupStorageLocation exists.
 //// If it exists, returns a message. If not, creates it. Returns error if creation fails.
-//func (v *VeleroClient) EnsureBackupStorageLocation(ctx context.Context, namespace, name, provider, bucket, prefix, region string) (*velerov1.BackupStorageLocation, string, error) {
+//func (v *veleroClient) EnsureBackupStorageLocation(ctx context.Context, namespace, name, provider, bucket, prefix, region string) (*velerov1.BackupStorageLocation, string, error) {
 //	c, err := v.newKBClient()
 //	if err != nil {
 //		return nil, "", fmt.Errorf("failed to get Kubernetes client: %w", err)

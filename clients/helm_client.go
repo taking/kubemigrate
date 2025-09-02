@@ -4,53 +4,34 @@ import (
 	"context"
 	"fmt"
 	"helm.sh/helm/v3/pkg/release"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/discovery"
-	memory "k8s.io/client-go/discovery/cached"
-	"k8s.io/client-go/restmapper"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"log"
+	"taking.kr/velero/interfaces"
 	"time"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"taking.kr/velero/models"
 )
 
 // HelmClient : Helm 클라이언트
-type HelmClient struct {
+type helmClient struct {
 	cfg       *action.Configuration
 	namespace string
+	factory   *ClientFactory
 }
 
 // NewHelmClient : Helm 클라이언트 초기화
-func NewHelmClient(cfg models.KubeConfig) (*HelmClient, error) {
-	var restCfg *rest.Config
-	var err error
+func NewHelmClient(cfg models.KubeConfig) (interfaces.HelmClient, error) {
+	factory := NewClientFactory()
 
-	// 없으면 in-cluster config 시도
-	if cfg.KubeConfig != "" {
-		restCfg, err = clientcmd.RESTConfigFromKubeConfig([]byte(cfg.KubeConfig))
-		if err != nil {
-			return nil, fmt.Errorf("❌ failed to parse kubeconfig: %w", err)
-		}
-	} else {
-		// 없으면 in-cluster config 시도
-		restCfg, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("❌ failed to load in-cluster config: %w", err)
-		}
+	restCfg, err := factory.CreateRESTConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	// 네임스페이스 없으면 기본 "default"
-	ns := cfg.Namespace
-	if ns == "" {
-		ns = "default"
-	}
+	ns := factory.ResolveNamespace(&cfg, "default")
 
 	// genericclioptions.ConfigFlags 생성
 	flags := genericclioptions.NewConfigFlags(false)
@@ -62,19 +43,20 @@ func NewHelmClient(cfg models.KubeConfig) (*HelmClient, error) {
 	// Helm action.Configuration 초기화
 	actionCfg := new(action.Configuration)
 	if err := actionCfg.Init(flags, ns, "secret", log.Printf); err != nil {
-		return nil, fmt.Errorf("❌ failed to initialize helm client: %w", err)
+		return nil, fmt.Errorf("failed to initialize helm client: %w", err)
 	}
 
-	return &HelmClient{
+	return &helmClient{
 		cfg:       actionCfg,
 		namespace: ns,
+		factory:   factory,
 	}, nil
 }
 
 // HealthCheck : Helm 연결 확인 (Kubernetes 연결 확인)
-func (h *HelmClient) HealthCheck() error {
+func (h *helmClient) HealthCheck(ctx context.Context) error {
 	// 5초 제한 context 생성
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	list := action.NewList(h.cfg)
@@ -88,10 +70,10 @@ func (h *HelmClient) HealthCheck() error {
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("❌ failed to helm health check: timeout")
+		return fmt.Errorf("failed to helm health check: timeout")
 	case err := <-done:
 		if err != nil {
-			return fmt.Errorf("❌ failed to helm health check: %w", err)
+			return fmt.Errorf("failed to helm health check: %w", err)
 		}
 	}
 
@@ -99,13 +81,13 @@ func (h *HelmClient) HealthCheck() error {
 }
 
 // IsChartInstalled : 특정 차트 설치 여부 확인 (모든 네임스페이스 검사)
-func (h *HelmClient) IsChartInstalled(chartName string) (bool, *release.Release, error) {
+func (h *helmClient) IsChartInstalled(chartName string) (bool, *release.Release, error) {
 	list := action.NewList(h.cfg)
 	list.AllNamespaces = true
 
 	releases, err := list.Run()
 	if err != nil {
-		return false, nil, fmt.Errorf("❌ failed to list helm releases: %w", err)
+		return false, nil, fmt.Errorf("failed to list helm releases: %w", err)
 	}
 
 	for _, r := range releases {
@@ -118,7 +100,7 @@ func (h *HelmClient) IsChartInstalled(chartName string) (bool, *release.Release,
 }
 
 // InstallChart : Helm 차트를 통해 설치, 설치 후 확인
-func (h *HelmClient) InstallChart(chartName, chartPath string, values map[string]interface{}) error {
+func (h *helmClient) InstallChart(chartName, chartPath string, values map[string]interface{}) error {
 
 	// 설치 여부 확인 (릴리스 이름이 고정이 아니므로 chart 기준)
 	installed, _, err := h.IsChartInstalled(chartName)
@@ -135,7 +117,7 @@ func (h *HelmClient) InstallChart(chartName, chartPath string, values map[string
 
 	chart, err := loader.Load(chartPath)
 	if err != nil {
-		return fmt.Errorf("❌ failed to load chart: %w", err)
+		return fmt.Errorf("failed to load chart: %w", err)
 	}
 
 	if values == nil {
@@ -144,7 +126,7 @@ func (h *HelmClient) InstallChart(chartName, chartPath string, values map[string
 
 	_, err = install.Run(chart, values)
 	if err != nil {
-		return fmt.Errorf("❌ failed to install chart '%s': %w", chartName, err)
+		return fmt.Errorf("failed to install chart '%s': %w", chartName, err)
 	}
 
 	// 설치 후 잠시 대기
@@ -153,55 +135,21 @@ func (h *HelmClient) InstallChart(chartName, chartPath string, values map[string
 	// 설치 확인
 	ok, _, err := h.IsChartInstalled(chartName)
 	if err != nil {
-		return fmt.Errorf("❌ failed to verify chart '%s' installation: %w", chartName, err)
+		return fmt.Errorf("failed to verify chart '%s' installation: %w", chartName, err)
 	}
 	if !ok {
-		return fmt.Errorf("❌ chart '%s' installation not found after install", chartName)
+		return fmt.Errorf("chart '%s' installation not found after install", chartName)
 	}
 
 	return nil
 }
 
-// restGetter : Helm action.Configuration Init 용 RESTClientGetter
-type restGetter struct {
-	restCfg *rest.Config
-}
-
-func (r restGetter) ToRESTConfig() (*rest.Config, error) {
-	return r.restCfg, nil
-}
-
-// ToDiscoveryClient : discovery.CachedDiscoveryInterface 반환
-func (r restGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
-	dc, err := discovery.NewDiscoveryClientForConfig(r.restCfg)
-	if err != nil {
-		return nil, err
-	}
-	return memory.NewMemCacheClient(dc), nil
-}
-
-// ToRESTMapper : RESTMapper 반환
-func (r restGetter) ToRESTMapper() (meta.RESTMapper, error) {
-	dc, err := r.ToDiscoveryClient()
-	if err != nil {
-		return nil, err
-	}
-	return restmapper.NewDeferredDiscoveryRESTMapper(dc), nil
-}
-
-// ToRawKubeConfigLoader : kubeconfig loader 반환
-func (r restGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
-	return clientcmd.NewDefaultClientConfig(clientcmdapi.Config{}, &clientcmd.ConfigOverrides{})
-}
-
-// InvalidateCache : Helm client discovery cache 초기화 (항상 최신 상태 반영)
-func (h *HelmClient) InvalidateCache() error {
+func (h *helmClient) InvalidateCache() error {
 	dc, err := h.cfg.RESTClientGetter.ToDiscoveryClient()
 	if err != nil {
 		return fmt.Errorf("failed to get discovery client: %w", err)
 	}
 
-	// 캐시 초기화
 	if cachedDC, ok := dc.(interface{ Invalidate() }); ok {
 		cachedDC.Invalidate()
 		return nil

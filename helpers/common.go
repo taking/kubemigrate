@@ -1,18 +1,20 @@
 package helpers
 
 import (
+	"context"
+	"github.com/labstack/echo/v4"
 	"net/http"
 	"taking.kr/velero/models"
+	"taking.kr/velero/utils"
 	"taking.kr/velero/validation"
-
-	"github.com/labstack/echo/v4"
+	"time"
 )
 
 // BindAndValidateKubeConfig : 요청 바인딩 + kubeconfig 유효성 검사
 func BindAndValidateKubeConfig(ctx echo.Context, validator *validation.RequestValidator) (models.KubeConfig, error) {
 	var req models.KubeConfig
 	if err := ctx.Bind(&req); err != nil {
-		return req, JSONError(ctx, http.StatusBadRequest, "invalid request body")
+		return req, utils.RespondError(ctx, http.StatusBadRequest, "invalid request body")
 	}
 
 	decodeKubeConfig, err := validator.ValidateKubeConfigRequest(&req)
@@ -35,17 +37,10 @@ func ResolveNamespace(req *models.KubeConfig, ctx echo.Context, defaultNS string
 	return defaultNS
 }
 
-// JSONError : 에러 응답 반환
-func JSONError(ctx echo.Context, status int, message string) error {
-	return ctx.JSON(status, map[string]string{"error": message})
-}
-
-// JSONStatus : 상태 메시지 응답
-func JSONStatus(ctx echo.Context, status, message string) error {
-	return ctx.JSON(http.StatusOK, map[string]string{"status": status, "message": message})
-}
-
-// JSONSuccess : 데이터 성공 응답
-func JSONSuccess(ctx echo.Context, data interface{}) error {
-	return ctx.JSON(http.StatusOK, map[string]interface{}{"status": "success", "data": data})
+// TimeoutContext : 지정된 시간만큼 timeout context 생성
+func TimeoutContext(ctx context.Context, duration time.Duration) (context.Context, context.CancelFunc) {
+	if duration <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, duration)
 }
