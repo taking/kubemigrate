@@ -6,7 +6,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"taking.kr/velero/models"
 	"time"
 
@@ -29,20 +28,16 @@ func NewKubeClient(cfg models.KubeConfig) (*KubeClient, error) {
 	if cfg.KubeConfig != "" {
 		restCfg, err = clientcmd.RESTConfigFromKubeConfig([]byte(cfg.KubeConfig))
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
-		}
-	} else {
-		restCfg, err = config.GetConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get in-cluster kubeconfig: %w", err)
+			return nil, fmt.Errorf("❌ failed to parse kubeconfig: %w", err)
 		}
 	}
 
 	k8sClient, err := kbclient.New(restCfg, kbclient.Options{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+		return nil, fmt.Errorf("❌ failed to create kubernetes client: %w", err)
 	}
 
+	// 네임스페이스 없을 시, "default"로 설정
 	if cfg.Namespace == "" {
 		cfg.Namespace = "default"
 	}
@@ -62,7 +57,7 @@ func (k *KubeClient) HealthCheck(ctx context.Context) error {
 	// 서버 연결 확인 (백업 목록 조회 시도)
 	var pods v1.PodList
 	if err := k.client.List(ctx, &pods, kbclient.InNamespace(k.ns)); err != nil {
-		return fmt.Errorf("kubernetes health check failed: %w", err)
+		return fmt.Errorf("❌ failed to kubernetes health check: %w", err)
 	}
 	return nil
 }

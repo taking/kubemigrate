@@ -43,8 +43,7 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 	go func() {
-		log.Printf("🚀 Enhanced Velero API Server starting on %s", ":9091")
-		log.Printf("📋 Features: Multi-cluster, Backup validation, Enhanced error handling")
+		log.Printf("Velero API Server starting on %s", ":9091")
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("❌ Server failed to start: %v", err)
 		}
@@ -55,7 +54,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("🔄 Shutting down server...")
+	log.Println("Shutting down server...")
 
 	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

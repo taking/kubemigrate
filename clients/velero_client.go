@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/rest"
 	"taking.kr/velero/models"
 	"time"
 
@@ -21,31 +22,38 @@ type VeleroClient struct {
 }
 
 // NewVeleroClient : Velero 클라이언트 초기화
-
 func NewVeleroClient(cfg models.KubeConfig) (*VeleroClient, error) {
-	restCfg, err := clientcmd.RESTConfigFromKubeConfig([]byte(cfg.KubeConfig))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
+	var restCfg *rest.Config
+	var err error
+
+	if cfg.KubeConfig != "" {
+		restCfg, err = clientcmd.RESTConfigFromKubeConfig([]byte(cfg.KubeConfig))
+		if err != nil {
+			return nil, fmt.Errorf("❌ failed to parse kubeconfig: %w", err)
+		}
+	}
+
+	// 네임스페이스 없을 시, "velero"로 설정
+	if cfg.Namespace == "" {
+		cfg.Namespace = "velero"
 	}
 
 	vcl := client.VeleroConfig{
 		"KubeClientConfig": restCfg,
 		"Namespace":        cfg.Namespace,
 	}
+
 	factory := client.NewFactory("velero", vcl)
 	kb, err := factory.KubebuilderClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubebuilder client: %w", err)
-	}
-
-	if cfg.Namespace == "" {
-		cfg.Namespace = "velero"
+		return nil, fmt.Errorf("❌ failed to create velero factory kubebuilder client: %w", err)
 	}
 
 	return &VeleroClient{
 		client: kb,
 		ns:     cfg.Namespace,
 	}, nil
+
 }
 
 // HealthCheck : Kubernetes 연결 확인
@@ -57,7 +65,7 @@ func (v *VeleroClient) HealthCheck(ctx context.Context) error {
 	// 서버 연결 확인 (백업 목록 조회 시도)
 	var pods velerov1.BackupList
 	if err := v.client.List(ctx, &pods, kbclient.InNamespace(v.ns)); err != nil {
-		return fmt.Errorf("velero health check failed: %w", err)
+		return fmt.Errorf("❌ failed to velero health check: %w", err)
 	}
 	return nil
 }

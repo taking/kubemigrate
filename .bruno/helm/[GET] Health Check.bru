@@ -1,11 +1,11 @@
 meta {
-  name: Get Storage Classes
+  name: [GET] Health Check
   type: http
-  seq: 9
+  seq: 2
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kube/storage-classes
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/health
   body: json
   auth: inherit
 }

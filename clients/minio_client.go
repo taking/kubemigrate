@@ -21,7 +21,7 @@ func NewMinioClient(cfg models.MinioConfig) (*MinioClient, error) {
 		Secure: cfg.UseSSL,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create minio client: %w", err)
+		return nil, fmt.Errorf("❌ failed to create minio client: %w", err)
 	}
 	return &MinioClient{Client: client}, nil
 }
@@ -35,7 +35,7 @@ func (m *MinioClient) HealthCheck(ctx context.Context) error {
 	// 서버 연결 확인 (버킷 목록 조회 시도)
 	_, err := m.Client.ListBuckets(ctx)
 	if err != nil {
-		return fmt.Errorf("minio health check failed: %w", err)
+		return fmt.Errorf("❌ failed to minio health check: %w", err)
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func (m *MinioClient) CreateBucketIfNotExists(ctx context.Context, bucketName, r
 	// 버킷 존재 여부 확인
 	exists, err := m.Client.BucketExists(ctx, bucketName)
 	if err != nil {
-		return "", fmt.Errorf("failed to check bucket existence: %w", err)
+		return "", fmt.Errorf("❌ failed to check bucket existence: %w", err)
 	}
 
 	// 버킷이 존재할 경우

@@ -8,6 +8,7 @@ import (
 
 func RegisterRoutes(e *echo.Echo) {
 	commonCtrl := ctrl.NewMinioController()
+	helmCtrl := ctrl.NewHelmController()
 	kubeCtrl := ctrl.NewKubernetesController()
 	veleroCtrl := ctrl.NewVeleroController()
 
@@ -19,15 +20,21 @@ func RegisterRoutes(e *echo.Echo) {
 		common.POST("/bucket_check", commonCtrl.CreateBucketIfNotExists)
 	}
 
+	helm := api.Group("/helm")
+	{
+		helm.GET("/health", helmCtrl.CheckHelmConnection)
+		helm.POST("/check", helmCtrl.IsChartInstalled)
+	}
+
 	kube := api.Group("/kube")
 	{
-		kube.GET("/health", kubeCtrl.HealthCheck)
+		kube.GET("/health", kubeCtrl.CheckKubernetesConnection)
 		kube.GET("/storage-classes", kubeCtrl.GetStorageClasses)
 	}
 
 	velero := api.Group("/velero")
 	{
-		velero.GET("/health", veleroCtrl.HealthCheck)
+		velero.GET("/health", veleroCtrl.CheckVeleroConnection)
 		velero.GET("/backups", veleroCtrl.GetBackups)
 		velero.GET("/restores", veleroCtrl.GetRestores)
 		velero.GET("/backup-repositories", veleroCtrl.GetBackupRepositories)
