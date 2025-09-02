@@ -5,6 +5,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"taking.kr/velero/clients"
+	"taking.kr/velero/services"
 	"taking.kr/velero/utils"
 )
 
@@ -73,7 +74,8 @@ func (c *KubernetesController) GetPods(ctx echo.Context) error {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	data, err := client.GetPods(context.Background())
+	service := services.NewKubernetesService(client)
+	data, err := service.GetPods(ctx.Request().Context())
 	if err != nil {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
@@ -94,6 +96,26 @@ func (c *KubernetesController) GetStorageClasses(ctx echo.Context) error {
 	}
 
 	data, err := client.GetStorageClasses(context.Background())
+	if err != nil {
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
+	}
+
+	return utils.RespondSuccess(ctx, data)
+}
+
+func (c *KubernetesController) GetPodsAndStorage(ctx echo.Context) error {
+	req, err := c.BindAndValidateKubeConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	client, err := clients.NewKubeClient(req)
+	if err != nil {
+		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
+	}
+
+	service := services.NewKubernetesService(client)
+	data, err := service.GetPodsWithStorageClasses(ctx.Request().Context())
 	if err != nil {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}

@@ -82,6 +82,22 @@ func (k *kubeClient) GetPods(ctx context.Context) ([]v1.Pod, error) {
 	return list.Items, nil
 }
 
+func (k *kubeClient) GetNodes(ctx context.Context) ([]v1.Node, error) {
+	list := &v1.NodeList{}
+
+	// 목록 조회
+	if err := k.client.List(ctx, list, k.listOptions()...); err != nil {
+		return nil, utils.WrapK8sError(k.ns, err, "nodes")
+	}
+
+	// 필요 시 ManagedFields 제거
+	for i := range list.Items {
+		utils.StripManagedFields(&list.Items[i])
+	}
+
+	return list.Items, nil
+}
+
 func (k *kubeClient) GetStorageClasses(ctx context.Context) ([]storagev1.StorageClass, error) {
 	list := &storagev1.StorageClassList{}
 
