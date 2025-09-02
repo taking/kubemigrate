@@ -3,8 +3,11 @@ package clients
 import (
 	"context"
 	"fmt"
+	"taking.kr/velero/helpers"
 	"taking.kr/velero/interfaces"
 	"taking.kr/velero/models"
+	"taking.kr/velero/utils"
+	"taking.kr/velero/validation"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -17,28 +20,43 @@ type minioClient struct {
 
 // NewMinioClient : MinIO 클라이언트 초기화
 func NewMinioClient(cfg models.MinioConfig) (interfaces.MinioClient, error) {
+
+	// Minio Validator
+	validator := validation.NewMinioValidator()
+	if err := validator.ValidateMinioConfig(&cfg); err != nil {
+		return nil, fmt.Errorf("minio config validation failed: %w", err)
+	}
+
 	client, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.UseSSL,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create minio client: %w", err)
+		return nil, fmt.Errorf("failed to create minio client (endpoint: %s): %w", cfg.Endpoint, err)
 	}
-	return &minioClient{Client: client}, nil
+
+	mc := &minioClient{Client: client}
+
+	// 연결 검증 (5초 제한 타임아웃)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := mc.HealthCheck(ctx); err != nil {
+		return nil, fmt.Errorf("failed to connect to minio (endpoint: %s): %w", cfg.Endpoint, err)
+	}
+
+	return mc, nil
 }
 
 // HealthCheck : MinIO 서버 연결 확인
 func (m *minioClient) HealthCheck(ctx context.Context) error {
-	// 5초 제한 타임아웃
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	// 서버 연결 확인 (버킷 목록 조회 시도)
-	_, err := m.Client.ListBuckets(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to minio health check: %w", err)
-	}
-	return nil
+	return helpers.RunWithTimeout(ctx, func() error {
+		_, err := m.Client.ListBuckets(ctx)
+		if err != nil {
+			return utils.WrapMinioError(err)
+		}
+		return nil
+	})
 }
 
 // CreateBucketIfNotExists : 버킷 확인 및 생성

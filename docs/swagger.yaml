@@ -1,0 +1,345 @@
+basePath: /api/v1
+definitions:
+  models.HelmConfigRequest:
+    properties:
+      chartName:
+        description: '[옵션] 헬름 차트 명'
+        example: podinfo
+        type: string
+      kubeconfig:
+        description: '[필수] Base64 인코딩된 KubeConfig 값'
+        example: base64 인코딩된 KubeConfig 값
+        type: string
+    required:
+    - chartName
+    - kubeconfig
+    type: object
+  models.HelmInstallChartRequest:
+    properties:
+      chartName:
+        description: '[옵션] 헬름 차트 명'
+        example: podinfo
+        type: string
+      kubeconfig:
+        description: '[필수] Base64 인코딩된 KubeConfig 값'
+        example: base64 인코딩된 KubeConfig 값
+        type: string
+      namespace:
+        description: '[옵션] 네임스페이스 명 (기본 값 : ''default'', 전체 조회  : ''all'')'
+        example: all
+        type: string
+    required:
+    - chartName
+    - kubeconfig
+    type: object
+  models.KubeConfigRequest:
+    properties:
+      kubeconfig:
+        description: '[필수] Base64 인코딩된 KubeConfig 값'
+        example: base64 인코딩된 KubeConfig 값
+        type: string
+      namespace:
+        description: '[옵션] 네임스페이스 명 (기본 값 : ''default'', 전체 조회  : ''all'')'
+        example: all
+        type: string
+    required:
+    - kubeconfig
+    type: object
+  models.MinioConfigRequest:
+    properties:
+      accessKey:
+        description: '[필수] minio accessKey'
+        example: your_minio_accessKey
+        type: string
+      endpoint:
+        description: '[필수] minio endpoint 주소'
+        example: 127.0.0.1:9000
+        type: string
+      secretKey:
+        description: '[필수] minio secretKey'
+        example: your_minio_secretKey
+        type: string
+      useSSL:
+        description: '[필수] minio useSSL 여부 (false: http / true: https)'
+        example: false
+        type: boolean
+    required:
+    - accessKey
+    - endpoint
+    - secretKey
+    - useSSL
+    type: object
+  models.SwaggerErrorResponse:
+    properties:
+      error:
+        type: string
+      status:
+        type: string
+    type: object
+  models.SwaggerSuccessResponse:
+    properties:
+      data: {}
+      status:
+        type: string
+    type: object
+host: localhost:9091
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Velero backup and restore management API with multi-cluster support
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Velero API Server
+  version: "1.0"
+paths:
+  /helm/chart_check:
+    post:
+      consumes:
+      - application/json
+      description: kubeconfig을 사용하여 특정 헬름 차트 설치 여부 확인
+      parameters:
+      - description: 헬름 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.HelmConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: 특정 헬름 차트 설치 여부 확인
+      tags:
+      - helm
+  /helm/health:
+    get:
+      consumes:
+      - application/json
+      description: kubeconfig을 사용하여 헬름 연결 검증
+      parameters:
+      - description: 헬름 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.HelmConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: 헬름 연결 확인
+      tags:
+      - helm
+  /helm/install:
+    post:
+      consumes:
+      - application/json
+      description: kubeconfig을 사용하여 헬름 차트 설치
+      parameters:
+      - description: 헬름 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.HelmInstallChartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: 헬름 차트 설치
+      tags:
+      - helm
+  /kube/health:
+    get:
+      consumes:
+      - application/json
+      description: kubeconfig을 사용하여 쿠버네티스 클러스터 연결 검증
+      parameters:
+      - description: 쿠버네티스 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.KubeConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: 쿠버네티스 클러스터 연결 확인
+      tags:
+      - kubernetes
+  /kube/pods:
+    get:
+      consumes:
+      - application/json
+      description: kubeconfig을 사용하여 쿠버네티스 파드 목록 조회
+      parameters:
+      - description: 쿠버네티스 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.KubeConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: 쿠버네티스 파드 목록 조회
+      tags:
+      - kubernetes
+  /minio/bucket_check:
+    post:
+      consumes:
+      - application/json
+      description: MinioConfig을 사용하여 Minio 버킷 존재 여부 확인 후, 없으면 생성
+      parameters:
+      - description: Minio 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MinioConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Minio 버킷 확인
+      tags:
+      - minio
+  /minio/health:
+    get:
+      consumes:
+      - application/json
+      description: MinioConfig을 사용하여 Minio 연결 검증
+      parameters:
+      - description: Minio 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MinioConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Minio 연결 확인
+      tags:
+      - minio
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

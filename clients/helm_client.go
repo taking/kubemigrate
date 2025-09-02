@@ -6,6 +6,7 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"log"
+	"taking.kr/velero/helpers"
 	"taking.kr/velero/interfaces"
 	"time"
 
@@ -62,22 +63,10 @@ func (h *helmClient) HealthCheck(ctx context.Context) error {
 	list := action.NewList(h.cfg)
 	list.AllNamespaces = true
 
-	done := make(chan error, 1)
-	go func() {
+	return helpers.RunWithTimeout(ctx, func() error {
 		_, err := list.Run()
-		done <- err
-	}()
-
-	select {
-	case <-ctx.Done():
-		return fmt.Errorf("failed to helm health check: timeout")
-	case err := <-done:
-		if err != nil {
-			return fmt.Errorf("failed to helm health check: %w", err)
-		}
-	}
-
-	return nil
+		return err
+	})
 }
 
 // IsChartInstalled : 특정 차트 설치 여부 확인 (모든 네임스페이스 검사)

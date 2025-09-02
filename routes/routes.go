@@ -23,12 +23,13 @@ func RegisterRoutes(e *echo.Echo) {
 	helm := api.Group("/helm")
 	{
 		helm.GET("/health", helmCtrl.CheckHelmConnection)
-		helm.POST("/check", helmCtrl.IsChartInstalled)
+		helm.POST("/chart_check", helmCtrl.IsChartInstalled)
 	}
 
 	kube := api.Group("/kube")
 	{
 		kube.GET("/health", kubeCtrl.CheckKubernetesConnection)
+		kube.GET("/pods", kubeCtrl.GetPods)
 		kube.GET("/storage-classes", kubeCtrl.GetStorageClasses)
 	}
 

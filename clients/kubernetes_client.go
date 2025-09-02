@@ -5,6 +5,8 @@ import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"strings"
+	"taking.kr/velero/helpers"
 	"taking.kr/velero/interfaces"
 	"taking.kr/velero/models"
 	"time"
@@ -18,6 +20,14 @@ type kubeClient struct {
 	client  kbclient.Client
 	ns      string
 	factory *ClientFactory
+}
+
+// namespace 기반 ListOption 반환
+func (k *kubeClient) listOptions() []kbclient.ListOption {
+	if strings.EqualFold(k.ns, "all") { // 대소문자 상관없이 일치할 시
+		return nil // 전체 조회
+	}
+	return []kbclient.ListOption{kbclient.InNamespace(k.ns)}
 }
 
 // NewKubeClient : Kubernetes 클라이언트 초기화
@@ -49,20 +59,19 @@ func (k *kubeClient) HealthCheck(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// 서버 연결 확인 (백업 목록 조회 시도)
-	var pods v1.PodList
-	if err := k.client.List(ctx, &pods, kbclient.InNamespace(k.ns)); err != nil {
-		return fmt.Errorf("failed to kubernetes health check: %w", err)
-	}
-	return nil
+	// 서버 연결 확인 (Node 목록 조회 시도)
+	var nodes v1.NodeList
+	return helpers.RunWithTimeout(ctx, func() error {
+		return k.client.List(ctx, &nodes)
+	})
 }
 
 func (k *kubeClient) GetPods(ctx context.Context) ([]v1.Pod, error) {
 	list := &v1.PodList{}
 
 	// 목록 조회
-	if err := k.client.List(ctx, list); err != nil {
-		return nil, utils.WrapK8sError("", err, "pods")
+	if err := k.client.List(ctx, list, k.listOptions()...); err != nil {
+		return nil, utils.WrapK8sError(k.ns, err, "pods")
 	}
 
 	// 필요 시 ManagedFields 제거
@@ -77,8 +86,8 @@ func (k *kubeClient) GetStorageClasses(ctx context.Context) ([]storagev1.Storage
 	list := &storagev1.StorageClassList{}
 
 	// 목록 조회
-	if err := k.client.List(ctx, list); err != nil {
-		return nil, utils.WrapK8sError("", err, "storageClasses")
+	if err := k.client.List(ctx, list, k.listOptions()...); err != nil {
+		return nil, utils.WrapK8sError(k.ns, err, "storageClasses")
 	}
 
 	// 필요 시 ManagedFields 제거

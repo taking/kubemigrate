@@ -29,6 +29,7 @@ func (c *VeleroController) CheckVeleroConnection(ctx echo.Context) error {
 		return err
 	}
 
+	// 요청에서 네임스페이스 결정, 없으면 기본 "velero" 사용
 	namespace := c.ResolveNamespace(&req, ctx, "velero")
 	req.Namespace = namespace
 
@@ -37,10 +38,12 @@ func (c *VeleroController) CheckVeleroConnection(ctx echo.Context) error {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
+	// 클러스터 연결 상태 확인
 	return c.HandleHealthCheck(ctx, client, "Velero")
 }
 
-// handleVeleroResource : Generic resource handler to reduce code duplication
+// handleVeleroResource : 공통 리소스 처리 헬퍼
+// 코드 중복을 줄이기 위해 Velero 리소스 조회 후 JSON 반환을 공통화
 func (c *VeleroController) handleVeleroResource(ctx echo.Context,
 	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
 
@@ -62,7 +65,7 @@ func (c *VeleroController) handleVeleroResource(ctx echo.Context,
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	// Sort by creation time if the data has timestamp field
+	// 데이터가 정렬 가능한 경우, 생성 시간 기준으로 정렬
 	if sortable, ok := data.(interface {
 		Len() int
 		Swap(i, j int)
@@ -77,6 +80,7 @@ func (c *VeleroController) handleVeleroResource(ctx echo.Context,
 	})
 }
 
+// GetBackups : Velero Backup 목록 조회
 func (c *VeleroController) GetBackups(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackups(ctx)
@@ -84,7 +88,7 @@ func (c *VeleroController) GetBackups(ctx echo.Context) error {
 			return nil, err
 		}
 
-		// Sort backups by creation time (newest first)
+		// 최신 생성일 순으로 정렬
 		sort.Slice(data, func(i, j int) bool {
 			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
 		})
@@ -93,6 +97,7 @@ func (c *VeleroController) GetBackups(ctx echo.Context) error {
 	})
 }
 
+// GetRestores : Velero Restore 목록 조회
 func (c *VeleroController) GetRestores(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetRestores(ctx)
@@ -100,7 +105,7 @@ func (c *VeleroController) GetRestores(ctx echo.Context) error {
 			return nil, err
 		}
 
-		// Sort backups by creation time (newest first)
+		// 최신 생성일 순으로 정렬
 		sort.Slice(data, func(i, j int) bool {
 			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
 		})
@@ -109,6 +114,7 @@ func (c *VeleroController) GetRestores(ctx echo.Context) error {
 	})
 }
 
+// GetBackupRepositories : BackupRepository 목록 조회
 func (c *VeleroController) GetBackupRepositories(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackupRepositories(ctx)
@@ -116,7 +122,7 @@ func (c *VeleroController) GetBackupRepositories(ctx echo.Context) error {
 			return nil, err
 		}
 
-		// Sort backups by creation time (newest first)
+		// 최신 생성일 순으로 정렬
 		sort.Slice(data, func(i, j int) bool {
 			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
 		})
@@ -125,6 +131,7 @@ func (c *VeleroController) GetBackupRepositories(ctx echo.Context) error {
 	})
 }
 
+// GetBackupStorageLocations : BackupStorageLocation 목록 조회
 func (c *VeleroController) GetBackupStorageLocations(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackupStorageLocations(ctx)
@@ -132,7 +139,7 @@ func (c *VeleroController) GetBackupStorageLocations(ctx echo.Context) error {
 			return nil, err
 		}
 
-		// Sort backups by creation time (newest first)
+		// 최신 생성일 순으로 정렬
 		sort.Slice(data, func(i, j int) bool {
 			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
 		})
@@ -141,6 +148,7 @@ func (c *VeleroController) GetBackupStorageLocations(ctx echo.Context) error {
 	})
 }
 
+// GetVolumeSnapshotLocations : VolumeSnapshotLocation 목록 조회
 func (c *VeleroController) GetVolumeSnapshotLocations(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetVolumeSnapshotLocations(ctx)
@@ -148,7 +156,7 @@ func (c *VeleroController) GetVolumeSnapshotLocations(ctx echo.Context) error {
 			return nil, err
 		}
 
-		// Sort backups by creation time (newest first)
+		// 최신 생성일 순으로 정렬
 		sort.Slice(data, func(i, j int) bool {
 			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
 		})

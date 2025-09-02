@@ -19,7 +19,19 @@ func NewKubernetesController() *KubernetesController {
 	}
 }
 
-// CheckKubernetesConnection : Kubernetes 클러스터 연결 확인
+// CheckKubernetesConnection : 쿠버네티스 클러스터 연결 확인
+// CheckKubernetesConnection godoc
+// @Summary 쿠버네티스 클러스터 연결 확인
+// @Description kubeconfig을 사용하여 쿠버네티스 클러스터 연결 검증
+// @Tags kubernetes
+// @Accept json
+// @Produce json
+// @Param request body models.KubeConfigRequest true "쿠버네티스 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /kube/health [get]
 func (c *KubernetesController) CheckKubernetesConnection(ctx echo.Context) error {
 	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {
@@ -38,6 +50,18 @@ func (c *KubernetesController) CheckKubernetesConnection(ctx echo.Context) error
 }
 
 // GetPods : 네임스페이스 내 모든 Pod 조회
+// GetPods godoc
+// @Summary 쿠버네티스 파드 목록 조회
+// @Description kubeconfig을 사용하여 쿠버네티스 파드 목록 조회
+// @Tags kubernetes
+// @Accept json
+// @Produce json
+// @Param request body models.KubeConfigRequest true "쿠버네티스 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /kube/pods [get]
 func (c *KubernetesController) GetPods(ctx echo.Context) error {
 	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {

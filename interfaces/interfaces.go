@@ -9,44 +9,44 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 )
 
-// HealthChecker defines health check capability
+// HealthChecker : 헬스체크 기능을 제공하는 인터페이스
 type HealthChecker interface {
-	HealthCheck(ctx context.Context) error
+	HealthCheck(ctx context.Context) error // 리소스 또는 클러스터 연결 상태 확인
 }
 
-// KubernetesClient defines Kubernetes operations
+// KubernetesClient : Kubernetes 클러스터 관련 작업을 정의하는 인터페이스
 type KubernetesClient interface {
 	HealthChecker
-	GetPods(ctx context.Context) ([]v1.Pod, error)
-	GetStorageClasses(ctx context.Context) ([]storagev1.StorageClass, error)
+	GetPods(ctx context.Context) ([]v1.Pod, error)                           // 지정된 네임스페이스에서 Pod 목록 조회
+	GetStorageClasses(ctx context.Context) ([]storagev1.StorageClass, error) // 스토리지 클래스 목록 조회
 }
 
-// VeleroClient defines Velero operations
+// VeleroClient : Velero 관련 작업을 정의하는 인터페이스
 type VeleroClient interface {
 	HealthChecker
-	GetBackups(ctx context.Context) ([]velerov1.Backup, error)
-	GetRestores(ctx context.Context) ([]velerov1.Restore, error)
-	GetBackupRepositories(ctx context.Context) ([]velerov1.BackupRepository, error)
-	GetBackupStorageLocations(ctx context.Context) ([]velerov1.BackupStorageLocation, error)
-	GetVolumeSnapshotLocations(ctx context.Context) ([]velerov1.VolumeSnapshotLocation, error)
-	GetPodVolumeRestores(ctx context.Context) ([]velerov1.PodVolumeRestore, error)
-	GetDownloadRequests(ctx context.Context) ([]velerov1.DownloadRequest, error)
-	GetDataUploads(ctx context.Context) ([]velerov2.DataUpload, error)
-	GetDataDownloads(ctx context.Context) ([]velerov2.DataDownload, error)
-	GetDeleteBackupRequests(ctx context.Context) ([]velerov1.DeleteBackupRequest, error)
-	GetServerStatusRequests(ctx context.Context) ([]velerov1.ServerStatusRequest, error)
+	GetBackups(ctx context.Context) ([]velerov1.Backup, error)                                 // Velero Backup 목록 조회
+	GetRestores(ctx context.Context) ([]velerov1.Restore, error)                               // Velero Restore 목록 조회
+	GetBackupRepositories(ctx context.Context) ([]velerov1.BackupRepository, error)            // BackupRepository 목록 조회
+	GetBackupStorageLocations(ctx context.Context) ([]velerov1.BackupStorageLocation, error)   // BackupStorageLocation 목록 조회
+	GetVolumeSnapshotLocations(ctx context.Context) ([]velerov1.VolumeSnapshotLocation, error) // VolumeSnapshotLocation 목록 조회
+	GetPodVolumeRestores(ctx context.Context) ([]velerov1.PodVolumeRestore, error)             // PodVolumeRestore 목록 조회
+	GetDownloadRequests(ctx context.Context) ([]velerov1.DownloadRequest, error)               // DownloadRequest 목록 조회
+	GetDataUploads(ctx context.Context) ([]velerov2.DataUpload, error)                         // DataUpload 목록 조회
+	GetDataDownloads(ctx context.Context) ([]velerov2.DataDownload, error)                     // DataDownload 목록 조회
+	GetDeleteBackupRequests(ctx context.Context) ([]velerov1.DeleteBackupRequest, error)       // DeleteBackupRequest 목록 조회
+	GetServerStatusRequests(ctx context.Context) ([]velerov1.ServerStatusRequest, error)       // ServerStatusRequest 목록 조회
 }
 
-// HelmClient defines Helm operations
+// HelmClient : Helm 관련 작업을 정의하는 인터페이스
 type HelmClient interface {
 	HealthChecker
-	IsChartInstalled(chartName string) (bool, *release.Release, error)
-	InstallChart(chartName, chartPath string, values map[string]interface{}) error
-	InvalidateCache() error
+	IsChartInstalled(chartName string) (bool, *release.Release, error)             // 차트가 설치되어 있는지 확인
+	InstallChart(chartName, chartPath string, values map[string]interface{}) error // Helm 차트 설치
+	InvalidateCache() error                                                        // Helm 캐시 무효화
 }
 
-// MinioClient defines MinIO operations
+// MinioClient : MinIO 관련 작업을 정의하는 인터페이스
 type MinioClient interface {
 	HealthChecker
-	CreateBucketIfNotExists(ctx context.Context, bucketName, region string) (string, error)
+	CreateBucketIfNotExists(ctx context.Context, bucketName, region string) (string, error) // 버킷이 존재하지 않으면 생성
 }

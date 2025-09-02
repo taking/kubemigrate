@@ -10,6 +10,7 @@ import (
 	"taking.kr/velero/utils"
 )
 
+// HelmController : Helm 관련 API 컨트롤러
 type HelmController struct {
 	*BaseController
 }
@@ -20,7 +21,19 @@ func NewHelmController() *HelmController {
 	}
 }
 
-// CheckHelmConnection : Helm 연결 및 Kubernetes 접근 확인
+// CheckHelmConnection : 헬름 연결 및 쿠버네티스 접근 확인
+// CheckHelmConnection godoc
+// @Summary 헬름 연결 확인
+// @Description kubeconfig을 사용하여 헬름 연결 검증
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param request body models.HelmConfigRequest true "헬름 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /helm/health [get]
 func (c *HelmController) CheckHelmConnection(ctx echo.Context) error {
 	// KubeConfig 바인딩 및 검증
 	req, err := c.BindAndValidateKubeConfig(ctx)
@@ -43,7 +56,19 @@ func (c *HelmController) CheckHelmConnection(ctx echo.Context) error {
 	return c.HandleHealthCheck(ctx, client, "Helm")
 }
 
-// IsChartInstalled : 특정 Helm 차트 설치 여부 확인
+// IsChartInstalled : 특정 헬름 차트 설치 여부 확인
+// IsChartInstalled godoc
+// @Summary 특정 헬름 차트 설치 여부 확인
+// @Description kubeconfig을 사용하여 특정 헬름 차트 설치 여부 확인
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param request body models.HelmConfigRequest true "헬름 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /helm/chart_check [post]
 func (c *HelmController) IsChartInstalled(ctx echo.Context) error {
 	// KubeConfig 바인딩 및 검증
 	req, err := c.BindAndValidateKubeConfig(ctx)
@@ -71,7 +96,19 @@ func (c *HelmController) IsChartInstalled(ctx echo.Context) error {
 	})
 }
 
-// InstallChart : Helm 차트 설치
+// InstallChart : 헬름 차트 설치
+// InstallChart godoc
+// @Summary 헬름 차트 설치
+// @Description kubeconfig을 사용하여 헬름 차트 설치
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param request body models.HelmInstallChartRequest true "헬름 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /helm/install [post]
 func (c *HelmController) InstallChart(ctx echo.Context) error {
 	var req struct {
 		models.KubeConfig

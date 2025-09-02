@@ -11,28 +11,29 @@ import (
 	"taking.kr/velero/validation"
 )
 
-// BaseController provides common controller functionality
+// BaseController : 공통 기능을 제공하는 기본 컨트롤러 구조체
 type BaseController struct {
-	validator *validation.RequestValidator
+	validator *validation.KubernetesValidator
 }
 
+// NewBaseController : BaseController 객체 생성
 func NewBaseController() *BaseController {
 	return &BaseController{
-		validator: validation.NewRequestValidator(),
+		validator: validation.NewKubernetesValidator(),
 	}
 }
 
-// BindAndValidateKubeConfig binds and validates KubeConfig request
+// BindAndValidateKubeConfig : 요청으로 들어온 KubeConfig 데이터를 바인딩하고 검증
 func (c *BaseController) BindAndValidateKubeConfig(ctx echo.Context) (models.KubeConfig, error) {
 	return helpers.BindAndValidateKubeConfig(ctx, c.validator)
 }
 
-// ResolveNamespace resolves namespace with query param fallback
+// ResolveNamespace : 네임스페이스 결정
 func (c *BaseController) ResolveNamespace(req *models.KubeConfig, ctx echo.Context, defaultNS string) string {
 	return helpers.ResolveNamespace(req, ctx, defaultNS)
 }
 
-// HandleHealthCheck generic health check handler
+// HandleHealthCheck : 공통 HealthCheck 핸들러
 func (c *BaseController) HandleHealthCheck(ctx echo.Context, healthChecker interface {
 	HealthCheck(context.Context) error
 }, serviceName string) error {

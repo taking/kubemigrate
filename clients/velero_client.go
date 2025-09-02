@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	"fmt"
+	"taking.kr/velero/helpers"
 	"taking.kr/velero/interfaces"
 	"taking.kr/velero/models"
 	"time"
@@ -57,11 +58,10 @@ func (v *veleroClient) HealthCheck(ctx context.Context) error {
 	defer cancel()
 
 	// 서버 연결 확인 (백업 목록 조회 시도)
-	var pods velerov1.BackupList
-	if err := v.client.List(ctx, &pods, kbclient.InNamespace(v.ns)); err != nil {
-		return fmt.Errorf("failed to velero health check: %w", err)
-	}
-	return nil
+	var backups velerov1.BackupList
+	return helpers.RunWithTimeout(ctx, func() error {
+		return v.client.List(ctx, &backups)
+	})
 }
 
 // GetBackups : 백업 목록 조회
