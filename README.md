@@ -7,6 +7,8 @@ Velero API Server는 Kubernetes 및 Velero 기반 백업/복원 관리, Helm 및
 
 ## 주요 기능
 
+> baseUrl : http://localhost:9091/api/v1
+
 ### Kubernetes
 - 클러스터 연결 상태 확인 (`/kube/health`)
 - 특정 네임스페이스 Pod 목록 조회 (`/kube/pods`)
@@ -23,7 +25,7 @@ Velero API Server는 Kubernetes 및 Velero 기반 백업/복원 관리, Helm 및
 ### Helm
 - Helm 연결 상태 확인 (`/helm/health`)
 - Helm 차트 설치 여부 확인 (`/helm/chart_check`)
-- Helm 차트 설치 (`/helm/install`)
+- Helm 차트 설치 (`/helm/chart_install`)
 
 ### MinIO
 - MinIO 연결 상태 확인 (`/minio/health`)
@@ -95,7 +97,7 @@ go run main.go
 ### Helm
 - `/api/v1/helm/health` : Helm 연결 확인
 - `/api/v1/helm/chart_check` : 특정 Helm 차트 설치 여부 확인
-- `/api/v1/helm/install` : Helm 차트 설치
+- `/api/v1/helm/chart_install` : Helm 차트 설치
 
 ### MinIO
 - `/api/v1/minio/health` : MinIO 연결 확인
