@@ -13,19 +13,31 @@ import (
 
 // BaseController : 공통 기능을 제공하는 기본 컨트롤러 구조체
 type BaseController struct {
-	validator *validation.KubernetesValidator
+	kubernetesValidator *validation.KubernetesValidator
+	minioValidator      *validation.MinioValidator
 }
 
 // NewBaseController : BaseController 객체 생성
 func NewBaseController() *BaseController {
 	return &BaseController{
-		validator: validation.NewKubernetesValidator(),
+		kubernetesValidator: validation.NewKubernetesValidator(),
+		minioValidator:      validation.NewMinioValidator(),
 	}
 }
 
 // BindAndValidateKubeConfig : 요청으로 들어온 KubeConfig 데이터를 바인딩하고 검증
 func (c *BaseController) BindAndValidateKubeConfig(ctx echo.Context) (models.KubeConfig, error) {
-	return helpers.BindAndValidateKubeConfig(ctx, c.validator)
+	return helpers.BindAndValidateKubeConfig(ctx, c.kubernetesValidator)
+}
+
+// BindAndValidateMinioConfig : 요청으로 들어온 MinioConfig 데이터를 바인딩하고 검증
+func (c *BaseController) BindAndValidateMinioConfig(ctx echo.Context) (models.MinioConfig, error) {
+	return helpers.BindAndValidateMinioConfig(ctx, c.minioValidator)
+}
+
+// BindAndValidateVeleroConfig : 요청으로 들어온 MinioConfig 및 KubeConfig 데이터를 바인딩하고 검증
+func (c *BaseController) BindAndValidateVeleroConfig(ctx echo.Context) (models.VeleroConfig, error) {
+	return helpers.BindAndValidateVeleroConfig(ctx, c.minioValidator, c.kubernetesValidator)
 }
 
 // ResolveNamespace : 네임스페이스 결정

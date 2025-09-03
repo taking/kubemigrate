@@ -5,7 +5,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"taking.kr/velero/clients"
-	"taking.kr/velero/helpers"
 	"taking.kr/velero/models"
 	"taking.kr/velero/utils"
 )
@@ -35,14 +34,14 @@ func NewHelmController() *HelmController {
 // @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
 // @Router /helm/health [get]
 func (c *HelmController) CheckHelmConnection(ctx echo.Context) error {
-	// KubeConfig 바인딩 및 검증
+	// kubeConfig 바인딩 및 검증
 	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	// 기본 네임스페이스 설정
-	req.Namespace = helpers.ResolveNamespace(&req, ctx, "default")
+	// 네임스페이스 값이 없으면, 기본 네임스페이스 "default"로 설정
+	req.Namespace = c.ResolveNamespace(&req, ctx, "default")
 
 	// Helm 클라이언트 생성
 	client, err := clients.NewHelmClient(req)

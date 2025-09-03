@@ -11,10 +11,17 @@ type HelmConfigRequest struct {
 }
 
 type MinioConfigRequest struct {
-	UseSSL    bool   `json:"useSSL" binding:"required" example:"false"`                   // [필수] minio useSSL 여부 (false: http / true: https)
-	Endpoint  string `json:"endpoint" binding:"required" example:"127.0.0.1:9000"`        // [필수] minio endpoint 주소
-	AccessKey string `json:"accessKey" binding:"required" example:"your_minio_accessKey"` // [필수] minio accessKey
-	SecretKey string `json:"secretKey" binding:"required" example:"your_minio_secretKey"` // [필수] minio secretKey
+	UseSSL     bool   `json:"useSSL" binding:"required" example:"false"`                   // [필수] minio useSSL 여부 (false: http / true: https)
+	Endpoint   string `json:"endpoint" binding:"required" example:"127.0.0.1:9000"`        // [필수] minio endpoint 주소
+	AccessKey  string `json:"accessKey" binding:"required" example:"your_minio_accessKey"` // [필수] minio accessKey
+	SecretKey  string `json:"secretKey" binding:"required" example:"your_minio_secretKey"` // [필수] minio secretKey
+	BucketName string `json:"bucketName" example:"velero"`                                 // [옵션] minio Bucket  (기본값: velero)
+	Region     string `json:"region" example:"us-east-1"`                                  // [옵션] minio Region (기본값 : us-east-1)
+}
+
+type VeleroConfigRequest struct {
+	MinioConfigRequest `json:"minio" binding:"required"`
+	KubeConfig         string `json:"kubeconfig" binding:"required" example:"base64 인코딩된 KubeConfig 값"` // [필수] Base64 인코딩된 KubeConfig 값
 }
 
 type HelmInstallChartRequest struct {

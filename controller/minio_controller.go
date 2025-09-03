@@ -4,7 +4,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"taking.kr/velero/clients"
-	"taking.kr/velero/models"
 	"taking.kr/velero/utils"
 )
 
@@ -33,17 +32,20 @@ func NewMinioController() *MinioController {
 // @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
 // @Router /minio/health [get]
 func (c *MinioController) CheckMinioConnection(ctx echo.Context) error {
-	var cfg models.MinioConfig
-	if err := ctx.Bind(&cfg); err != nil {
-		return utils.RespondError(ctx, http.StatusBadRequest, "invalid request body")
+	// minioConfig 바인딩 및 검증
+	req, err := c.BindAndValidateMinioConfig(ctx)
+	if err != nil {
+		return err
 	}
 
-	client, err := clients.NewMinioClient(cfg)
+	// Minio 클라이언트 생성
+	client, err := clients.NewMinioClient(req)
 	if err != nil {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	return c.HandleHealthCheck(ctx, client, "MinIO")
+	// Minio 연결 상태 확인
+	return c.HandleHealthCheck(ctx, client, "Minio")
 }
 
 // CreateBucketIfNotExists : 버킷 존재 여부 확인 후 없으면 생성, 상태 메시지 반환
@@ -60,25 +62,21 @@ func (c *MinioController) CheckMinioConnection(ctx echo.Context) error {
 // @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
 // @Router /minio/bucket_check [post]
 func (c *MinioController) CreateBucketIfNotExists(ctx echo.Context) error {
-	var req struct {
-		models.MinioConfig
-		BucketName string `json:"bucketName"`
-		Region     string `json:"region"`
+	// minioConfig 바인딩 및 검증
+	req, err := c.BindAndValidateMinioConfig(ctx)
+	if err != nil {
+		return err
 	}
 
-	if err := ctx.Bind(&req); err != nil {
-		return utils.RespondError(ctx, http.StatusBadRequest, "invalid request body")
-	}
-
-	client, err := clients.NewMinioClient(req.MinioConfig)
+	// Minio 클라이언트 생성
+	client, err := clients.NewMinioClient(req)
 	if err != nil {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	if req.Region == "" {
-		req.Region = "us-east-1"
-	}
+	req.BucketName = utils.DefaultString(req.BucketName, "velero") // Bucket 이름이 비어 있으면 기본값 사용
 
+	// 버킷이 존재하는지 확인하고, 없으면 새로 생성
 	msg, err := client.CreateBucketIfNotExists(ctx.Request().Context(), req.BucketName, req.Region)
 	if err != nil {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())

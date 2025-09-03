@@ -12,10 +12,9 @@ get {
 
 body:json {
   {
-      "endpoint": "192.168.110.118:9000",
-      "accessKey": "admin",
-      "secretKey": "password",
-      "useSSL": false
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}"
   }
 }
 

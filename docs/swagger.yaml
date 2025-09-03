@@ -32,6 +32,17 @@ definitions:
     - chartName
     - kubeconfig
     type: object
+  models.KubeConfig:
+    properties:
+      chartName:
+        description: helm
+        type: string
+      kubeconfig:
+        description: Raw KubeConfig
+        type: string
+      namespace:
+        type: string
+    type: object
   models.KubeConfigRequest:
     properties:
       kubeconfig:
@@ -45,15 +56,38 @@ definitions:
     required:
     - kubeconfig
     type: object
+  models.MinioConfig:
+    properties:
+      accessKey:
+        type: string
+      bucketName:
+        type: string
+      endpoint:
+        type: string
+      region:
+        type: string
+      secretKey:
+        type: string
+      useSSL:
+        type: boolean
+    type: object
   models.MinioConfigRequest:
     properties:
       accessKey:
         description: '[필수] minio accessKey'
         example: your_minio_accessKey
         type: string
+      bucketName:
+        description: '[옵션] minio Bucket  (기본값: velero)'
+        example: velero
+        type: string
       endpoint:
         description: '[필수] minio endpoint 주소'
         example: 127.0.0.1:9000
+        type: string
+      region:
+        description: '[옵션] minio Region (기본값 : us-east-1)'
+        example: us-east-1
         type: string
       secretKey:
         description: '[필수] minio secretKey'
@@ -81,6 +115,25 @@ definitions:
       data: {}
       status:
         type: string
+    type: object
+  models.VeleroConfig:
+    properties:
+      kubernetes:
+        $ref: '#/definitions/models.KubeConfig'
+      minio:
+        $ref: '#/definitions/models.MinioConfig'
+    type: object
+  models.VeleroConfigRequest:
+    properties:
+      kubeconfig:
+        description: '[필수] Base64 인코딩된 KubeConfig 값'
+        example: base64 인코딩된 KubeConfig 값
+        type: string
+      minio:
+        $ref: '#/definitions/models.MinioConfigRequest'
+    required:
+    - kubeconfig
+    - minio
     type: object
 host: localhost:9091
 info:
@@ -334,6 +387,210 @@ paths:
       summary: Minio 연결 확인
       tags:
       - minio
+  /velero/backup-repositories:
+    get:
+      consumes:
+      - application/json
+      description: MinioConfig, KubeConfig을 사용하여 Velero 백업 저장소 목록 조회
+      parameters:
+      - description: Velero 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Velero 백업 저장소 목록 확인
+      tags:
+      - velero
+  /velero/backup-storage-locations:
+    get:
+      consumes:
+      - application/json
+      description: MinioConfig, KubeConfig을 사용하여 Velero 백업 스토리지 위치 목록 조회
+      parameters:
+      - description: Velero 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Velero 백업 스토리지 위치 목록 확인
+      tags:
+      - velero
+  /velero/backups:
+    post:
+      consumes:
+      - application/json
+      description: MinioConfig, KubeConfig을 사용하여 Velero 백업 목록 조회
+      parameters:
+      - description: Velero 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.VeleroConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Velero 백업 목록 확인
+      tags:
+      - velero
+  /velero/health:
+    get:
+      consumes:
+      - application/json
+      description: KubeConfig을 사용하여 Velero 연결 검증
+      parameters:
+      - description: Velero 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Velero 연결 확인
+      tags:
+      - velero
+  /velero/restores:
+    get:
+      consumes:
+      - application/json
+      description: MinioConfig, KubeConfig을 사용하여 Velero 복구 목록 조회
+      parameters:
+      - description: Velero 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Velero 복구 목록 확인
+      tags:
+      - velero
+  /velero/volume-snapshot-locations:
+    get:
+      consumes:
+      - application/json
+      description: MinioConfig, KubeConfig을 사용하여 Velero 볼륨 스냅샷 위치 목록 조회
+      parameters:
+      - description: Velero 연결에 필요한 값
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 연결 성공
+          schema:
+            $ref: '#/definitions/models.SwaggerSuccessResponse'
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "500":
+          description: 서버 내부 오류
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+        "503":
+          description: 서비스 이용 불가
+          schema:
+            $ref: '#/definitions/models.SwaggerErrorResponse'
+      summary: Velero 볼륨 스냅샷 위치 목록 확인
+      tags:
+      - velero
 schemes:
 - http
 securityDefinitions:

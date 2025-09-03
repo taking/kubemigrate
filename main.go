@@ -41,19 +41,14 @@ import (
 // @name Authorization
 // @description Type "Bearer" followed by a space and JWT token.
 func main() {
-	// Swagger Docs 생성
-	if err := generateSwagger(); err != nil {
-		log.Printf("failed to generate swagger: %v", err)
-	} else {
-		log.Println("Swagger.yaml / swagger.json updated")
-	}
-
-	e := echo.New()
-	e.HideBanner = true
-	e.HidePort = true
 
 	// Config 불러오기
 	cfg := config.Load()
+
+	// Echo 인스턴스 생성
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
 
 	// 기본 미들웨어 설정
 	middleware.SetupMiddleware(e, cfg)
@@ -61,16 +56,23 @@ func main() {
 	// API 라우트 등록
 	routes.RegisterRoutes(e)
 
-	// Scalar API 문서 등록
-	setupScalarDocs(e)
-
 	server := &http.Server{
-		Addr:         ":9091",
+		Addr:         ":" + cfg.Server.Port,
 		Handler:      e,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
+
+	// Swagger Docs 생성
+	if err := generateSwagger(); err != nil {
+		log.Printf("failed to generate swagger: %v", err)
+	} else {
+		log.Println("Swagger.yaml / swagger.json updated")
+	}
+
+	// Scalar API 문서 등록
+	setupScalarDocs(e, cfg)
 
 	// 서버 실행
 	startServer(server)
@@ -93,7 +95,7 @@ func generateSwagger() error {
 }
 
 // setupScalarDocs : ScalarDocs 설정
-func setupScalarDocs(e *echo.Echo) {
+func setupScalarDocs(e *echo.Echo, cfg *config.Config) {
 	// OpenAPI JSON 엔드포인트
 	e.GET("/swagger.json", func(c echo.Context) error {
 		return c.File("./docs/swagger.json")
@@ -106,7 +108,8 @@ func setupScalarDocs(e *echo.Echo) {
 		Theme:   "blue",
 	})
 
-	log.Printf("📖 API Documentation available at: http://localhost:9091/docs")
+	log.Printf("📖 API Documentation available at: http://localhost:%s/docs",
+		cfg.Server.Port)
 }
 
 // startServer : 서버 실행
@@ -121,7 +124,7 @@ func startServer(server *http.Server) {
 		}
 	}()
 
-	// Graceful shutdown
+	// SIGTERM, SIGINT 처리
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

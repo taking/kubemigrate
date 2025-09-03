@@ -23,15 +23,26 @@ func NewVeleroController() *VeleroController {
 }
 
 // CheckVeleroConnection : Kubernetes 클러스터 Velero 연결 확인
+// CheckVeleroConnection godoc
+// @Summary Velero 연결 확인
+// @Description KubeConfig을 사용하여 Velero 연결 검증
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.KubeConfig true "Velero 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /velero/health [get]
 func (c *VeleroController) CheckVeleroConnection(ctx echo.Context) error {
 	req, err := c.BindAndValidateKubeConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	// 요청에서 네임스페이스 결정, 없으면 기본 "velero" 사용
-	namespace := c.ResolveNamespace(&req, ctx, "velero")
-	req.Namespace = namespace
+	// 네임스페이스 값이 없으면, 기본 네임스페이스 "velero"로 설정
+	req.Namespace = c.ResolveNamespace(&req, ctx, "velero")
 
 	client, err := clients.NewVeleroClient(req)
 	if err != nil {
@@ -47,20 +58,21 @@ func (c *VeleroController) CheckVeleroConnection(ctx echo.Context) error {
 func (c *VeleroController) handleVeleroResource(ctx echo.Context,
 	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
 
-	req, err := c.BindAndValidateKubeConfig(ctx)
+	// VeleroConfig 바인딩 및 검증
+	req, err := c.BindAndValidateVeleroConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	namespace := c.ResolveNamespace(&req, ctx, "velero")
-	req.Namespace = namespace
+	// 네임스페이스 값이 없으면, 기본 네임스페이스 "velero"로 설정
+	req.Namespace = c.ResolveNamespace(&req.KubeConfig, ctx, "velero")
 
-	client, err := clients.NewVeleroClient(req)
+	veleroClient, err := clients.NewVeleroClient(req.KubeConfig)
 	if err != nil {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
 
-	data, err := getResource(client, context.Background())
+	data, err := getResource(veleroClient, context.Background())
 	if err != nil {
 		return utils.RespondError(ctx, http.StatusInternalServerError, err.Error())
 	}
@@ -80,7 +92,19 @@ func (c *VeleroController) handleVeleroResource(ctx echo.Context,
 	})
 }
 
-// GetBackups : Velero Backup 목록 조회
+// GetBackups : Velero 백업 목록 조회
+// GetBackups godoc
+// @Summary Velero 백업 목록 확인
+// @Description MinioConfig, KubeConfig을 사용하여 Velero 백업 목록 조회
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfigRequest true "Velero 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /velero/backups [post]
 func (c *VeleroController) GetBackups(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackups(ctx)
@@ -97,7 +121,19 @@ func (c *VeleroController) GetBackups(ctx echo.Context) error {
 	})
 }
 
-// GetRestores : Velero Restore 목록 조회
+// GetRestores : Velero 복구 목록 조회
+// GetRestores godoc
+// @Summary Velero 복구 목록 확인
+// @Description MinioConfig, KubeConfig을 사용하여 Velero 복구 목록 조회
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /velero/restores [get]
 func (c *VeleroController) GetRestores(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetRestores(ctx)
@@ -114,7 +150,19 @@ func (c *VeleroController) GetRestores(ctx echo.Context) error {
 	})
 }
 
-// GetBackupRepositories : BackupRepository 목록 조회
+// GetBackupRepositories : 백업 저장소 목록 조회
+// GetBackupRepositories godoc
+// @Summary Velero 백업 저장소 목록 확인
+// @Description MinioConfig, KubeConfig을 사용하여 Velero 백업 저장소 목록 조회
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /velero/backup-repositories [get]
 func (c *VeleroController) GetBackupRepositories(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackupRepositories(ctx)
@@ -131,7 +179,19 @@ func (c *VeleroController) GetBackupRepositories(ctx echo.Context) error {
 	})
 }
 
-// GetBackupStorageLocations : BackupStorageLocation 목록 조회
+// GetBackupStorageLocations : 백업 스토리지 위치 목록 조회
+// GetBackupStorageLocations godoc
+// @Summary Velero 백업 스토리지 위치 목록 확인
+// @Description MinioConfig, KubeConfig을 사용하여 Velero 백업 스토리지 위치 목록 조회
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /velero/backup-storage-locations [get]
 func (c *VeleroController) GetBackupStorageLocations(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackupStorageLocations(ctx)
@@ -148,7 +208,19 @@ func (c *VeleroController) GetBackupStorageLocations(ctx echo.Context) error {
 	})
 }
 
-// GetVolumeSnapshotLocations : VolumeSnapshotLocation 목록 조회
+// GetVolumeSnapshotLocations : 볼륨 스냅샷 위치 목록 조회
+// GetVolumeSnapshotLocations godoc
+// @Summary Velero 볼륨 스냅샷 위치 목록 확인
+// @Description MinioConfig, KubeConfig을 사용하여 Velero 볼륨 스냅샷 위치 목록 조회
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero 연결에 필요한 값"
+// @Success 200 {object} models.SwaggerSuccessResponse "연결 성공"
+// @Failure 400 {object} models.SwaggerErrorResponse "잘못된 요청"
+// @Failure 500 {object} models.SwaggerErrorResponse "서버 내부 오류"
+// @Failure 503 {object} models.SwaggerErrorResponse "서비스 이용 불가"
+// @Router /velero/volume-snapshot-locations [get]
 func (c *VeleroController) GetVolumeSnapshotLocations(ctx echo.Context) error {
 	return c.handleVeleroResource(ctx, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetVolumeSnapshotLocations(ctx)

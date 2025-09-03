@@ -20,3 +20,19 @@ func DecodeIfBase64(s string) (string, error) {
 func StripManagedFields(obj metav1.Object) {
 	obj.SetManagedFields(nil)
 }
+
+// DefaultString : value가 비어 있지 않으면 value를 반환하고, 비어 있으면 def(기본값)를 반환합니다.
+func DefaultString(value, def string) string {
+	if value == "" {
+		return def
+	}
+	return value
+}
+
+// DefaultBool : value가 비어 있지 않으면 false를 반환하고, 비어 있으면 true(기본값)를 반환합니다.
+func DefaultBool(value bool, def bool) bool {
+	if &value == nil {
+		return def
+	}
+	return value
+}
