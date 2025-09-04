@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"taking.kr/velero/pkg/models"
+	"github.com/taking/kubemigrate/pkg/models"
 )
 
 // HealthChecker 헬스체크를 수행하는 인터페이스

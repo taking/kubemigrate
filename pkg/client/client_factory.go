@@ -2,9 +2,10 @@ package client
 
 import (
 	"fmt"
+
+	"github.com/taking/kubemigrate/pkg/models"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"taking.kr/velero/pkg/models"
 )
 
 // ClientFactory : Kubernetes 클라이언트 생성을 통합 관리하는 팩토리
@@ -39,12 +40,10 @@ func (f *ClientFactory) CreateRESTConfig(cfg models.KubeConfig) (*rest.Config, e
 	return restCfg, nil
 }
 
-// ResolveNamespace : 네임스페이스 결정
-// cfg.Namespace가 설정되어 있으면 해당 네임스페이스 사용
-// 설정되어 있지 않으면 기본 네임스페이스(defaultNS) 사용
-func (f *ClientFactory) ResolveNamespace(cfg *models.KubeConfig, defaultNS string) string {
-	if cfg.Namespace != "" {
-		return cfg.Namespace
+// getNamespaceOrDefault : 네임스페이스가 설정되어 있으면 사용, 없으면 기본값 반환
+func getNamespaceOrDefault(namespace, defaultNS string) string {
+	if namespace != "" {
+		return namespace
 	}
 	return defaultNS
 }

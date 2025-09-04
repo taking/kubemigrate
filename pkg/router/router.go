@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"taking.kr/velero/pkg/cache"
-	"taking.kr/velero/pkg/handlers"
-	"taking.kr/velero/pkg/health"
-	"taking.kr/velero/pkg/utils"
+	"github.com/taking/kubemigrate/pkg/cache"
+	"github.com/taking/kubemigrate/pkg/handlers"
+	"github.com/taking/kubemigrate/pkg/health"
+	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // RegisterRoutes : 라우트 등록

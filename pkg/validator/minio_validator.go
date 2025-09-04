@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"taking.kr/velero/pkg/models"
+	"github.com/taking/kubemigrate/pkg/models"
 )
 
 // MinioValidator : MinioValidator 구조체

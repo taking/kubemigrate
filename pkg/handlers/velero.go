@@ -7,14 +7,14 @@ import (
 	"sort"
 
 	"github.com/labstack/echo/v4"
-	"taking.kr/velero/pkg/cache"
-	"taking.kr/velero/pkg/client"
-	"taking.kr/velero/pkg/health"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/response"
-	"taking.kr/velero/pkg/utils"
-	"taking.kr/velero/pkg/validator"
+	"github.com/taking/kubemigrate/pkg/cache"
+	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/health"
+	"github.com/taking/kubemigrate/pkg/interfaces"
+	_ "github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/response"
+	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/pkg/validator"
 )
 
 // VeleroHandler : Velero 관련 HTTP 요청을 처리하는 핸들러
@@ -50,13 +50,13 @@ func NewVeleroHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, healt
 // @Failure 503 {object} models.SwaggerErrorResponse "Service unavailable"
 // @Router /velero/health [get]
 func (h *VeleroHandler) HealthCheck(c echo.Context) error {
-	req, err := h.bindAndValidateKubeConfig(c)
+	req, err := utils.BindAndValidateKubeConfig(c, h.kubernetesValidator)
 	if err != nil {
 		return err
 	}
 
 	// 기본 네임스페이스 설정
-	req.Namespace = resolveNamespace(&req, c, "velero")
+	req.Namespace = utils.ResolveNamespace(&req, c, "velero")
 
 	client, err := client.NewVeleroClient(req)
 	if err != nil {
@@ -98,7 +98,7 @@ func (h *VeleroHandler) GetBackups(c echo.Context) error {
 
 		// 생성 시간 순서대로 정렬
 		sort.Slice(data, func(i, j int) bool {
-			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time) //nolint:staticcheck
 		})
 
 		return data, nil
@@ -125,7 +125,7 @@ func (h *VeleroHandler) GetRestores(c echo.Context) error {
 
 		// 생성 시간 순서대로 정렬
 		sort.Slice(data, func(i, j int) bool {
-			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time) //nolint:staticcheck
 		})
 
 		return data, nil
@@ -152,7 +152,7 @@ func (h *VeleroHandler) GetBackupRepositories(c echo.Context) error {
 
 		// 생성 시간 순서대로 정렬
 		sort.Slice(data, func(i, j int) bool {
-			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time) //nolint:staticcheck
 		})
 
 		return data, nil
@@ -179,7 +179,7 @@ func (h *VeleroHandler) GetBackupStorageLocations(c echo.Context) error {
 
 		// 생성 시간 순서대로 정렬
 		sort.Slice(data, func(i, j int) bool {
-			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time) //nolint:staticcheck
 		})
 
 		return data, nil
@@ -206,7 +206,7 @@ func (h *VeleroHandler) GetVolumeSnapshotLocations(c echo.Context) error {
 
 		// 생성 시간 순서대로 정렬
 		sort.Slice(data, func(i, j int) bool {
-			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time) //nolint:staticcheck
 		})
 
 		return data, nil
@@ -219,13 +219,13 @@ func (h *VeleroHandler) handleVeleroResource(c echo.Context,
 	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
 
 	// VeleroConfig 검증
-	req, err := h.bindAndValidateVeleroConfig(c)
+	req, err := utils.BindAndValidateVeleroConfig(c, h.minioValidator, h.kubernetesValidator)
 	if err != nil {
 		return err
 	}
 
 	// 기본 네임스페이스 설정
-	req.Namespace = resolveNamespace(&req.KubeConfig, c, "velero")
+	req.Namespace = utils.ResolveNamespace(&req.KubeConfig, c, "velero")
 
 	veleroClient, err := client.NewVeleroClient(req.KubeConfig)
 	if err != nil {
@@ -248,13 +248,13 @@ func (h *VeleroHandler) handleVeleroResourceWithCache(c echo.Context, cacheKey s
 	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
 
 	// VeleroConfig 검증
-	req, err := h.bindAndValidateVeleroConfig(c)
+	req, err := utils.BindAndValidateVeleroConfig(c, h.minioValidator, h.kubernetesValidator)
 	if err != nil {
 		return err
 	}
 
 	// 기본 네임스페이스 설정
-	req.Namespace = resolveNamespace(&req.KubeConfig, c, "velero")
+	req.Namespace = utils.ResolveNamespace(&req.KubeConfig, c, "velero")
 
 	// 캐시 키 생성
 	fullCacheKey := fmt.Sprintf("%s:%s", cacheKey, req.Namespace)
@@ -287,53 +287,4 @@ func (h *VeleroHandler) handleVeleroResourceWithCache(c echo.Context, cacheKey s
 		"data":   data,
 		"cached": false,
 	})
-}
-
-// bindAndValidateKubeConfig : KubeConfig 검증
-func (h *VeleroHandler) bindAndValidateKubeConfig(c echo.Context) (models.KubeConfig, error) {
-	var req models.KubeConfig
-	if err := c.Bind(&req); err != nil {
-		return req, response.RespondError(c, http.StatusBadRequest, "invalid request body")
-	}
-
-	decodedKubeConfig, err := h.kubernetesValidator.ValidateKubernetesConfig(&req)
-	if err != nil {
-		return req, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	req.KubeConfig = decodedKubeConfig
-	return req, nil
-}
-
-// bindAndValidateVeleroConfig : VeleroConfig 검증
-func (h *VeleroHandler) bindAndValidateVeleroConfig(c echo.Context) (models.VeleroConfig, error) {
-	var req models.VeleroConfig
-	if err := c.Bind(&req); err != nil {
-		return req, response.RespondError(c, http.StatusBadRequest, "invalid request body")
-	}
-
-	// Minio config 검증
-	if err := h.minioValidator.ValidateMinioConfig(&req.MinioConfig); err != nil {
-		return req, echo.NewHTTPError(http.StatusBadRequest, "minio config validation failed: "+err.Error())
-	}
-
-	// Kubernetes config 검증
-	decodedKubeConfig, err := h.kubernetesValidator.ValidateKubernetesConfig(&req.KubeConfig)
-	if err != nil {
-		return req, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	req.KubeConfig.KubeConfig = decodedKubeConfig
-	return req, nil
-}
-
-// resolveNamespace : 네임스페이스 결정
-func resolveNamespace(req *models.KubeConfig, c echo.Context, defaultNS string) string {
-	if req.Namespace != "" {
-		return req.Namespace
-	}
-	if ns := c.QueryParam("namespace"); ns != "" {
-		return ns
-	}
-	return defaultNS
 }

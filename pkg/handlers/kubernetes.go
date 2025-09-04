@@ -6,14 +6,14 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"taking.kr/velero/pkg/cache"
-	"taking.kr/velero/pkg/client"
-	"taking.kr/velero/pkg/health"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/response"
-	"taking.kr/velero/pkg/utils"
-	"taking.kr/velero/pkg/validator"
+	"github.com/taking/kubemigrate/pkg/cache"
+	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/health"
+	"github.com/taking/kubemigrate/pkg/interfaces"
+	_ "github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/response"
+	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/pkg/validator"
 )
 
 // KubernetesHandler : Kubernetes 관련 HTTP 요청을 처리하는 핸들러
@@ -47,13 +47,13 @@ func NewKubernetesHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, h
 // @Failure 503 {object} models.SwaggerErrorResponse "Service unavailable"
 // @Router /kube/health [get]
 func (h *KubernetesHandler) HealthCheck(c echo.Context) error {
-	req, err := h.bindAndValidateKubeConfig(c)
+	req, err := utils.BindAndValidateKubeConfig(c, h.kubernetesValidator)
 	if err != nil {
 		return err
 	}
 
 	// 기본 네임스페이스 설정
-	req.Namespace = resolveNamespace(&req, c, "default")
+	req.Namespace = utils.ResolveNamespace(&req, c, "default")
 
 	client, err := client.NewKubernetesClient(req)
 	if err != nil {
@@ -114,13 +114,13 @@ func (h *KubernetesHandler) handleKubernetesResourceWithCache(c echo.Context, ca
 	getResource func(interfaces.KubernetesClient, context.Context) (interface{}, error)) error {
 
 	// KubeConfig 검증
-	req, err := h.bindAndValidateKubeConfig(c)
+	req, err := utils.BindAndValidateKubeConfig(c, h.kubernetesValidator)
 	if err != nil {
 		return err
 	}
 
 	// 기본 네임스페이스 설정
-	req.Namespace = resolveNamespace(&req, c, "default")
+	req.Namespace = utils.ResolveNamespace(&req, c, "default")
 
 	// 캐시 키 생성
 	fullCacheKey := fmt.Sprintf("kubernetes:%s:%s", cacheKey, req.Namespace)
@@ -165,20 +165,4 @@ func (h *KubernetesHandler) handleKubernetesResourceWithCache(c echo.Context, ca
 	case err := <-errorChan:
 		return response.RespondError(c, http.StatusInternalServerError, err.Error())
 	}
-}
-
-// bindAndValidateKubeConfig : KubeConfig 검증
-func (h *KubernetesHandler) bindAndValidateKubeConfig(c echo.Context) (models.KubeConfig, error) {
-	var req models.KubeConfig
-	if err := c.Bind(&req); err != nil {
-		return req, response.RespondError(c, http.StatusBadRequest, "invalid request body")
-	}
-
-	decodedKubeConfig, err := h.kubernetesValidator.ValidateKubernetesConfig(&req)
-	if err != nil {
-		return req, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	req.KubeConfig = decodedKubeConfig
-	return req, nil
 }

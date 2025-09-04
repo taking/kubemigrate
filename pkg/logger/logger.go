@@ -75,7 +75,7 @@ func InitDefault() error {
 // Sync : 버퍼링된 로그 전송
 func Sync() {
 	if Logger != nil {
-		Logger.Sync()
+		_ = Logger.Sync()
 	}
 }
 
@@ -138,7 +138,7 @@ func Fatal(msg string, fields ...zap.Field) {
 func GetLogger() *zap.Logger {
 	if Logger == nil {
 		// 초기화되지 않은 경우 기본 설정으로 초기화
-		InitDefault()
+		_ = InitDefault()
 	}
 	return Logger
 }

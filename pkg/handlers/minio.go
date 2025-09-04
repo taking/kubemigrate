@@ -1,18 +1,16 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"taking.kr/velero/pkg/cache"
-	"taking.kr/velero/pkg/client"
-	"taking.kr/velero/pkg/health"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/response"
-	"taking.kr/velero/pkg/utils"
-	"taking.kr/velero/pkg/validator"
+	"github.com/taking/kubemigrate/pkg/cache"
+	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/health"
+	_ "github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/response"
+	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/pkg/validator"
 )
 
 // MinioHandler : Minio 관련 HTTP 요청을 처리하는 핸들러
@@ -46,7 +44,7 @@ func NewMinioHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, health
 // @Failure 503 {object} models.SwaggerErrorResponse "Service unavailable"
 // @Router /minio/health [get]
 func (h *MinioHandler) HealthCheck(c echo.Context) error {
-	req, err := h.bindAndValidateMinioConfig(c)
+	req, err := utils.BindAndValidateMinioConfig(c, h.minioValidator)
 	if err != nil {
 		return err
 	}
@@ -83,7 +81,7 @@ func (h *MinioHandler) HealthCheck(c echo.Context) error {
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
 // @Router /minio/bucket_check [post]
 func (h *MinioHandler) CreateBucketIfNotExists(c echo.Context) error {
-	req, err := h.bindAndValidateMinioConfig(c)
+	req, err := utils.BindAndValidateMinioConfig(c, h.minioValidator)
 	if err != nil {
 		return err
 	}
@@ -106,74 +104,4 @@ func (h *MinioHandler) CreateBucketIfNotExists(c echo.Context) error {
 	}
 
 	return response.RespondStatus(c, "exists", "Bucket already exists")
-}
-
-// handleMinioResourceWithCache : 캐시를 사용하는 Minio 리소스 처리 헬퍼
-func (h *MinioHandler) handleMinioResourceWithCache(c echo.Context, cacheKey string,
-	getResource func(interfaces.MinioClient) (interface{}, error)) error {
-
-	// MinioConfig 검증
-	req, err := h.bindAndValidateMinioConfig(c)
-	if err != nil {
-		return err
-	}
-
-	// 캐시 키 생성
-	fullCacheKey := fmt.Sprintf("minio:%s:%s", cacheKey, req.Endpoint)
-
-	// 캐시에서 가져오기
-	if cached, exists := h.cache.Get(fullCacheKey); exists {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"status": "success",
-			"data":   cached,
-			"cached": true,
-		})
-	}
-
-	// 캐시에 없으면 클라이언트에서 가져오기
-	minioClient, err := client.NewMinioClient(req)
-	if err != nil {
-		return response.RespondError(c, http.StatusInternalServerError, err.Error())
-	}
-
-	// 워커 풀을 사용하여 백그라운드에서 데이터 가져오기
-	resultChan := make(chan interface{}, 1)
-	errorChan := make(chan error, 1)
-
-	h.workerPool.Submit(func() {
-		data, err := getResource(minioClient)
-		if err != nil {
-			errorChan <- err
-			return
-		}
-		resultChan <- data
-	})
-
-	select {
-	case data := <-resultChan:
-		// 캐시에 저장
-		h.cache.Set(fullCacheKey, data)
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"status": "success",
-			"data":   data,
-			"cached": false,
-		})
-	case err := <-errorChan:
-		return response.RespondError(c, http.StatusInternalServerError, err.Error())
-	}
-}
-
-// bindAndValidateMinioConfig : MinioConfig 검증
-func (h *MinioHandler) bindAndValidateMinioConfig(c echo.Context) (models.MinioConfig, error) {
-	var req models.MinioConfig
-	if err := c.Bind(&req); err != nil {
-		return req, response.RespondError(c, http.StatusBadRequest, "invalid request body")
-	}
-
-	// Minio config 검증
-	if err := h.minioValidator.ValidateMinioConfig(&req); err != nil {
-		return req, echo.NewHTTPError(http.StatusBadRequest, "minio config validation failed: "+err.Error())
-	}
-
-	return req, nil
 }

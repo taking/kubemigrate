@@ -1,4 +1,4 @@
-module taking.kr/velero
+module github.com/taking/kubemigrate
 
 go 1.24.5
 

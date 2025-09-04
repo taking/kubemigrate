@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"taking.kr/velero/pkg/models"
+	"github.com/taking/kubemigrate/pkg/models"
 )
 
 // KubernetesValidator : KubernetesValidator 구조체

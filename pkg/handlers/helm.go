@@ -6,14 +6,14 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"taking.kr/velero/pkg/cache"
-	"taking.kr/velero/pkg/client"
-	"taking.kr/velero/pkg/health"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/response"
-	"taking.kr/velero/pkg/utils"
-	"taking.kr/velero/pkg/validator"
+	"github.com/taking/kubemigrate/pkg/cache"
+	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/health"
+	"github.com/taking/kubemigrate/pkg/interfaces"
+	"github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/response"
+	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/pkg/validator"
 )
 
 // HelmHandler : Helm 관련 HTTP 요청을 처리하는 핸들러
@@ -47,13 +47,13 @@ func NewHelmHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, healthM
 // @Failure 503 {object} models.SwaggerErrorResponse "Service unavailable"
 // @Router /helm/health [get]
 func (h *HelmHandler) HealthCheck(c echo.Context) error {
-	req, err := h.bindAndValidateKubeConfig(c)
+	req, err := utils.BindAndValidateKubeConfig(c, h.kubernetesValidator)
 	if err != nil {
 		return err
 	}
 
 	// 기본 네임스페이스 설정
-	req.Namespace = resolveNamespace(&req, c, "default")
+	req.Namespace = utils.ResolveNamespace(&req, c, "default")
 
 	client, err := client.NewHelmClient(req)
 	if err != nil {
@@ -100,7 +100,7 @@ func (h *HelmHandler) IsChartInstalled(c echo.Context) error {
 	req.KubeConfig.KubeConfig = decodedKubeConfig
 
 	// 기본 네임스페이스 설정
-	req.KubeConfig.Namespace = resolveNamespace(&req.KubeConfig, c, "default")
+	req.Namespace = utils.ResolveNamespace(&req.KubeConfig, c, "default")
 
 	return h.handleHelmResourceWithCache(c, fmt.Sprintf("chart-status-%s", req.ChartName), req.KubeConfig,
 		func(client interfaces.HelmClient, ctx context.Context) (interface{}, error) {
@@ -170,20 +170,4 @@ func (h *HelmHandler) handleHelmResourceWithCache(c echo.Context, cacheKey strin
 	case err := <-errorChan:
 		return response.RespondError(c, http.StatusInternalServerError, err.Error())
 	}
-}
-
-// bindAndValidateKubeConfig : KubeConfig 검증
-func (h *HelmHandler) bindAndValidateKubeConfig(c echo.Context) (models.KubeConfig, error) {
-	var req models.KubeConfig
-	if err := c.Bind(&req); err != nil {
-		return req, response.RespondError(c, http.StatusBadRequest, "invalid request body")
-	}
-
-	decodedKubeConfig, err := h.kubernetesValidator.ValidateKubernetesConfig(&req)
-	if err != nil {
-		return req, echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	req.KubeConfig = decodedKubeConfig
-	return req, nil
 }

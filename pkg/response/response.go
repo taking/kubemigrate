@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/pkg/models"
 	"go.uber.org/zap"
-	"taking.kr/velero/pkg/models"
 )
 
 // SuccessResponse : 성공 응답 생성
@@ -161,10 +161,8 @@ func RespondHealthCheck(ctx echo.Context, status, version, message string, featu
 		Services:  services,
 	}
 
-	// 요청 ID 추가
-	if requestID := ctx.Response().Header().Get(echo.HeaderXRequestID); requestID != "" {
-		// We can extend HealthCheckResponse to include RequestID if needed
-	}
+	// 요청 ID 추가 (필요시 HealthCheckResponse에 RequestID 필드 추가 가능)
+	_ = ctx.Response().Header().Get(echo.HeaderXRequestID)
 
 	return ctx.JSON(http.StatusOK, response)
 }

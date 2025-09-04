@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"taking.kr/velero/pkg/client"
-	"taking.kr/velero/pkg/models"
+	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/models"
 )
 
 // KubernetesHealthChecker :  Kubernetes 연결 상태를 확인하는 헬스체커

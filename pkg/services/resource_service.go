@@ -4,8 +4,8 @@ package service
 // 	"context"
 // 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 // 	"sort"
-// 	"taking.kr/velero/pkg/client"
-// 	"taking.kr/velero/pkg/model"
+// 	"github.com/taking/kubemigrate/pkg/client"
+// 	"github.com/taking/kubemigrate/pkg/model"
 // 	"time"
 // )
 

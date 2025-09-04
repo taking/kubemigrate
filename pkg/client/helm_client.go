@@ -3,17 +3,18 @@ package client
 import (
 	"context"
 	"fmt"
-	"helm.sh/helm/v3/pkg/release"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"log"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/utils"
 	"time"
 
+	"github.com/taking/kubemigrate/pkg/interfaces"
+	"github.com/taking/kubemigrate/pkg/utils"
+	"helm.sh/helm/v3/pkg/release"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/taking/kubemigrate/pkg/models"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"k8s.io/client-go/rest"
-	"taking.kr/velero/pkg/models"
 )
 
 // helmClient : Helm 클라이언트
@@ -32,7 +33,7 @@ func NewHelmClient(cfg models.KubeConfig) (interfaces.HelmClient, error) {
 		return nil, err
 	}
 
-	ns := factory.ResolveNamespace(&cfg, "default")
+	ns := getNamespaceOrDefault(cfg.Namespace, "default")
 
 	// genericclioptions.ConfigFlags 생성
 	flags := genericclioptions.NewConfigFlags(false)

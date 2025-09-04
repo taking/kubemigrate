@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -68,17 +67,6 @@ func getDurationOrDefault(key string, defaultValue time.Duration) time.Duration 
 	if value := os.Getenv(key); value != "" {
 		if duration, err := time.ParseDuration(value); err == nil {
 			return duration
-		}
-	}
-	return defaultValue
-}
-
-// getIntOrDefault : 환경변수 key가 존재하면 int로 변환하여 반환
-// 변환 실패 시 기본값(defaultValue) 사용
-func getIntOrDefault(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
 		}
 	}
 	return defaultValue

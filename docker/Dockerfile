@@ -2,10 +2,10 @@
 FROM golang:1.24-alpine3.22 AS builder
 
 LABEL authors="taking"
-LABEL description="Velero API Server - Multi-cluster backup and restore management"
+LABEL description="KubeMigrate API Server - Multi-cluster backup and restore management"
 
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata
+# Install build dependencies including UPX
+RUN apk add --no-cache git ca-certificates tzdata upx
 
 WORKDIR /app
 
@@ -16,8 +16,13 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o velero-api ./cmd/main.go
+# Build the application with optimized flags
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo \
+    -ldflags '-s -w -extldflags "-static"' \
+    -o kubemigrate-api ./cmd/main.go
+
+# Compress the binary with UPX
+RUN upx --best --lzma kubemigrate-api -o kubemigrate-api-compressed
 
 # Runtime stage
 FROM alpine:3.22 AS runtime
@@ -31,8 +36,8 @@ RUN addgroup -g 1001 -S appgroup && \
 
 WORKDIR /app
 
-# Copy binary from builder stage
-COPY --from=builder /app/velero-api .
+# Copy compressed binary from builder stage
+COPY --from=builder /app/kubemigrate-api-compressed ./kubemigrate-api
 
 # Create swagger directories
 RUN mkdir -p ./docs/swagger
@@ -51,4 +56,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 9091
 
 # Run the application
-CMD ["./velero-api"]
+CMD ["./kubemigrate-api"]

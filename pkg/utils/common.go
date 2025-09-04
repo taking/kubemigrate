@@ -3,8 +3,9 @@ package utils
 import (
 	"encoding/base64"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DecodeIfBase64 : 클러스터의 KubeConfig을 Decode
@@ -32,7 +33,7 @@ func DefaultString(value, def string) string {
 
 // DefaultBool : value가 기본값이면 def를 반환하고, 그렇지 않으면 value를 반환합니다.
 func DefaultBool(value bool, def bool) bool {
-	if value == false && def == true {
+	if !value && def {
 		return def
 	}
 	return value

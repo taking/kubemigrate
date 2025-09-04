@@ -1,11 +1,12 @@
 package middleware
 
 import (
+	"runtime"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"runtime"
-	"taking.kr/velero/pkg/config"
-	"time"
+	"github.com/taking/kubemigrate/pkg/config"
 )
 
 // SetupMiddleware : Echo 서버에 공통 미들웨어 설정

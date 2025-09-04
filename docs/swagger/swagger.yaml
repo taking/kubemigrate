@@ -1,16 +1,16 @@
 basePath: /api/v1
 definitions:
-  taking_kr_velero_pkg_models.HelmChartRequest:
+  github_com_taking_kubemigrate_pkg_models.HelmChartRequest:
     properties:
       chartName:
         description: 헬름 차트명
         type: string
       kubernetes:
         allOf:
-        - $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+        - $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
         description: Kubernetes 설정
     type: object
-  taking_kr_velero_pkg_models.KubeConfig:
+  github_com_taking_kubemigrate_pkg_models.KubeConfig:
     properties:
       chartName:
         description: 헬름 차트명
@@ -22,7 +22,7 @@ definitions:
         description: 네임스페이스
         type: string
     type: object
-  taking_kr_velero_pkg_models.MinioConfig:
+  github_com_taking_kubemigrate_pkg_models.MinioConfig:
     properties:
       accessKey:
         description: 액세스 키
@@ -43,28 +43,28 @@ definitions:
         description: SSL 사용 여부
         type: boolean
     type: object
-  taking_kr_velero_pkg_models.SwaggerErrorResponse:
+  github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse:
     properties:
       error:
         type: string
       status:
         type: string
     type: object
-  taking_kr_velero_pkg_models.SwaggerSuccessResponse:
+  github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse:
     properties:
       data: {}
       status:
         type: string
     type: object
-  taking_kr_velero_pkg_models.VeleroConfig:
+  github_com_taking_kubemigrate_pkg_models.VeleroConfig:
     properties:
       kubernetes:
         allOf:
-        - $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+        - $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
         description: Kubernetes 설정
       minio:
         allOf:
-        - $ref: '#/definitions/taking_kr_velero_pkg_models.MinioConfig'
+        - $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig'
         description: MinIO 설정
     type: object
 host: localhost:9091
@@ -73,12 +73,13 @@ info:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: Velero backup and restore management API with multi-cluster support
+  description: Kubernetes cluster migration and backup validation API with multi-cluster
+    support
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: http://swagger.io/terms/
-  title: Velero API Server
+  title: KubeMigrate API Server
   version: "1.0"
 paths:
   /helm/chart_check:
@@ -92,22 +93,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.HelmChartRequest'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.HelmChartRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Chart status retrieved
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Check if Helm chart is installed
       tags:
       - helm
@@ -122,26 +123,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Connection successful
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "503":
           description: Service unavailable
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Check Helm connection
       tags:
       - helm
@@ -156,26 +157,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Connection successful
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "503":
           description: Service unavailable
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Kubernetes 연결 상태 확인
       tags:
       - kubernetes
@@ -190,22 +191,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Success
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Kubernetes pod 목록 조회
       tags:
       - kubernetes
@@ -220,22 +221,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Success
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Kubernetes storage class 목록 조회
       tags:
       - kubernetes
@@ -250,22 +251,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.MinioConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Bucket created or already exists
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Minio 버킷 생성 여부 확인
       tags:
       - minio
@@ -280,26 +281,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.MinioConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Connection successful
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "503":
           description: Service unavailable
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Minio 연결 상태 확인
       tags:
       - minio
@@ -314,22 +315,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Success
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Velero 백업 저장소 목록 조회
       tags:
       - velero
@@ -345,22 +346,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Success
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Velero 백업 저장 위치 목록 조회
       tags:
       - velero
@@ -375,22 +376,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Success
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Velero 백업 목록 조회
       tags:
       - velero
@@ -405,26 +406,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Connection successful
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "503":
           description: Service unavailable
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Velero 연결 상태 확인
       tags:
       - velero
@@ -439,22 +440,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Success
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Velero 복구 목록 조회
       tags:
       - velero
@@ -470,22 +471,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig'
       produces:
       - application/json
       responses:
         "200":
           description: Success
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+            $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse'
       summary: Velero 볼륨 스냅샷 위치 목록 조회
       tags:
       - velero

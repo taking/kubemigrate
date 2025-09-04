@@ -1,13 +1,12 @@
 package utils
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/labstack/echo/v4"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/response"
-	"taking.kr/velero/pkg/validator"
+	"github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/response"
+	"github.com/taking/kubemigrate/pkg/validator"
 )
 
 // BindAndValidateKubeConfig : KubeConfig 검증
@@ -60,34 +59,4 @@ func BindAndValidateVeleroConfig(ctx echo.Context, minioValidator *validator.Min
 
 	req.KubeConfig.KubeConfig = decodeKubeConfig
 	return req, nil
-}
-
-// ResolveNamespace : 네임스페이스 결정
-func ResolveNamespace(req *models.KubeConfig, ctx echo.Context, defaultNS string) string {
-	if req.Namespace != "" {
-		return req.Namespace
-	}
-	if ns := ctx.QueryParam("namespace"); ns != "" {
-		return ns
-	}
-	return defaultNS
-}
-
-// RunWithTimeout : 컨텍스트 타임아웃과 함께 함수 실행
-func RunWithTimeout(ctx context.Context, fn func() error) error {
-	done := make(chan error, 1)
-
-	go func() {
-		done <- fn()
-	}()
-
-	select {
-	case <-ctx.Done():
-		return fmt.Errorf("operation failed: timeout")
-	case err := <-done:
-		if err != nil {
-			return fmt.Errorf("operation failed: %w", err)
-		}
-		return nil
-	}
 }

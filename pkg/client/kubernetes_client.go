@@ -3,17 +3,18 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/taking/kubemigrate/pkg/interfaces"
+	"github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	"strings"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/utils"
-	"time"
 
 	kbclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"taking.kr/velero/pkg/errors"
+	"github.com/taking/kubemigrate/pkg/errors"
 )
 
 // kubeClient : Kubernetes 클라이언트
@@ -37,7 +38,7 @@ func NewKubernetesClient(cfg models.KubeConfig) (interfaces.KubernetesClient, er
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	ns := factory.ResolveNamespace(&cfg, "default")
+	ns := getNamespaceOrDefault(cfg.Namespace, "default")
 
 	return &kubeClient{
 		client:  client,
@@ -68,7 +69,7 @@ func NewKubeClient(cfg models.KubeConfig) (interfaces.KubernetesClient, error) {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	ns := factory.ResolveNamespace(&cfg, "default")
+	ns := getNamespaceOrDefault(cfg.Namespace, "default")
 
 	return &kubeClient{
 		client:  k8sClient,

@@ -36,9 +36,9 @@ coverage.html
 # Test files
 *_test.go
 
-# Documentation
-docs/
-*.md
+# Documentation (keep swagger docs for build)
+docs/README.md
+docs/*.md
 
 # Monitoring configs (not needed in container)
 monitoring/

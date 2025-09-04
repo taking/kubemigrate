@@ -4,8 +4,8 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "Velero backup and restore management API with multi-cluster support",
-        "title": "Velero API Server",
+        "description": "Kubernetes cluster migration and backup validation API with multi-cluster support",
+        "title": "KubeMigrate API Server",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",
@@ -41,7 +41,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.HelmChartRequest"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.HelmChartRequest"
                         }
                     }
                 ],
@@ -49,19 +49,19 @@
                     "200": {
                         "description": "Chart status retrieved",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -87,7 +87,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
                         }
                     }
                 ],
@@ -95,25 +95,25 @@
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -139,7 +139,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
                         }
                     }
                 ],
@@ -147,25 +147,25 @@
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -191,7 +191,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
                         }
                     }
                 ],
@@ -199,19 +199,19 @@
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -237,7 +237,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
                         }
                     }
                 ],
@@ -245,19 +245,19 @@
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -283,7 +283,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.MinioConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig"
                         }
                     }
                 ],
@@ -291,19 +291,19 @@
                     "200": {
                         "description": "Bucket created or already exists",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -329,7 +329,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.MinioConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig"
                         }
                     }
                 ],
@@ -337,25 +337,25 @@
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -381,7 +381,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
                         }
                     }
                 ],
@@ -389,19 +389,19 @@
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -427,7 +427,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
                         }
                     }
                 ],
@@ -435,19 +435,19 @@
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -473,7 +473,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
                         }
                     }
                 ],
@@ -481,19 +481,19 @@
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -519,7 +519,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
                         }
                     }
                 ],
@@ -527,25 +527,25 @@
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -571,7 +571,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
                         }
                     }
                 ],
@@ -579,19 +579,19 @@
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -617,7 +617,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
                         }
                     }
                 ],
@@ -625,19 +625,19 @@
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -645,7 +645,7 @@
         }
     },
     "definitions": {
-        "taking_kr_velero_pkg_models.HelmChartRequest": {
+        "github_com_taking_kubemigrate_pkg_models.HelmChartRequest": {
             "type": "object",
             "properties": {
                 "chartName": {
@@ -656,13 +656,13 @@
                     "description": "Kubernetes 설정",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
                         }
                     ]
                 }
             }
         },
-        "taking_kr_velero_pkg_models.KubeConfig": {
+        "github_com_taking_kubemigrate_pkg_models.KubeConfig": {
             "type": "object",
             "properties": {
                 "chartName": {
@@ -679,7 +679,7 @@
                 }
             }
         },
-        "taking_kr_velero_pkg_models.MinioConfig": {
+        "github_com_taking_kubemigrate_pkg_models.MinioConfig": {
             "type": "object",
             "properties": {
                 "accessKey": {
@@ -708,7 +708,7 @@
                 }
             }
         },
-        "taking_kr_velero_pkg_models.SwaggerErrorResponse": {
+        "github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -719,7 +719,7 @@
                 }
             }
         },
-        "taking_kr_velero_pkg_models.SwaggerSuccessResponse": {
+        "github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -728,14 +728,14 @@
                 }
             }
         },
-        "taking_kr_velero_pkg_models.VeleroConfig": {
+        "github_com_taking_kubemigrate_pkg_models.VeleroConfig": {
             "type": "object",
             "properties": {
                 "kubernetes": {
                     "description": "Kubernetes 설정",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
                         }
                     ]
                 },
@@ -743,7 +743,7 @@
                     "description": "MinIO 설정",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/taking_kr_velero_pkg_models.MinioConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig"
                         }
                     ]
                 }

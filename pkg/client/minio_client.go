@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 	"fmt"
-	"taking.kr/velero/pkg/errors"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/utils"
-	"taking.kr/velero/pkg/validator"
+	"github.com/taking/kubemigrate/pkg/errors"
+	"github.com/taking/kubemigrate/pkg/interfaces"
+	"github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/pkg/validator"
 	"time"
 
 	"github.com/minio/minio-go/v7"

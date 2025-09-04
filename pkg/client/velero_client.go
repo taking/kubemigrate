@@ -3,17 +3,18 @@ package client
 import (
 	"context"
 	"fmt"
-	"taking.kr/velero/pkg/interfaces"
-	"taking.kr/velero/pkg/models"
-	"taking.kr/velero/pkg/utils"
 	"time"
+
+	"github.com/taking/kubemigrate/pkg/interfaces"
+	"github.com/taking/kubemigrate/pkg/models"
+	"github.com/taking/kubemigrate/pkg/utils"
 
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	velerov2 "github.com/vmware-tanzu/velero/pkg/apis/velero/v2alpha1"
 	"github.com/vmware-tanzu/velero/pkg/client"
 	kbclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"taking.kr/velero/pkg/errors"
+	"github.com/taking/kubemigrate/pkg/errors"
 )
 
 // veleroClient : Velero 클라이언트
@@ -32,7 +33,7 @@ func NewVeleroClient(cfg models.KubeConfig) (interfaces.VeleroClient, error) {
 		return nil, err
 	}
 
-	ns := clientFactory.ResolveNamespace(&cfg, "velero")
+	ns := getNamespaceOrDefault(cfg.Namespace, "velero")
 
 	vcl := client.VeleroConfig{
 		"KubeClientConfig": restCfg,

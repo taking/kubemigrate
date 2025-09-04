@@ -2,7 +2,7 @@ package service
 
 // import (
 // 	"context"
-// 	"taking.kr/velero/pkg/repository"
+// 	"github.com/taking/kubemigrate/pkg/repository"
 // )
 
 // type MigrationService struct {

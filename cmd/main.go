@@ -14,19 +14,19 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
-	_ "taking.kr/velero/docs/swagger" // Scalar Docs Swagger
-	"taking.kr/velero/pkg/cache"
-	"taking.kr/velero/pkg/config"
-	"taking.kr/velero/pkg/health"
-	"taking.kr/velero/pkg/logger"
-	"taking.kr/velero/pkg/middleware"
-	"taking.kr/velero/pkg/router"
-	"taking.kr/velero/pkg/utils"
+	_ "github.com/taking/kubemigrate/docs/swagger" // Scalar Docs Swagger
+	"github.com/taking/kubemigrate/pkg/cache"
+	"github.com/taking/kubemigrate/pkg/config"
+	"github.com/taking/kubemigrate/pkg/health"
+	"github.com/taking/kubemigrate/pkg/logger"
+	"github.com/taking/kubemigrate/pkg/middleware"
+	"github.com/taking/kubemigrate/pkg/router"
+	"github.com/taking/kubemigrate/pkg/utils"
 )
 
-// @title Velero API Server
+// @title KubeMigrate API Server
 // @version 1.0
-// @description Velero backup and restore management API with multi-cluster support
+// @description Kubernetes cluster migration and backup validation API with multi-cluster support
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
@@ -103,7 +103,7 @@ func setupScalarDocs(e *echo.Echo, cfg *config.Config) {
 	// Scalar API 문서 등록
 	openapidocs.ScalarDocuments(e, "docs", openapidocs.ScalarConfig{
 		SpecUrl: "/swagger.json",
-		Title:   "Velero API Documentation",
+		Title:   "KubeMigrate API Documentation",
 		Theme:   "blue",
 	})
 
@@ -114,7 +114,7 @@ func setupScalarDocs(e *echo.Echo, cfg *config.Config) {
 // startServer : 서버 실행
 func startServer(server *http.Server) {
 	go func() {
-		logger.Info("Velero API Server starting",
+		logger.Info("KubeMigrate API Server starting",
 			zap.String("addr", server.Addr),
 			zap.String("docs_url", "http://localhost:9091/docs"),
 			zap.String("health_url", "http://localhost:9091/api/v1/health"))
