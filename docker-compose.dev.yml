@@ -1,11 +1,11 @@
-version: '3.8'
-
 services:
-  # KubeMigrate API Server
   kubemigrate-api:
     build:
       context: .
-      dockerfile: docker/Dockerfile.amd64
+      dockerfile: docker/Dockerfile
+      args:
+        TARGETARCH: amd64
+        TARGETOS: linux
     container_name: kubemigrate-api-server
     ports:
       - "9091:9091"

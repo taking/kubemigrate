@@ -113,16 +113,12 @@ jobs:
         include:
           - arch: amd64
             platform: linux/amd64
-            dockerfile: docker/Dockerfile.amd64
-          - arch: arm64
-            platform: linux/arm64
-            dockerfile: docker/Dockerfile.arm64
-          - arch: darwin-amd64
-            platform: linux/amd64
-            dockerfile: docker/Dockerfile.darwin-amd64
-          - arch: darwin-arm64
-            platform: linux/arm64
-            dockerfile: docker/Dockerfile.darwin-arm64
+          # - arch: arm64
+          #   platform: linux/arm64
+          # - arch: darwin-amd64
+          #   platform: linux/amd64
+          # - arch: darwin-arm64
+          #   platform: linux/arm64
       fail-fast: false
 
     steps:

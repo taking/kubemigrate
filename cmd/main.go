@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kohkimakimoto/echo-openapidocs"
+	openapidocs "github.com/kohkimakimoto/echo-openapidocs"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
