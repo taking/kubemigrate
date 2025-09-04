@@ -176,10 +176,13 @@ jobs:
     - name: Verify ${{ matrix.arch }} image
       run: |
         echo "🔍 Verifying ${{ matrix.arch }} image..."
-        for tag in ${{ steps.meta.outputs.tags }}; do
+        tags=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[]')
+        for tag in $tags; do
           echo "📦 Image: $tag"
-          docker buildx imagetools inspect $tag --format "{{.Manifest.Architecture}}"
+          docker buildx imagetools inspect "$tag" --format "{{.Manifest.Architecture}}"
         done
+      env:
+        DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
 
     - name: Output ${{ matrix.arch }} image details
       run: |
@@ -241,7 +244,7 @@ jobs:
         echo "### 📦 Multi-Architecture Docker Images" >> $GITHUB_OUTPUT
         echo "- **Registry**: \`ghcr.io/${{ env.IMAGE_NAME }}\`" >> $GITHUB_OUTPUT
         echo "- **Tags**: \`${{ github.ref_name }}\`, \`latest\`" >> $GITHUB_OUTPUT
-        echo "- **Platforms**: \`linux/amd64\` (additional platforms can be enabled)" >> $GITHUB_OUTPUT
+        echo "- **Platforms**: \`linux/amd64\` (UPX compressed), \`linux/arm64\`" >> $GITHUB_OUTPUT
         echo "- **Optimization**: Architecture-specific Dockerfiles for better performance" >> $GITHUB_OUTPUT
         echo "" >> $GITHUB_OUTPUT
         echo "### 📚 Documentation" >> $GITHUB_OUTPUT

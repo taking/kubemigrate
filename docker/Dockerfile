@@ -3,7 +3,7 @@ FROM golang:1.24-alpine3.22 AS builder
 LABEL authors="taking"
 LABEL description="KubeMigrate API Server - Multi-cluster backup and restore management"
 
-RUN apk add --no-cache git ca-certificates tzdata
+RUN apk add --no-cache git ca-certificates tzdata upx
 
 WORKDIR /app
 
@@ -22,6 +22,15 @@ RUN echo "🔧 Building for GOOS=$TARGETOS GOARCH=$TARGETARCH" && \
     -trimpath \
     -buildvcs=false \
     -o kubemigrate-api ./cmd/main.go
+
+# UPX 압축 최적화 (linux/amd64인 경우에만)
+RUN if [ "$TARGETOS" = "linux" ] && [ "$TARGETARCH" = "amd64" ]; then \
+        echo "🗜️  Compressing binary with UPX for linux/amd64..." && \
+        upx --best --lzma kubemigrate-api -o kubemigrate-api-compressed && \
+        mv kubemigrate-api-compressed kubemigrate-api; \
+    else \
+        echo "⏭️  Skipping UPX compression for $TARGETOS/$TARGETARCH"; \
+    fi
 
 FROM scratch
 
