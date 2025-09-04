@@ -5,7 +5,7 @@ services:
   kubemigrate-api:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/Dockerfile.amd64
     container_name: kubemigrate-api-server
     ports:
       - "9091:9091"

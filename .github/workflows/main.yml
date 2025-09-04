@@ -99,15 +99,31 @@ jobs:
         git commit -m "docs: update swagger documentation [skip ci]"
         git push
 
-  # Docker 멀티 아키텍처 빌드 및 GHCR 푸시
+  # Docker 아키텍처별 빌드 및 GHCR 푸시
   docker:
     runs-on: ubuntu-latest
     needs: generate-docs
     if: github.event_name == 'push'
-    timeout-minutes: 30
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            dockerfile: docker/Dockerfile.amd64
+          - arch: arm64
+            platform: linux/arm64
+            dockerfile: docker/Dockerfile.arm64
+          - arch: darwin-amd64
+            platform: linux/amd64
+            dockerfile: docker/Dockerfile.darwin-amd64
+          - arch: darwin-arm64
+            platform: linux/arm64
+            dockerfile: docker/Dockerfile.darwin-arm64
+      fail-fast: false
 
     steps:
     - name: Checkout code
@@ -119,7 +135,6 @@ jobs:
         driver-opts: |
           image=moby/buildkit:buildx-stable-1
           network=host
-        platforms: linux/amd64,linux/arm64
 
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
@@ -143,41 +158,41 @@ jobs:
           prefix=
           suffix=
 
-    - name: Build and push multi-arch Docker image
+    - name: Build and push Docker image for ${{ matrix.arch }}
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./docker/Dockerfile
+        file: ${{ matrix.dockerfile }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha,scope=buildx
-        cache-to: type=gha,mode=max,scope=buildx
+        platforms: ${{ matrix.platform }}
+        cache-from: type=gha,scope=buildx-${{ matrix.arch }}
+        cache-to: type=gha,mode=max,scope=buildx-${{ matrix.arch }}
         provenance: false
         sbom: false
         build-args: |
           BUILDKIT_INLINE_CACHE=1
         outputs: type=registry
 
-    - name: Verify multi-arch image
+    - name: Verify ${{ matrix.arch }} image
       run: |
-        echo "🔍 Verifying multi-architecture image..."
+        echo "🔍 Verifying ${{ matrix.arch }} image..."
         for tag in ${{ steps.meta.outputs.tags }}; do
           echo "📦 Image: $tag"
           docker buildx imagetools inspect $tag --format "{{.Manifest.Architecture}}"
         done
 
-    - name: Output image details
+    - name: Output ${{ matrix.arch }} image details
       run: |
-        echo "🚀 Successfully built and pushed multi-arch images:"
+        echo "🚀 Successfully built and pushed ${{ matrix.arch }} image:"
         echo "📦 Registry: ${{ env.REGISTRY }}"
         echo "🏷️  Repository: ${{ env.IMAGE_NAME }}"
         echo "🏷️  Tags: ${{ steps.meta.outputs.tags }}"
-        echo "🏗️  Platforms: linux/amd64, linux/arm64"
+        echo "🏗️  Platform: ${{ matrix.platform }}"
         echo ""
         echo "📋 Usage examples:"
-        echo "  docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "  docker pull --platform ${{ matrix.platform }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
         echo "  docker run --rm -p 9091:9091 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
 
   # GitHub Pages 배포
@@ -228,7 +243,8 @@ jobs:
         echo "### 📦 Multi-Architecture Docker Images" >> $GITHUB_OUTPUT
         echo "- **Registry**: \`ghcr.io/${{ env.IMAGE_NAME }}\`" >> $GITHUB_OUTPUT
         echo "- **Tags**: \`${{ github.ref_name }}\`, \`latest\`" >> $GITHUB_OUTPUT
-        echo "- **Platforms**: \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_OUTPUT
+        echo "- **Platforms**: \`linux/amd64\`, \`linux/arm64\`, \`darwin/amd64\`, \`darwin/arm64\`" >> $GITHUB_OUTPUT
+        echo "- **Optimization**: Architecture-specific Dockerfiles for better performance" >> $GITHUB_OUTPUT
         echo "" >> $GITHUB_OUTPUT
         echo "### 📚 Documentation" >> $GITHUB_OUTPUT
         echo "- [API Documentation](https://taking.github.io/kubemigrate/)" >> $GITHUB_OUTPUT

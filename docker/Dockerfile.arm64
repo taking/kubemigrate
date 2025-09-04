@@ -1,11 +1,11 @@
-# Build stage
+# Build stage for ARM64
 FROM golang:1.24-alpine3.22 AS builder
 
 LABEL authors="taking"
-LABEL description="KubeMigrate API Server - Multi-cluster backup and restore management"
+LABEL description="KubeMigrate API Server - Multi-cluster backup and restore management (ARM64)"
 
-# Install build dependencies including UPX
-RUN apk add --no-cache git ca-certificates tzdata upx
+# Install build dependencies (UPX 제외 - ARM64에서 문제 발생 가능)
+RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /app
 
@@ -16,16 +16,16 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application with optimized flags and parallel compilation
-RUN CGO_ENABLED=0 GOOS=linux go build \
+# Build the application with optimized flags for ARM64
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
     -a -installsuffix cgo \
     -ldflags '-s -w -extldflags "-static"' \
     -trimpath \
     -buildvcs=false \
     -o kubemigrate-api ./cmd/main.go
 
-# Compress the binary with UPX (faster compression for CI)
-RUN upx --lzma kubemigrate-api -o kubemigrate-api-compressed
+# ARM64에서는 UPX 압축 생략 (에뮬레이션 환경에서 문제 발생 가능)
+# RUN upx --lzma kubemigrate-api -o kubemigrate-api-compressed
 
 # Runtime stage
 FROM alpine:3.22 AS runtime
@@ -39,8 +39,8 @@ RUN addgroup -g 1001 -S appgroup && \
 
 WORKDIR /app
 
-# Copy compressed binary from builder stage
-COPY --from=builder /app/kubemigrate-api-compressed ./kubemigrate-api
+# Copy binary from builder stage (압축되지 않은 버전)
+COPY --from=builder /app/kubemigrate-api ./kubemigrate-api
 
 # Create swagger directories
 RUN mkdir -p ./docs/swagger
