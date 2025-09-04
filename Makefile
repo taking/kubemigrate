@@ -80,22 +80,22 @@ build-all: build-linux build-darwin build-windows ## 모든 플랫폼용 빌드
 # 아키텍처별 Docker 빌드
 docker-build-amd64: ## AMD64용 Docker 이미지 빌드
 	@echo "$(YELLOW)Building AMD64 Docker image...$(RESET)"
-	@docker build --platform linux/amd64 -t $(DOCKER_IMAGE):amd64 .
+	@docker build --platform linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -f docker/Dockerfile -t $(DOCKER_IMAGE):amd64 .
 	@echo "$(GREEN)✓ Built $(DOCKER_IMAGE):amd64$(RESET)"
 
 docker-build-arm64: ## ARM64용 Docker 이미지 빌드
 	@echo "$(YELLOW)Building ARM64 Docker image...$(RESET)"
-	@docker build --platform linux/arm64 -t $(DOCKER_IMAGE):arm64 .
+	@docker build --platform linux/arm64 --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 -f docker/Dockerfile -t $(DOCKER_IMAGE):arm64 .
 	@echo "$(GREEN)✓ Built $(DOCKER_IMAGE):arm64$(RESET)"
 
 docker-build-darwin-amd64: ## macOS Intel용 Docker 이미지 빌드
 	@echo "$(YELLOW)Building macOS Intel Docker image...$(RESET)"
-	@docker build -f docker/Dockerfile.darwin-amd64 -t $(DOCKER_IMAGE):darwin-amd64 .
+	@docker build --platform linux/amd64 --build-arg TARGETOS=darwin --build-arg TARGETARCH=amd64 -f docker/Dockerfile -t $(DOCKER_IMAGE):darwin-amd64 .
 	@echo "$(GREEN)✓ Built $(DOCKER_IMAGE):darwin-amd64$(RESET)"
 
 docker-build-darwin-arm64: ## macOS Apple Silicon용 Docker 이미지 빌드
 	@echo "$(YELLOW)Building macOS Apple Silicon Docker image...$(RESET)"
-	@docker build -f docker/Dockerfile.darwin-arm64 -t $(DOCKER_IMAGE):darwin-arm64 .
+	@docker build --platform linux/arm64 --build-arg TARGETOS=darwin --build-arg TARGETARCH=arm64 -f docker/Dockerfile -t $(DOCKER_IMAGE):darwin-arm64 .
 	@echo "$(GREEN)✓ Built $(DOCKER_IMAGE):darwin-arm64$(RESET)"
 
 docker-build-all-arch: docker-build-amd64 docker-build-arm64 docker-build-darwin-amd64 docker-build-darwin-arm64 ## 모든 아키텍처용 Docker 이미지 빌드

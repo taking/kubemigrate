@@ -158,7 +158,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ${{ matrix.dockerfile }}
+        file: docker/Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -168,6 +168,8 @@ jobs:
         provenance: false
         sbom: false
         build-args: |
+          TARGETOS=linux
+          TARGETARCH=${{ matrix.arch }}
           BUILDKIT_INLINE_CACHE=1
         outputs: type=registry
 
@@ -239,7 +241,7 @@ jobs:
         echo "### 📦 Multi-Architecture Docker Images" >> $GITHUB_OUTPUT
         echo "- **Registry**: \`ghcr.io/${{ env.IMAGE_NAME }}\`" >> $GITHUB_OUTPUT
         echo "- **Tags**: \`${{ github.ref_name }}\`, \`latest\`" >> $GITHUB_OUTPUT
-        echo "- **Platforms**: \`linux/amd64\`, \`linux/arm64\`, \`darwin/amd64\`, \`darwin/arm64\`" >> $GITHUB_OUTPUT
+        echo "- **Platforms**: \`linux/amd64\` (additional platforms can be enabled)" >> $GITHUB_OUTPUT
         echo "- **Optimization**: Architecture-specific Dockerfiles for better performance" >> $GITHUB_OUTPUT
         echo "" >> $GITHUB_OUTPUT
         echo "### 📚 Documentation" >> $GITHUB_OUTPUT
