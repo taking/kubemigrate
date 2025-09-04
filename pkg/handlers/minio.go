@@ -37,7 +37,7 @@ func NewMinioHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, health
 // @Tags minio
 // @Accept json
 // @Produce json
-// @Param request body models.MinioConfig true "Minio connection configuration"
+// @Param request body models.MinioConfigRequest true "Minio connection configuration"
 // @Success 200 {object} models.SwaggerSuccessResponse "Connection successful"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
@@ -75,7 +75,7 @@ func (h *MinioHandler) HealthCheck(c echo.Context) error {
 // @Tags minio
 // @Accept json
 // @Produce json
-// @Param request body models.MinioConfig true "Minio configuration with bucket name"
+// @Param request body models.MinioConfigRequest true "Minio configuration with bucket name"
 // @Success 200 {object} models.SwaggerSuccessResponse "Bucket created or already exists"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"

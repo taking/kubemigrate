@@ -27,11 +27,10 @@ import (
 // @title KubeMigrate API Server
 // @version 1.0
 // @description Kubernetes cluster migration and backup validation API with multi-cluster support
-// @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
-// @contact.url http://www.swagger.io/support
-// @contact.email support@swagger.io
+// @contact.url github.com/taking/kubemigrate/issues
+// @contact.email taking@duck.com
 
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html

@@ -43,6 +43,38 @@ definitions:
         description: SSL 사용 여부
         type: boolean
     type: object
+  github_com_taking_kubemigrate_pkg_models.MinioConfigRequest:
+    properties:
+      accessKey:
+        description: '[필수] minio accessKey'
+        example: your_minio_accessKey
+        type: string
+      bucketName:
+        description: '[옵션] minio Bucket  (기본값: velero)'
+        example: velero
+        type: string
+      endpoint:
+        description: '[필수] minio endpoint 주소'
+        example: 127.0.0.1:9000
+        type: string
+      region:
+        description: '[옵션] minio Region (기본값 : us-east-1)'
+        example: us-east-1
+        type: string
+      secretKey:
+        description: '[필수] minio secretKey'
+        example: your_minio_secretKey
+        type: string
+      useSSL:
+        description: '[필수] minio useSSL 여부 (false: http / true: https)'
+        example: false
+        type: boolean
+    required:
+    - accessKey
+    - endpoint
+    - secretKey
+    - useSSL
+    type: object
   github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse:
     properties:
       error:
@@ -70,15 +102,14 @@ definitions:
 host: localhost:9091
 info:
   contact:
-    email: support@swagger.io
+    email: taking@duck.com
     name: API Support
-    url: http://www.swagger.io/support
+    url: github.com/taking/kubemigrate/issues
   description: Kubernetes cluster migration and backup validation API with multi-cluster
     support
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swagger.io/terms/
   title: KubeMigrate API Server
   version: "1.0"
 paths:
@@ -251,7 +282,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfigRequest'
       produces:
       - application/json
       responses:

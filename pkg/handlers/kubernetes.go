@@ -40,7 +40,7 @@ func NewKubernetesHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, h
 // @Tags kubernetes
 // @Accept json
 // @Produce json
-// @Param request body models.KubeConfig true "Kubernetes connection configuration"
+// @Param request body models.KubeConfigRequest true "Kubernetes connection configuration"
 // @Success 200 {object} models.SwaggerSuccessResponse "Connection successful"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
@@ -81,7 +81,7 @@ func (h *KubernetesHandler) HealthCheck(c echo.Context) error {
 // @Tags kubernetes
 // @Accept json
 // @Produce json
-// @Param request body models.KubeConfig true "Kubernetes connection configuration"
+// @Param request body models.KubeConfigRequest true "Kubernetes connection configuration"
 // @Success 200 {object} models.SwaggerSuccessResponse "Success"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
@@ -98,7 +98,7 @@ func (h *KubernetesHandler) GetPods(c echo.Context) error {
 // @Tags kubernetes
 // @Accept json
 // @Produce json
-// @Param request body models.KubeConfig true "Kubernetes connection configuration"
+// @Param request body models.KubeConfigRequest true "Kubernetes connection configuration"
 // @Success 200 {object} models.SwaggerSuccessResponse "Success"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"

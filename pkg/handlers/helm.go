@@ -40,7 +40,7 @@ func NewHelmHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, healthM
 // @Tags helm
 // @Accept json
 // @Produce json
-// @Param request body models.KubeConfig true "Helm connection configuration"
+// @Param request body models.KubeConfigRequest true "Helm connection configuration"
 // @Success 200 {object} models.SwaggerSuccessResponse "Connection successful"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"

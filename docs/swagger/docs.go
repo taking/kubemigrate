@@ -9,11 +9,10 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",
-            "url": "http://www.swagger.io/support",
-            "email": "support@swagger.io"
+            "url": "github.com/taking/kubemigrate/issues",
+            "email": "taking@duck.com"
         },
         "license": {
             "name": "Apache 2.0",
@@ -286,7 +285,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfigRequest"
                         }
                     }
                 ],
@@ -708,6 +707,47 @@ const docTemplate = `{
                 "useSSL": {
                     "description": "SSL 사용 여부",
                     "type": "boolean"
+                }
+            }
+        },
+        "github_com_taking_kubemigrate_pkg_models.MinioConfigRequest": {
+            "type": "object",
+            "required": [
+                "accessKey",
+                "endpoint",
+                "secretKey",
+                "useSSL"
+            ],
+            "properties": {
+                "accessKey": {
+                    "description": "[필수] minio accessKey",
+                    "type": "string",
+                    "example": "your_minio_accessKey"
+                },
+                "bucketName": {
+                    "description": "[옵션] minio Bucket  (기본값: velero)",
+                    "type": "string",
+                    "example": "velero"
+                },
+                "endpoint": {
+                    "description": "[필수] minio endpoint 주소",
+                    "type": "string",
+                    "example": "127.0.0.1:9000"
+                },
+                "region": {
+                    "description": "[옵션] minio Region (기본값 : us-east-1)",
+                    "type": "string",
+                    "example": "us-east-1"
+                },
+                "secretKey": {
+                    "description": "[필수] minio secretKey",
+                    "type": "string",
+                    "example": "your_minio_secretKey"
+                },
+                "useSSL": {
+                    "description": "[필수] minio useSSL 여부 (false: http / true: https)",
+                    "type": "boolean",
+                    "example": false
                 }
             }
         },
