@@ -16,13 +16,16 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application with optimized flags
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo \
+# Build the application with optimized flags and parallel compilation
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -a -installsuffix cgo \
     -ldflags '-s -w -extldflags "-static"' \
+    -trimpath \
+    -buildvcs=false \
     -o kubemigrate-api ./cmd/main.go
 
-# Compress the binary with UPX
-RUN upx --best --lzma kubemigrate-api -o kubemigrate-api-compressed
+# Compress the binary with UPX (faster compression for CI)
+RUN upx --lzma kubemigrate-api -o kubemigrate-api-compressed
 
 # Runtime stage
 FROM alpine:3.22 AS runtime
