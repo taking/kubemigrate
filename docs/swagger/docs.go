@@ -89,7 +89,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -141,7 +141,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -193,7 +193,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -239,7 +239,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -331,7 +331,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfigRequest"
                         }
                     }
                 ],
@@ -678,6 +678,24 @@ const docTemplate = `{
                 "namespace": {
                     "description": "네임스페이스",
                     "type": "string"
+                }
+            }
+        },
+        "github_com_taking_kubemigrate_pkg_models.KubeConfigRequest": {
+            "type": "object",
+            "required": [
+                "kubeconfig"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "description": "[필수] Base64 인코딩된 KubeConfig 값",
+                    "type": "string",
+                    "example": "base64 인코딩된 KubeConfig 값"
+                },
+                "namespace": {
+                    "description": "[옵션] 네임스페이스 명 (기본 값 : 'default', 전체 조회  : 'all')",
+                    "type": "string",
+                    "example": "all"
                 }
             }
         },
