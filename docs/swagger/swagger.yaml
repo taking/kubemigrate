@@ -1,0 +1,500 @@
+basePath: /api/v1
+definitions:
+  taking_kr_velero_pkg_models.HelmChartRequest:
+    properties:
+      chartName:
+        description: 헬름 차트명
+        type: string
+      kubernetes:
+        allOf:
+        - $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+        description: Kubernetes 설정
+    type: object
+  taking_kr_velero_pkg_models.KubeConfig:
+    properties:
+      chartName:
+        description: 헬름 차트명
+        type: string
+      kubeconfig:
+        description: 원본 KubeConfig 데이터
+        type: string
+      namespace:
+        description: 네임스페이스
+        type: string
+    type: object
+  taking_kr_velero_pkg_models.MinioConfig:
+    properties:
+      accessKey:
+        description: 액세스 키
+        type: string
+      bucketName:
+        description: 버킷명
+        type: string
+      endpoint:
+        description: MinIO 엔드포인트
+        type: string
+      region:
+        description: 리전
+        type: string
+      secretKey:
+        description: 시크릿 키
+        type: string
+      useSSL:
+        description: SSL 사용 여부
+        type: boolean
+    type: object
+  taking_kr_velero_pkg_models.SwaggerErrorResponse:
+    properties:
+      error:
+        type: string
+      status:
+        type: string
+    type: object
+  taking_kr_velero_pkg_models.SwaggerSuccessResponse:
+    properties:
+      data: {}
+      status:
+        type: string
+    type: object
+  taking_kr_velero_pkg_models.VeleroConfig:
+    properties:
+      kubernetes:
+        allOf:
+        - $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+        description: Kubernetes 설정
+      minio:
+        allOf:
+        - $ref: '#/definitions/taking_kr_velero_pkg_models.MinioConfig'
+        description: MinIO 설정
+    type: object
+host: localhost:9091
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Velero backup and restore management API with multi-cluster support
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Velero API Server
+  version: "1.0"
+paths:
+  /helm/chart_check:
+    post:
+      consumes:
+      - application/json
+      description: Check if specified Helm chart is installed using KubeConfig
+      parameters:
+      - description: Helm chart check configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.HelmChartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Chart status retrieved
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Check if Helm chart is installed
+      tags:
+      - helm
+  /helm/health:
+    get:
+      consumes:
+      - application/json
+      description: Validate Helm connection using KubeConfig
+      parameters:
+      - description: Helm connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Connection successful
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Check Helm connection
+      tags:
+      - helm
+  /kube/health:
+    get:
+      consumes:
+      - application/json
+      description: Validate Kubernetes connection using KubeConfig
+      parameters:
+      - description: Kubernetes connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Connection successful
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Kubernetes 연결 상태 확인
+      tags:
+      - kubernetes
+  /kube/pods:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve pod list from Kubernetes using KubeConfig
+      parameters:
+      - description: Kubernetes connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Kubernetes pod 목록 조회
+      tags:
+      - kubernetes
+  /kube/storage-classes:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve storage class list from Kubernetes using KubeConfig
+      parameters:
+      - description: Kubernetes connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Kubernetes storage class 목록 조회
+      tags:
+      - kubernetes
+  /minio/bucket_check:
+    post:
+      consumes:
+      - application/json
+      description: Create Minio bucket if it doesn't exist using MinioConfig
+      parameters:
+      - description: Minio configuration with bucket name
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.MinioConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bucket created or already exists
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Minio 버킷 생성 여부 확인
+      tags:
+      - minio
+  /minio/health:
+    get:
+      consumes:
+      - application/json
+      description: Validate Minio connection using MinioConfig
+      parameters:
+      - description: Minio connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.MinioConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Connection successful
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Minio 연결 상태 확인
+      tags:
+      - minio
+  /velero/backup-repositories:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve Velero backup repository list using MinioConfig and KubeConfig
+      parameters:
+      - description: Velero connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Velero 백업 저장소 목록 조회
+      tags:
+      - velero
+  /velero/backup-storage-locations:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve Velero backup storage location list using MinioConfig
+        and KubeConfig
+      parameters:
+      - description: Velero connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Velero 백업 저장 위치 목록 조회
+      tags:
+      - velero
+  /velero/backups:
+    post:
+      consumes:
+      - application/json
+      description: Retrieve Velero backup list using MinioConfig and KubeConfig
+      parameters:
+      - description: Velero connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Velero 백업 목록 조회
+      tags:
+      - velero
+  /velero/health:
+    get:
+      consumes:
+      - application/json
+      description: Validate Velero connection using KubeConfig
+      parameters:
+      - description: Velero connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Connection successful
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Velero 연결 상태 확인
+      tags:
+      - velero
+  /velero/restores:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve Velero restore list using MinioConfig and KubeConfig
+      parameters:
+      - description: Velero connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Velero 복구 목록 조회
+      tags:
+      - velero
+  /velero/volume-snapshot-locations:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve Velero volume snapshot location list using MinioConfig
+        and KubeConfig
+      parameters:
+      - description: Velero connection configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/taking_kr_velero_pkg_models.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerSuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/taking_kr_velero_pkg_models.SwaggerErrorResponse'
+      summary: Velero 볼륨 스냅샷 위치 목록 조회
+      tags:
+      - velero
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

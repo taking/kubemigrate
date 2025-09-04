@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  # Velero API Server
+  velero-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: velero-api-server
+    ports:
+      - "9091:9091"
+    environment:
+      - PORT=9091
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=console
+    volumes:
+      - ~/.kube:/home/appuser/.kube:ro
+      - ./docs/swagger:/app/docs/swagger:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

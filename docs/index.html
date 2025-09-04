@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Velero API Docs</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </head>
+  <body style="margin:0; padding:0;">
+    <div id="api-reference"></div>
+    <script>
+      ScalarApiReference.render({
+        specUrl: "./swagger/swagger.json",
+        layout: "modern",
+        theme: "blue",
+        hideDownloadButton: false
+      }, document.getElementById("api-reference"));
+    </script>
+  </body>
+</html>

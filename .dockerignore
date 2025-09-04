@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+README.md
+
+# Build artifacts
+build/
+bin/
+dist/
+
+# Development files
+.env.local
+.env.development
+docker-compose.dev.yml
+docker-compose.override.yml
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Coverage files
+coverage.out
+coverage.html
+
+# Test files
+*_test.go
+
+# Documentation
+docs/
+*.md
+
+# Monitoring configs (not needed in container)
+monitoring/
+nginx/
+
+# Temporary files
+tmp/
+temp/
