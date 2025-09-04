@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -14,12 +14,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
-	_ "github.com/taking/velero/api/swagger" // Scalar Docs Swagger
-	"github.com/taking/velero/internal/config"
-	"github.com/taking/velero/internal/handler"
-	"github.com/taking/velero/internal/middleware"
-	"github.com/taking/velero/pkg"
-	"github.com/taking/velero/pkg/logger"
+	_ "taking.kr/velero/docs/swagger" // Scalar Docs Swagger
+	"taking.kr/velero/pkg/cache"
+	"taking.kr/velero/pkg/config"
+	"taking.kr/velero/pkg/health"
+	"taking.kr/velero/pkg/logger"
+	"taking.kr/velero/pkg/middleware"
+	"taking.kr/velero/pkg/router"
+	"taking.kr/velero/pkg/utils"
 )
 
 // @title Velero API Server
@@ -52,6 +54,19 @@ func main() {
 	// Config 불러오기
 	cfg := config.Load()
 
+	// 캐시 시스템 초기화 (5분 TTL)
+	appCache := cache.NewCache(5 * time.Minute)
+	logger.Info("Cache system initialized", zap.Duration("ttl", 5*time.Minute))
+
+	// 워커 풀 초기화 (CPU 코어 수 * 2)
+	workerPool := utils.NewWorkerPool(runtime.NumCPU() * 2)
+	defer workerPool.Close()
+	logger.Info("Worker pool initialized", zap.Int("workers", runtime.NumCPU()*2))
+
+	// 헬스체크 매니저 초기화 (30초 타임아웃)
+	healthManager := health.NewHealthManager(30 * time.Second)
+	logger.Info("Health manager initialized", zap.Duration("timeout", 30*time.Second))
+
 	// Echo 인스턴스 생성
 	e := echo.New()
 	e.HideBanner = true
@@ -60,8 +75,8 @@ func main() {
 	// 기본 미들웨어 설정
 	middleware.SetupMiddleware(e, cfg)
 
-	// API 라우트 등록
-	handler.RegisterRoutes(e)
+	// API 라우트 등록 (의존성 주입)
+	router.RegisterRoutes(e, appCache, workerPool, healthManager)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
@@ -71,47 +86,11 @@ func main() {
 		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
 
-	// Swagger Docs 생성
-	if err := generateSwagger(); err != nil {
-		logger.Error("failed to generate swagger", zap.Error(err))
-	} else {
-		logger.Info("Swagger.yaml / swagger.json updated")
-	}
-
 	// Scalar API 문서 등록
 	setupScalarDocs(e, cfg)
 
 	// 서버 실행
 	startServer(server)
-}
-
-// generateSwagger : 서버 실행 시 Swagger 문서 자동 갱신
-func generateSwagger() error {
-	logger.Info("Generating OpenAPI docs...")
-
-	// swag CLI를 subprocess로 실행
-	cmd := exec.Command(
-		"swag", "init",
-		"-g", "main.go",
-		"-o", "../../docs/swagger",
-		"--parseDependency",
-		"--parseInternal",
-	)
-	cmd.Dir = "cmd"
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-
-	// swagger.json / yaml 복사해서 docs/swagger/ 로 배포
-	os.MkdirAll("docs/swagger", 0755)
-	_ = pkg.CopyFile("api/swagger/swagger.json", "docs/swagger/swagger.json")
-	_ = pkg.CopyFile("api/swagger/swagger.yaml", "docs/swagger/swagger.yaml")
-
-	return nil
 }
 
 // setupScalarDocs : ScalarDocs 설정
@@ -137,7 +116,7 @@ func startServer(server *http.Server) {
 	go func() {
 		logger.Info("Velero API Server starting",
 			zap.String("addr", server.Addr),
-			zap.String("docs_url", "http://localhost:9091/api/swagger"),
+			zap.String("docs_url", "http://localhost:9091/docs"),
 			zap.String("health_url", "http://localhost:9091/api/v1/health"))
 
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

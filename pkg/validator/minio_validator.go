@@ -5,15 +5,17 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/taking/velero/internal/model"
+	"taking.kr/velero/pkg/models"
 )
 
+// MinioValidator : MinioValidator 구조체
 type MinioValidator struct {
-	endpointPattern  *regexp.Regexp
-	accessKeyPattern *regexp.Regexp
-	secretKeyPattern *regexp.Regexp
+	endpointPattern  *regexp.Regexp // endpoint 패턴
+	accessKeyPattern *regexp.Regexp // accessKey 패턴
+	secretKeyPattern *regexp.Regexp // secretKey 패턴
 }
 
+// NewMinioValidator : MinioValidator 초기화
 func NewMinioValidator() *MinioValidator {
 	return &MinioValidator{
 		// endpoint: host:port or domain, port optional
@@ -25,7 +27,8 @@ func NewMinioValidator() *MinioValidator {
 	}
 }
 
-func (v *MinioValidator) ValidateMinioConfig(cfg *model.MinioConfig) error {
+// ValidateMinioConfig : MinioConfig 검증
+func (v *MinioValidator) ValidateMinioConfig(cfg *models.MinioConfig) error {
 	if cfg.Endpoint == "" {
 		return fmt.Errorf("minio endpoint is required")
 	}

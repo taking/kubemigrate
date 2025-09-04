@@ -1,4 +1,4 @@
-module github.com/taking/velero
+module taking.kr/velero
 
 go 1.24.5
 

@@ -1,0 +1,339 @@
+package handlers
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"sort"
+
+	"github.com/labstack/echo/v4"
+	"taking.kr/velero/pkg/cache"
+	"taking.kr/velero/pkg/client"
+	"taking.kr/velero/pkg/health"
+	"taking.kr/velero/pkg/interfaces"
+	"taking.kr/velero/pkg/models"
+	"taking.kr/velero/pkg/response"
+	"taking.kr/velero/pkg/utils"
+	"taking.kr/velero/pkg/validator"
+)
+
+// VeleroHandler : Velero 관련 HTTP 요청을 처리하는 핸들러
+type VeleroHandler struct {
+	kubernetesValidator *validator.KubernetesValidator
+	minioValidator      *validator.MinioValidator
+	cache               *cache.Cache
+	workerPool          *utils.WorkerPool
+	healthManager       *health.HealthManager
+}
+
+// NewVeleroHandler : 새로운 VeleroHandler 인스턴스 생성
+func NewVeleroHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, healthManager *health.HealthManager) *VeleroHandler {
+	return &VeleroHandler{
+		kubernetesValidator: validator.NewKubernetesValidator(),
+		minioValidator:      validator.NewMinioValidator(),
+		cache:               appCache,
+		workerPool:          workerPool,
+		healthManager:       healthManager,
+	}
+}
+
+// HealthCheck : Velero 연결 상태 확인
+// @Summary Velero 연결 상태 확인
+// @Description Validate Velero connection using KubeConfig
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.KubeConfig true "Velero connection configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Connection successful"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Failure 503 {object} models.SwaggerErrorResponse "Service unavailable"
+// @Router /velero/health [get]
+func (h *VeleroHandler) HealthCheck(c echo.Context) error {
+	req, err := h.bindAndValidateKubeConfig(c)
+	if err != nil {
+		return err
+	}
+
+	// 기본 네임스페이스 설정
+	req.Namespace = resolveNamespace(&req, c, "velero")
+
+	client, err := client.NewVeleroClient(req)
+	if err != nil {
+		return response.RespondError(c, http.StatusInternalServerError, err.Error())
+	}
+
+	// 클러스터 연결 상태 확인
+	if err := client.HealthCheck(c.Request().Context()); err != nil {
+		return response.RespondError(c, http.StatusServiceUnavailable,
+			"Velero cluster unhealthy: "+err.Error())
+	}
+
+	// 헬스체크 매니저에 Velero 체커 등록
+	if h.healthManager != nil {
+		veleroChecker := health.NewVeleroHealthChecker(req)
+		h.healthManager.Register(veleroChecker)
+	}
+
+	return response.RespondStatus(c, "healthy", "Velero connection successful")
+}
+
+// GetBackups : Velero 백업 목록 조회
+// @Summary Velero 백업 목록 조회
+// @Description Retrieve Velero backup list using MinioConfig and KubeConfig
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero connection configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Success"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /velero/backups [post]
+func (h *VeleroHandler) GetBackups(c echo.Context) error {
+	return h.handleVeleroResourceWithCache(c, "backups", func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetBackups(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// 생성 시간 순서대로 정렬
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
+
+		return data, nil
+	})
+}
+
+// GetRestores : Velero 복구 목록 조회
+// @Summary Velero 복구 목록 조회
+// @Description Retrieve Velero restore list using MinioConfig and KubeConfig
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero connection configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Success"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /velero/restores [get]
+func (h *VeleroHandler) GetRestores(c echo.Context) error {
+	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetRestores(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// 생성 시간 순서대로 정렬
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
+
+		return data, nil
+	})
+}
+
+// GetBackupRepositories : Velero 백업 저장소 목록 조회
+// @Summary Velero 백업 저장소 목록 조회
+// @Description Retrieve Velero backup repository list using MinioConfig and KubeConfig
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero connection configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Success"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /velero/backup-repositories [get]
+func (h *VeleroHandler) GetBackupRepositories(c echo.Context) error {
+	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetBackupRepositories(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// 생성 시간 순서대로 정렬
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
+
+		return data, nil
+	})
+}
+
+// GetBackupStorageLocations : Velero 백업 저장 위치 목록 조회
+// @Summary Velero 백업 저장 위치 목록 조회
+// @Description Retrieve Velero backup storage location list using MinioConfig and KubeConfig
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero connection configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Success"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /velero/backup-storage-locations [get]
+func (h *VeleroHandler) GetBackupStorageLocations(c echo.Context) error {
+	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetBackupStorageLocations(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// 생성 시간 순서대로 정렬
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
+
+		return data, nil
+	})
+}
+
+// GetVolumeSnapshotLocations : Velero 볼륨 스냅샷 위치 목록 조회
+// @Summary Velero 볼륨 스냅샷 위치 목록 조회
+// @Description Retrieve Velero volume snapshot location list using MinioConfig and KubeConfig
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body models.VeleroConfig true "Velero connection configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Success"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /velero/volume-snapshot-locations [get]
+func (h *VeleroHandler) GetVolumeSnapshotLocations(c echo.Context) error {
+	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+		data, err := client.GetVolumeSnapshotLocations(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// 생성 시간 순서대로 정렬
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].CreationTimestamp.Time.After(data[j].CreationTimestamp.Time)
+		})
+
+		return data, nil
+	})
+}
+
+// handleVeleroResource : Velero 리소스 처리 헬퍼
+// Reduces code duplication by standardizing Velero resource retrieval and JSON response
+func (h *VeleroHandler) handleVeleroResource(c echo.Context,
+	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
+
+	// VeleroConfig 검증
+	req, err := h.bindAndValidateVeleroConfig(c)
+	if err != nil {
+		return err
+	}
+
+	// 기본 네임스페이스 설정
+	req.Namespace = resolveNamespace(&req.KubeConfig, c, "velero")
+
+	veleroClient, err := client.NewVeleroClient(req.KubeConfig)
+	if err != nil {
+		return response.RespondError(c, http.StatusInternalServerError, err.Error())
+	}
+
+	data, err := getResource(veleroClient, context.Background())
+	if err != nil {
+		return response.RespondError(c, http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   data,
+	})
+}
+
+// handleVeleroResourceWithCache : 캐시를 사용하는 Velero 리소스 처리 헬퍼
+func (h *VeleroHandler) handleVeleroResourceWithCache(c echo.Context, cacheKey string,
+	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
+
+	// VeleroConfig 검증
+	req, err := h.bindAndValidateVeleroConfig(c)
+	if err != nil {
+		return err
+	}
+
+	// 기본 네임스페이스 설정
+	req.Namespace = resolveNamespace(&req.KubeConfig, c, "velero")
+
+	// 캐시 키 생성
+	fullCacheKey := fmt.Sprintf("%s:%s", cacheKey, req.Namespace)
+
+	// 캐시에서 가져오기
+	if cached, exists := h.cache.Get(fullCacheKey); exists {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"status": "success",
+			"data":   cached,
+			"cached": true,
+		})
+	}
+
+	// 캐시에 없으면 클라이언트에서 가져오기 (백그라운드 처리를 위해 워커 풀 사용)
+	veleroClient, err := client.NewVeleroClient(req.KubeConfig)
+	if err != nil {
+		return response.RespondError(c, http.StatusInternalServerError, err.Error())
+	}
+
+	data, err := getResource(veleroClient, c.Request().Context())
+	if err != nil {
+		return response.RespondError(c, http.StatusInternalServerError, err.Error())
+	}
+
+	// 캐시에 저장
+	h.cache.Set(fullCacheKey, data)
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   data,
+		"cached": false,
+	})
+}
+
+// bindAndValidateKubeConfig : KubeConfig 검증
+func (h *VeleroHandler) bindAndValidateKubeConfig(c echo.Context) (models.KubeConfig, error) {
+	var req models.KubeConfig
+	if err := c.Bind(&req); err != nil {
+		return req, response.RespondError(c, http.StatusBadRequest, "invalid request body")
+	}
+
+	decodedKubeConfig, err := h.kubernetesValidator.ValidateKubernetesConfig(&req)
+	if err != nil {
+		return req, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	req.KubeConfig = decodedKubeConfig
+	return req, nil
+}
+
+// bindAndValidateVeleroConfig : VeleroConfig 검증
+func (h *VeleroHandler) bindAndValidateVeleroConfig(c echo.Context) (models.VeleroConfig, error) {
+	var req models.VeleroConfig
+	if err := c.Bind(&req); err != nil {
+		return req, response.RespondError(c, http.StatusBadRequest, "invalid request body")
+	}
+
+	// Minio config 검증
+	if err := h.minioValidator.ValidateMinioConfig(&req.MinioConfig); err != nil {
+		return req, echo.NewHTTPError(http.StatusBadRequest, "minio config validation failed: "+err.Error())
+	}
+
+	// Kubernetes config 검증
+	decodedKubeConfig, err := h.kubernetesValidator.ValidateKubernetesConfig(&req.KubeConfig)
+	if err != nil {
+		return req, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	req.KubeConfig.KubeConfig = decodedKubeConfig
+	return req, nil
+}
+
+// resolveNamespace : 네임스페이스 결정
+func resolveNamespace(req *models.KubeConfig, c echo.Context, defaultNS string) string {
+	if req.Namespace != "" {
+		return req.Namespace
+	}
+	if ns := c.QueryParam("namespace"); ns != "" {
+		return ns
+	}
+	return defaultNS
+}
