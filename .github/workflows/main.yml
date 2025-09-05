@@ -50,19 +50,15 @@ jobs:
     - name: Build application
       run: make build
 
-  # Swagger 문서 생성 (공통 작업)
+  # Swagger 문서 생성 및 gh-pages 브랜치에 배포
   generate-docs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    outputs:
-      docs-changed: ${{ steps.verify-changed-files.outputs.changed }}
-      docs-path: ${{ steps.set-path.outputs.docs-path }}
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
     - name: Set up Go
@@ -77,27 +73,13 @@ jobs:
     - name: Generate Swagger documentation
       run: make swagger
 
-    - name: Set docs path
-      id: set-path
-      run: echo "docs-path=docs" >> $GITHUB_OUTPUT
-
-    - name: Check for changes
-      id: verify-changed-files
-      run: |
-        if [ -n "$(git status --porcelain docs/)" ]; then
-          echo "changed=true" >> $GITHUB_OUTPUT
-        else
-          echo "changed=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Commit and push Swagger docs
-      if: steps.verify-changed-files.outputs.changed == 'true'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add docs/
-        git commit -m "docs: update swagger documentation [skip ci]"
-        git push
+    - name: Deploy Swagger docs to gh-pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        publish_branch: gh-pages
+        force_orphan: true
 
   # Docker 아키텍처별 빌드 및 GHCR 푸시
   docker:
@@ -113,12 +95,6 @@ jobs:
         include:
           - arch: amd64
             platform: linux/amd64
-          # - arch: arm64
-          #   platform: linux/arm64
-          # - arch: darwin-amd64
-          #   platform: linux/amd64
-          # - arch: darwin-arm64
-          #   platform: linux/arm64
       fail-fast: false
 
     steps:
@@ -195,31 +171,6 @@ jobs:
         echo "📋 Usage examples:"
         echo "  docker pull --platform ${{ matrix.platform }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
         echo "  docker run --rm -p 9091:9091 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-
-  # GitHub Pages 배포
-  deploy-docs:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: [generate-docs, docker]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: ${{ needs.generate-docs.outputs.docs-path }}
-
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
 
   # 릴리스 노트 생성 (태그 푸시 시)
   release:

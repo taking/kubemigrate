@@ -10,6 +10,7 @@ import (
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/health"
 	"github.com/taking/kubemigrate/pkg/interfaces"
+	_ "github.com/taking/kubemigrate/pkg/models"
 	"github.com/taking/kubemigrate/pkg/response"
 	"github.com/taking/kubemigrate/pkg/utils"
 	"github.com/taking/kubemigrate/pkg/validator"
@@ -39,7 +40,7 @@ func NewHelmHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, healthM
 // @Tags helm
 // @Accept json
 // @Produce json
-// @Param request body models.KubeConfigRequest true "Helm connection configuration"
+// @Param request body models.HelmConfigRequest true "Helm connection configuration"
 // @Success 200 {object} models.SwaggerSuccessResponse "Connection successful"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"

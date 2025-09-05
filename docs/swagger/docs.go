@@ -23,9 +23,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/helm/chart_check": {
-            "post": {
-                "description": "Check if specified Helm chart is installed using KubeConfig",
+        "/helm/chart/:name": {
+            "get": {
+                "description": "Helm 차트를 조회합니다",
                 "consumes": [
                     "application/json"
                 ],
@@ -35,7 +35,125 @@ const docTemplate = `{
                 "tags": [
                     "helm"
                 ],
-                "summary": "Check if Helm chart is installed",
+                "summary": "Helm 차트 조회",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chart name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Release Version",
+                        "name": "version",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chart retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Helm 차트를 삭제합니다",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Helm 차트 삭제",
+                "parameters": [
+                    {
+                        "description": "Helm chart uninstall configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.HelmConfigRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release Name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Dry Run",
+                        "name": "dryrun",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chart uninstalled",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/helm/chart/:name/status": {
+            "get": {
+                "description": "Helm 차트 설치 여부를 확인합니다",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Helm 차트 설치 여부 확인",
                 "parameters": [
                     {
                         "description": "Helm chart check configuration",
@@ -43,35 +161,41 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.HelmConfigRequest"
+                            "$ref": "#/definitions/models.HelmConfigRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release Name",
+                        "name": "name",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Chart status retrieved",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/helm/health": {
+        "/helm/charts": {
             "get": {
-                "description": "Validate Helm connection using KubeConfig",
+                "description": "Helm 차트 목록을 조회합니다",
                 "consumes": [
                     "application/json"
                 ],
@@ -81,7 +205,42 @@ const docTemplate = `{
                 "tags": [
                     "helm"
                 ],
-                "summary": "Check Helm connection",
+                "summary": "Helm 차트 목록 조회",
+                "responses": {
+                    "200": {
+                        "description": "Charts retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/helm/health": {
+            "get": {
+                "description": "Helm 연결 상태를 확인합니다",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Helm 연결 상태 확인",
                 "parameters": [
                     {
                         "description": "Helm connection configuration",
@@ -89,7 +248,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
+                            "$ref": "#/definitions/models.HelmConfigRequest"
                         }
                     }
                 ],
@@ -97,25 +256,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -141,7 +300,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
+                            "$ref": "#/definitions/models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -149,25 +308,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -193,7 +352,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
+                            "$ref": "#/definitions/models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -201,19 +360,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -239,7 +398,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
+                            "$ref": "#/definitions/models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -247,27 +406,27 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/minio/bucket_check": {
+        "/minio/buckets/:name": {
             "post": {
-                "description": "Create Minio bucket if it doesn't exist using MinioConfig",
+                "description": "MinioConfig를 사용하여 Minio 버킷을 생성합니다",
                 "consumes": [
                     "application/json"
                 ],
@@ -277,7 +436,7 @@ const docTemplate = `{
                 "tags": [
                     "minio"
                 ],
-                "summary": "Minio 버킷 생성 여부 확인",
+                "summary": "Minio 버킷 생성",
                 "parameters": [
                     {
                         "description": "Minio configuration with bucket name",
@@ -285,7 +444,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfigRequest"
+                            "$ref": "#/definitions/models.MinioConfigRequest"
                         }
                     }
                 ],
@@ -293,19 +452,65 @@ const docTemplate = `{
                     "200": {
                         "description": "Bucket created or already exists",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/minio/buckets/:name/status": {
+            "get": {
+                "description": "Check if Minio bucket exists using MinioConfig",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Minio 버킷 존재 여부 확인",
+                "parameters": [
+                    {
+                        "description": "Minio configuration with bucket name",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MinioConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bucket exists",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -331,7 +536,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfigRequest"
+                            "$ref": "#/definitions/models.MinioConfigRequest"
                         }
                     }
                 ],
@@ -339,25 +544,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -383,7 +588,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/models.VeleroConfig"
                         }
                     }
                 ],
@@ -391,19 +596,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -429,7 +634,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/models.VeleroConfig"
                         }
                     }
                 ],
@@ -437,19 +642,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -475,7 +680,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/models.VeleroConfig"
                         }
                     }
                 ],
@@ -483,19 +688,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -521,7 +726,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/models.KubeConfig"
                         }
                     }
                 ],
@@ -529,25 +734,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Connection successful",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -573,7 +778,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/models.VeleroConfig"
                         }
                     }
                 ],
@@ -581,19 +786,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -619,7 +824,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.VeleroConfig"
+                            "$ref": "#/definitions/models.VeleroConfig"
                         }
                     }
                 ],
@@ -627,19 +832,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse"
+                            "$ref": "#/definitions/models.SwaggerSuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse"
+                            "$ref": "#/definitions/models.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -647,7 +852,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_taking_kubemigrate_pkg_models.HelmConfigRequest": {
+        "models.HelmConfigRequest": {
             "type": "object",
             "required": [
                 "chartName",
@@ -666,7 +871,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_taking_kubemigrate_pkg_models.KubeConfig": {
+        "models.KubeConfig": {
             "type": "object",
             "properties": {
                 "kubeconfig": {
@@ -679,7 +884,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_taking_kubemigrate_pkg_models.KubeConfigRequest": {
+        "models.KubeConfigRequest": {
             "type": "object",
             "required": [
                 "kubeconfig"
@@ -697,7 +902,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_taking_kubemigrate_pkg_models.MinioConfig": {
+        "models.MinioConfig": {
             "type": "object",
             "properties": {
                 "accessKey": {
@@ -726,7 +931,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_taking_kubemigrate_pkg_models.MinioConfigRequest": {
+        "models.MinioConfigRequest": {
             "type": "object",
             "required": [
                 "accessKey",
@@ -767,7 +972,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_taking_kubemigrate_pkg_models.SwaggerErrorResponse": {
+        "models.SwaggerErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -778,7 +983,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_taking_kubemigrate_pkg_models.SwaggerSuccessResponse": {
+        "models.SwaggerSuccessResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -787,14 +992,14 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_taking_kubemigrate_pkg_models.VeleroConfig": {
+        "models.VeleroConfig": {
             "type": "object",
             "properties": {
                 "kubernetes": {
                     "description": "Kubernetes 설정",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/models.KubeConfig"
                         }
                     ]
                 },
@@ -802,7 +1007,7 @@ const docTemplate = `{
                     "description": "MinIO 설정",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig"
+                            "$ref": "#/definitions/models.MinioConfig"
                         }
                     ]
                 }

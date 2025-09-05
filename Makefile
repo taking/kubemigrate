@@ -169,7 +169,7 @@ deps-update: ## 의존성 업데이트
 swagger: ## Swagger 문서 생성
 	@echo "$(YELLOW)Generating Swagger documentation...$(RESET)"
 	@if command -v swag >/dev/null 2>&1; then \
-		swag init -g cmd/main.go -o docs/swagger --parseDependency --parseInternal; \
+		swag init -g cmd/main.go -o docs/swagger --parseInternal; \
 		echo "$(GREEN)✓ Swagger documentation generated$(RESET)"; \
 	else \
 		echo "$(RED)swag not installed. Install with: go install github.com/swaggo/swag/cmd/swag@latest$(RESET)"; \
