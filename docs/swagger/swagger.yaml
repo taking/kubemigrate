@@ -1,26 +1,40 @@
 basePath: /api/v1
 definitions:
-  github_com_taking_kubemigrate_pkg_models.HelmChartRequest:
+  github_com_taking_kubemigrate_pkg_models.HelmConfigRequest:
     properties:
       chartName:
-        description: 헬름 차트명
+        description: '[옵션] 헬름 차트 명'
+        example: podinfo
         type: string
-      kubernetes:
-        allOf:
-        - $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
-        description: Kubernetes 설정
+      kubeconfig:
+        description: '[필수] Base64 인코딩된 KubeConfig 값'
+        example: base64 인코딩된 KubeConfig 값
+        type: string
+    required:
+    - chartName
+    - kubeconfig
     type: object
   github_com_taking_kubemigrate_pkg_models.KubeConfig:
     properties:
-      chartName:
-        description: 헬름 차트명
-        type: string
       kubeconfig:
         description: 원본 KubeConfig 데이터
         type: string
       namespace:
         description: 네임스페이스
         type: string
+    type: object
+  github_com_taking_kubemigrate_pkg_models.KubeConfigRequest:
+    properties:
+      kubeconfig:
+        description: '[필수] Base64 인코딩된 KubeConfig 값'
+        example: base64 인코딩된 KubeConfig 값
+        type: string
+      namespace:
+        description: '[옵션] 네임스페이스 명 (기본 값 : ''default'', 전체 조회  : ''all'')'
+        example: all
+        type: string
+    required:
+    - kubeconfig
     type: object
   github_com_taking_kubemigrate_pkg_models.MinioConfig:
     properties:
@@ -124,7 +138,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.HelmChartRequest'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.HelmConfigRequest'
       produces:
       - application/json
       responses:
@@ -154,7 +168,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest'
       produces:
       - application/json
       responses:
@@ -188,7 +202,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest'
       produces:
       - application/json
       responses:
@@ -222,7 +236,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest'
       produces:
       - application/json
       responses:
@@ -252,7 +266,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest'
       produces:
       - application/json
       responses:
@@ -312,7 +326,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig'
+          $ref: '#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfigRequest'
       produces:
       - application/json
       responses:

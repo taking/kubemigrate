@@ -19,23 +19,28 @@ func RegisterRoutes(e *echo.Echo, appCache *cache.Cache, workerPool *utils.Worke
 
 	api := e.Group("/api/v1")
 
-	minio := api.Group("/minio")
-	{
-		minio.GET("/health", minioHandler.HealthCheck)
-		minio.POST("/bucket_check", minioHandler.CreateBucketIfNotExists)
-	}
-
-	helm := api.Group("/helm")
-	{
-		helm.GET("/health", helmHandler.HealthCheck)
-		helm.POST("/chart_check", helmHandler.IsChartInstalled)
-	}
-
 	kube := api.Group("/kube")
 	{
 		kube.GET("/health", kubeHandler.HealthCheck)
 		kube.GET("/pods", kubeHandler.GetPods)
 		kube.GET("/storage-classes", kubeHandler.GetStorageClasses)
+	}
+
+	minio := api.Group("/minio")
+	{
+		minio.GET("/health", minioHandler.HealthCheck)                     // 상태 확인
+		minio.GET("/buckets/:name/status", minioHandler.CheckBucketExists) // 버킷 존재 여부 확인
+		minio.POST("/buckets/:name", minioHandler.CreateBucket)            // 버킷 생성 (있으면 200, 없으면 생성 후 201)
+	}
+
+	helm := api.Group("/helm")
+	{
+		helm.GET("/health", helmHandler.HealthCheck)
+		helm.GET("/charts", helmHandler.GetCharts)
+		helm.GET("/chart/:name", helmHandler.GetChart)
+		helm.GET("/chart/:name/status", helmHandler.IsChartInstalled)
+		// helm.POST("/chart", helmHandler.InstallChart)
+		helm.DELETE("/chart/:name", helmHandler.UninstallChart)
 	}
 
 	velero := api.Group("/velero")

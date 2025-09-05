@@ -10,7 +10,6 @@ import (
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/health"
 	"github.com/taking/kubemigrate/pkg/interfaces"
-	"github.com/taking/kubemigrate/pkg/models"
 	"github.com/taking/kubemigrate/pkg/response"
 	"github.com/taking/kubemigrate/pkg/utils"
 	"github.com/taking/kubemigrate/pkg/validator"
@@ -35,8 +34,8 @@ func NewHelmHandler(appCache *cache.Cache, workerPool *utils.WorkerPool, healthM
 }
 
 // HealthCheck : Helm 연결 상태 확인
-// @Summary Check Helm connection
-// @Description Validate Helm connection using KubeConfig
+// @Summary Helm 연결 상태 확인
+// @Description Helm 연결 상태를 확인합니다
 // @Tags helm
 // @Accept json
 // @Produce json
@@ -75,60 +74,165 @@ func (h *HelmHandler) HealthCheck(c echo.Context) error {
 	return response.RespondStatus(c, "healthy", "Helm connection successful")
 }
 
-// IsChartInstalled : Helm 차트 설치 여부 확인
-// @Summary Check if Helm chart is installed
-// @Description Check if specified Helm chart is installed using KubeConfig
+// GetCharts : Helm 차트 목록 조회
+// @Summary Helm 차트 목록 조회
+// @Description Helm 차트 목록을 조회합니다
 // @Tags helm
 // @Accept json
 // @Produce json
-// @Param request body models.HelmChartRequest true "Helm chart check configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Charts retrieved"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /helm/charts [get]
+func (h *HelmHandler) GetCharts(c echo.Context) error {
+	return h.handleHelmResourceWithCache(c, "charts", func(client interfaces.HelmClient, ctx context.Context) (interface{}, error) {
+		charts, err := client.GetCharts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return charts, nil
+	},
+	)
+}
+
+// GetChart : Helm 차트 조회
+// @Summary Helm 차트 조회
+// @Description Helm 차트를 조회합니다
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param name path string true "Chart name"
+// @Param namespace query string false "Namespace"
+// @Param version query int false "Release Version"
+// @Success 200 {object} models.SwaggerSuccessResponse "Chart retrieved"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /helm/chart/:name [get]
+func (h *HelmHandler) GetChart(c echo.Context) error {
+	releaseName := c.Param("name")
+
+	return h.handleHelmResourceWithCache(c, fmt.Sprintf("chart-%s", releaseName), func(client interfaces.HelmClient, ctx context.Context) (interface{}, error) {
+		namespace := c.QueryParam("namespace") // optional
+		version := c.QueryParam("version")     // optional
+
+		releaseVersion := utils.StringToIntOrDefault(version, 1) // 기본값 (releaseVersion 1)
+
+		chart, err := client.GetChart(ctx, releaseName, namespace, releaseVersion)
+		if err != nil {
+			return nil, err
+		}
+		return chart, nil
+	},
+	)
+}
+
+// IsChartInstalled : Helm 차트 설치 여부 확인
+// @Summary Helm 차트 설치 여부 확인
+// @Description Helm 차트 설치 여부를 확인합니다
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param request body models.HelmConfigRequest true "Helm chart check configuration"
+// @Param name query string false "Release Name"
 // @Success 200 {object} models.SwaggerSuccessResponse "Chart status retrieved"
 // @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
-// @Router /helm/chart_check [post]
+// @Router /helm/chart/:name/status [get]
 func (h *HelmHandler) IsChartInstalled(c echo.Context) error {
-	var req models.HelmChartRequest
-	if err := c.Bind(&req); err != nil {
-		return response.RespondError(c, http.StatusBadRequest, "invalid request body")
-	}
+	releaseName := c.Param("name")
 
-	// KubeConfig 검증
-	decodedKubeConfig, err := h.kubernetesValidator.ValidateKubernetesConfig(&req.KubeConfig)
+	return h.handleHelmResourceWithCache(c, fmt.Sprintf("chart-installed-%s", releaseName), func(client interfaces.HelmClient, ctx context.Context) (interface{}, error) {
+		installed, _, err := client.IsChartInstalled(releaseName)
+		if err != nil {
+			return nil, err
+		}
+
+		status := "not_installed"
+		message := "Chart is not installed"
+		if installed {
+			status = "installed"
+			message = "Chart is installed"
+		}
+
+		return map[string]interface{}{
+			"status":  status,
+			"message": message,
+		}, nil
+	},
+	)
+}
+
+// InstallChart : Helm 차트 설치
+// @Summary Helm 차트 설치
+// @Description Helm 차트를 설치합니다
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param request body models.HelmConfigRequest true "Helm chart installation configuration"
+// @Success 200 {object} models.SwaggerSuccessResponse "Chart installed"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /helm/chart [post]
+// func (h *HelmHandler) InstallChart(c echo.Context) error {
+// 	releaseName := c.Param("name")
+
+// 	return h.handleHelmResourceWithCache(c, "chart", func(client interfaces.HelmClient, ctx context.Context) (interface{}, error) {
+// 		err := client.InstallChart(releaseName, chartPath, values)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		return nil, nil
+// 	},
+// 	)
+// }
+
+// UninstallChart : Helm 차트 삭제
+// @Summary Helm 차트 삭제
+// @Description Helm 차트를 삭제합니다
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param request body models.HelmConfigRequest true "Helm chart uninstall configuration"
+// @Param name query string false "Release Name"
+// @Param namespace query string false "Namespace"
+// @Param dryrun query bool false "Dry Run"
+// @Success 200 {object} models.SwaggerSuccessResponse "Chart uninstalled"
+// @Failure 400 {object} models.SwaggerErrorResponse "Bad request"
+// @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
+// @Router /helm/chart/:name [delete]
+func (h *HelmHandler) UninstallChart(c echo.Context) error {
+	return h.handleHelmResourceWithCache(c, "chart", func(client interfaces.HelmClient, ctx context.Context) (interface{}, error) {
+		releaseName := c.Param("name")
+		namespace := c.QueryParam("namespace")
+		dryRun := utils.StringToBoolOrDefault(c.QueryParam("dryrun"), true)
+
+		err := client.UninstallChart(releaseName, namespace, dryRun)
+		if err != nil && !dryRun {
+			return nil, err
+		}
+
+		return map[string]interface{}{
+			"message": err,
+			"dryrun":  dryRun,
+		}, nil
+	})
+}
+
+// handleHelmResourceWithCache : 캐시를 사용하는 Helm 리소스 처리 헬퍼
+func (h *HelmHandler) handleHelmResourceWithCache(c echo.Context, cacheKey string,
+	getResource func(interfaces.HelmClient, context.Context) (interface{}, error)) error {
+
+	// HelmConfig 검증
+	req, err := utils.BindAndValidateHelmConfig(c, h.kubernetesValidator)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return err
 	}
-	req.KubeConfig.KubeConfig = decodedKubeConfig
 
 	// 기본 네임스페이스 설정
 	req.Namespace = utils.ResolveNamespace(&req.KubeConfig, c, "default")
 
-	return h.handleHelmResourceWithCache(c, fmt.Sprintf("chart-status-%s", req.ChartName), req.KubeConfig,
-		func(client interfaces.HelmClient, ctx context.Context) (interface{}, error) {
-			installed, _, err := client.IsChartInstalled(req.ChartName)
-			if err != nil {
-				return nil, err
-			}
-
-			status := "not_installed"
-			message := "Chart is not installed"
-			if installed {
-				status = "installed"
-				message = "Chart is installed"
-			}
-
-			return map[string]interface{}{
-				"status":  status,
-				"message": message,
-			}, nil
-		})
-}
-
-// handleHelmResourceWithCache : 캐시를 사용하는 Helm 리소스 처리 헬퍼
-func (h *HelmHandler) handleHelmResourceWithCache(c echo.Context, cacheKey string, kubeConfig models.KubeConfig,
-	getResource func(interfaces.HelmClient, context.Context) (interface{}, error)) error {
-
 	// 캐시 키 생성
-	fullCacheKey := fmt.Sprintf("helm:%s:%s", cacheKey, kubeConfig.Namespace)
+	fullCacheKey := fmt.Sprintf("helm:%s:%s", cacheKey, req.Namespace)
 
 	// 캐시에서 가져오기
 	if cached, exists := h.cache.Get(fullCacheKey); exists {
@@ -140,7 +244,7 @@ func (h *HelmHandler) handleHelmResourceWithCache(c echo.Context, cacheKey strin
 	}
 
 	// 캐시에 없으면 클라이언트에서 가져오기
-	helmClient, err := client.NewHelmClient(kubeConfig)
+	helmClient, err := client.NewHelmClient(req.KubeConfig)
 	if err != nil {
 		return response.RespondError(c, http.StatusInternalServerError, err.Error())
 	}

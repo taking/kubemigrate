@@ -6,12 +6,6 @@ type KubeConfigRequest struct {
 	Namespace  string `json:"namespace,omitempty" example:"all"`                                // [옵션] 네임스페이스 명 (기본 값 : 'default', 전체 조회  : 'all')
 }
 
-// swagger:model HelmConfigRequest
-type HelmConfigRequest struct {
-	KubeConfig string `json:"kubeconfig" binding:"required" example:"base64 인코딩된 KubeConfig 값"` // [필수] Base64 인코딩된 KubeConfig 값
-	ChartName  string `json:"chartName,omitempty" binding:"required" example:"podinfo"`         // [옵션] 헬름 차트 명
-}
-
 // swagger:model MinioConfigRequest
 type MinioConfigRequest struct {
 	UseSSL     bool   `json:"useSSL" binding:"required" example:"false"`                   // [필수] minio useSSL 여부 (false: http / true: https)
@@ -26,6 +20,12 @@ type MinioConfigRequest struct {
 type VeleroConfigRequest struct {
 	MinioConfigRequest `json:"minio" binding:"required"`
 	KubeConfig         string `json:"kubeconfig" binding:"required" example:"base64 인코딩된 KubeConfig 값"` // [필수] Base64 인코딩된 KubeConfig 값
+}
+
+// swagger:model HelmConfigRequest
+type HelmConfigRequest struct {
+	KubeConfig string `json:"kubeconfig" binding:"required" example:"base64 인코딩된 KubeConfig 값"` // [필수] Base64 인코딩된 KubeConfig 값
+	ChartName  string `json:"chartName,omitempty" binding:"required" example:"podinfo"`         // [옵션] 헬름 차트 명
 }
 
 // swagger:model HelmInstallChartRequest

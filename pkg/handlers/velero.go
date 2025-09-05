@@ -117,7 +117,7 @@ func (h *VeleroHandler) GetBackups(c echo.Context) error {
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
 // @Router /velero/restores [get]
 func (h *VeleroHandler) GetRestores(c echo.Context) error {
-	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+	return h.handleVeleroResourceWithCache(c, "restores", func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetRestores(ctx)
 		if err != nil {
 			return nil, err
@@ -144,7 +144,7 @@ func (h *VeleroHandler) GetRestores(c echo.Context) error {
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
 // @Router /velero/backup-repositories [get]
 func (h *VeleroHandler) GetBackupRepositories(c echo.Context) error {
-	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+	return h.handleVeleroResourceWithCache(c, "backup-repositories", func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackupRepositories(ctx)
 		if err != nil {
 			return nil, err
@@ -171,7 +171,7 @@ func (h *VeleroHandler) GetBackupRepositories(c echo.Context) error {
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
 // @Router /velero/backup-storage-locations [get]
 func (h *VeleroHandler) GetBackupStorageLocations(c echo.Context) error {
-	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+	return h.handleVeleroResourceWithCache(c, "backup-storage-locations", func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetBackupStorageLocations(ctx)
 		if err != nil {
 			return nil, err
@@ -198,7 +198,7 @@ func (h *VeleroHandler) GetBackupStorageLocations(c echo.Context) error {
 // @Failure 500 {object} models.SwaggerErrorResponse "Internal server error"
 // @Router /velero/volume-snapshot-locations [get]
 func (h *VeleroHandler) GetVolumeSnapshotLocations(c echo.Context) error {
-	return h.handleVeleroResource(c, func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
+	return h.handleVeleroResourceWithCache(c, "volume-snapshot-locations", func(client interfaces.VeleroClient, ctx context.Context) (interface{}, error) {
 		data, err := client.GetVolumeSnapshotLocations(ctx)
 		if err != nil {
 			return nil, err
@@ -210,36 +210,6 @@ func (h *VeleroHandler) GetVolumeSnapshotLocations(c echo.Context) error {
 		})
 
 		return data, nil
-	})
-}
-
-// handleVeleroResource : Velero 리소스 처리 헬퍼
-// Reduces code duplication by standardizing Velero resource retrieval and JSON response
-func (h *VeleroHandler) handleVeleroResource(c echo.Context,
-	getResource func(interfaces.VeleroClient, context.Context) (interface{}, error)) error {
-
-	// VeleroConfig 검증
-	req, err := utils.BindAndValidateVeleroConfig(c, h.minioValidator, h.kubernetesValidator)
-	if err != nil {
-		return err
-	}
-
-	// 기본 네임스페이스 설정
-	req.Namespace = utils.ResolveNamespace(&req.KubeConfig, c, "velero")
-
-	veleroClient, err := client.NewVeleroClient(req.KubeConfig)
-	if err != nil {
-		return response.RespondError(c, http.StatusInternalServerError, err.Error())
-	}
-
-	data, err := getResource(veleroClient, context.Background())
-	if err != nil {
-		return response.RespondError(c, http.StatusInternalServerError, err.Error())
-	}
-
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"data":   data,
 	})
 }
 
@@ -268,23 +238,35 @@ func (h *VeleroHandler) handleVeleroResourceWithCache(c echo.Context, cacheKey s
 		})
 	}
 
-	// 캐시에 없으면 클라이언트에서 가져오기 (백그라운드 처리를 위해 워커 풀 사용)
+	// 캐시에 없으면 클라이언트에서 가져오기
 	veleroClient, err := client.NewVeleroClient(req.KubeConfig)
 	if err != nil {
 		return response.RespondError(c, http.StatusInternalServerError, err.Error())
 	}
 
-	data, err := getResource(veleroClient, c.Request().Context())
-	if err != nil {
+	// 워커 풀을 사용하여 백그라운드에서 데이터 가져오기
+	resultChan := make(chan interface{}, 1)
+	errorChan := make(chan error, 1)
+
+	h.workerPool.Submit(func() {
+		data, err := getResource(veleroClient, c.Request().Context())
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		resultChan <- data
+	})
+
+	select {
+	case data := <-resultChan:
+		// 캐시에 저장
+		h.cache.Set(fullCacheKey, data)
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"status": "success",
+			"data":   data,
+			"cached": false,
+		})
+	case err := <-errorChan:
 		return response.RespondError(c, http.StatusInternalServerError, err.Error())
 	}
-
-	// 캐시에 저장
-	h.cache.Set(fullCacheKey, data)
-
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"data":   data,
-		"cached": false,
-	})
 }

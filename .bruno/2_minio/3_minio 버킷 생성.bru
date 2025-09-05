@@ -1,0 +1,26 @@
+meta {
+  name: 3_minio 버킷 생성
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/buckets/velero
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false,
+      "bucketName": "velero",
+      "region": "us-east-1"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

@@ -1,11 +1,11 @@
 meta {
-  name: [GET] Kubernetes 접속 여부 확인
+  name: 1_헬름 연결 상태 조회
   type: http
-  seq: 2
+  seq: 1
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kube/health
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/health
   body: json
   auth: inherit
 }

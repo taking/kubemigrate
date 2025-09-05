@@ -1,0 +1,21 @@
+meta {
+  name: 1_쿠버네티스 연결 상태 확인
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/kube/health
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "kubeconfig": "{{base64_local_kubeconfig}}"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

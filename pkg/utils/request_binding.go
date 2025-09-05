@@ -39,6 +39,23 @@ func BindAndValidateMinioConfig(ctx echo.Context, minioValidator *validator.Mini
 	return req, nil
 }
 
+// BindAndValidateHelmConfig : HelmConfig 검증
+func BindAndValidateHelmConfig(ctx echo.Context, kubernetesValidator *validator.KubernetesValidator) (models.HelmConfig, error) {
+	var req models.HelmConfig
+	if err := ctx.Bind(&req); err != nil {
+		return req, response.RespondError(ctx, 400, "invalid request body")
+	}
+
+	// Kubernetes config validator & base64 Decode
+	decodeKubeConfig, err := kubernetesValidator.ValidateKubernetesConfig(&req.KubeConfig)
+	if err != nil {
+		return req, echo.NewHTTPError(400, err.Error())
+	}
+
+	req.KubeConfig.KubeConfig = decodeKubeConfig
+	return req, nil
+}
+
 // BindAndValidateVeleroConfig : VeleroConfig 검증
 func BindAndValidateVeleroConfig(ctx echo.Context, minioValidator *validator.MinioValidator, kubernetesValidator *validator.KubernetesValidator) (models.VeleroConfig, error) {
 	var req models.VeleroConfig

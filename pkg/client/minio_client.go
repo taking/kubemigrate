@@ -28,7 +28,7 @@ func NewMinioClient(cfg models.MinioConfig) (interfaces.MinioClient, error) {
 		return nil, fmt.Errorf("minio config validation failed: %w", err)
 	}
 
-	cfg.UseSSL = utils.DefaultBool(cfg.UseSSL, false) // UseSSL이 비어 있으면 기본값 사용
+	cfg.UseSSL = utils.GetBoolOrDefault(cfg.UseSSL, false) // UseSSL이 비어 있으면 기본값 사용
 
 	client, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),

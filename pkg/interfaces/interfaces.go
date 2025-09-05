@@ -40,9 +40,11 @@ type VeleroClient interface {
 // HelmClient : Helm 관련 작업을 정의하는 인터페이스
 type HelmClient interface {
 	HealthChecker
-	IsChartInstalled(chartName string) (bool, *release.Release, error)             // 차트가 설치되어 있는지 확인
-	InstallChart(chartName, chartPath string, values map[string]interface{}) error // Helm 차트 설치
-	InvalidateCache() error                                                        // Helm 캐시 무효화
+	GetCharts(ctx context.Context) ([]*release.Release, error)                                                      // Helm 차트 목록 조회
+	GetChart(ctx context.Context, releaseName string, namespace string, chartVersion int) (*release.Release, error) // Helm 차트 조회
+	IsChartInstalled(releaseName string) (bool, *release.Release, error)                                            // 차트가 설치되어 있는지 확인
+	// InstallChart(chartName, chartPath string, dryRun bool, values map[string]interface{}) error                     // Helm 차트 설치
+	UninstallChart(releaseName, namespace string, dryRun bool) error // Helm 차트 삭제
 }
 
 // MinioClient : MinIO 관련 작업을 정의하는 인터페이스

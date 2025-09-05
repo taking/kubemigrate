@@ -3,7 +3,6 @@ package models
 type KubeConfig struct {
 	KubeConfig string `json:"kubeconfig"`          // 원본 KubeConfig 데이터
 	Namespace  string `json:"namespace,omitempty"` // 네임스페이스
-	ChartName  string `json:"chartName,omitempty"` // 헬름 차트명
 }
 
 type MinioConfig struct {
@@ -20,7 +19,7 @@ type VeleroConfig struct {
 	KubeConfig  `json:"kubernetes"` // Kubernetes 설정
 }
 
-type HelmChartRequest struct {
-	KubeConfig `json:"kubernetes"` // Kubernetes 설정
-	ChartName  string              `json:"chartName"` // 헬름 차트명
+type HelmConfig struct {
+	KubeConfig
+	ChartName string `json:"chartName"` // 헬름 차트명
 }

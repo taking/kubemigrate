@@ -3,9 +3,9 @@ package utils
 import (
 	"encoding/base64"
 	"fmt"
-	"os"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
+	"strconv"
 )
 
 // DecodeIfBase64 : 클러스터의 KubeConfig을 Decode
@@ -23,16 +23,16 @@ func StripManagedFields(obj metav1.Object) {
 	obj.SetManagedFields(nil)
 }
 
-// DefaultString : value가 비어 있지 않으면 value를 반환하고, 비어 있으면 def(기본값)를 반환합니다.
-func DefaultString(value, def string) string {
+// GetStringOrDefault : value가 비어있지 않으면 value를 반환, 비어있으면 def를 반환
+func GetStringOrDefault(value, def string) string {
 	if value == "" {
 		return def
 	}
 	return value
 }
 
-// DefaultBool : value가 기본값이면 def를 반환하고, 그렇지 않으면 value를 반환합니다.
-func DefaultBool(value bool, def bool) bool {
+// GetBoolOrDefault : value가 비어있지 않으면 value를 반환, 비어있으면 def를 반환
+func GetBoolOrDefault(value bool, def bool) bool {
 	if !value && def {
 		return def
 	}
@@ -46,4 +46,22 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, input, 0644)
+}
+
+// StringToIntOrDefault : string을 int로 변환, 실패하면 기본값 반환
+func StringToIntOrDefault(s string, def int) int {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return n
+}
+
+// StringToBoolOrDefault : string을 bool로 변환, 실패하면 기본값 반환
+func StringToBoolOrDefault(s string, def bool) bool {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return def
+	}
+	return b
 }

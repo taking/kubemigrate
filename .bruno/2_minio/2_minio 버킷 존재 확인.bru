@@ -1,11 +1,11 @@
 meta {
-  name: [POST] 버킷 확인 및 생성
+  name: 2_minio 버킷 존재 확인
   type: http
   seq: 2
 }
 
-post {
-  url: {{host_ip}}:{{host_port}}/api/v1/minio/bucket_check
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/buckets/velero/status
   body: json
   auth: inherit
 }

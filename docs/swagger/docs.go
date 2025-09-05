@@ -43,7 +43,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.HelmChartRequest"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.HelmConfigRequest"
                         }
                     }
                 ],
@@ -89,7 +89,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -141,7 +141,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -193,7 +193,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -239,7 +239,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfigRequest"
                         }
                     }
                 ],
@@ -331,7 +331,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfig"
+                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.MinioConfigRequest"
                         }
                     }
                 ],
@@ -647,30 +647,28 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_taking_kubemigrate_pkg_models.HelmChartRequest": {
+        "github_com_taking_kubemigrate_pkg_models.HelmConfigRequest": {
             "type": "object",
+            "required": [
+                "chartName",
+                "kubeconfig"
+            ],
             "properties": {
                 "chartName": {
-                    "description": "헬름 차트명",
-                    "type": "string"
+                    "description": "[옵션] 헬름 차트 명",
+                    "type": "string",
+                    "example": "podinfo"
                 },
-                "kubernetes": {
-                    "description": "Kubernetes 설정",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_taking_kubemigrate_pkg_models.KubeConfig"
-                        }
-                    ]
+                "kubeconfig": {
+                    "description": "[필수] Base64 인코딩된 KubeConfig 값",
+                    "type": "string",
+                    "example": "base64 인코딩된 KubeConfig 값"
                 }
             }
         },
         "github_com_taking_kubemigrate_pkg_models.KubeConfig": {
             "type": "object",
             "properties": {
-                "chartName": {
-                    "description": "헬름 차트명",
-                    "type": "string"
-                },
                 "kubeconfig": {
                     "description": "원본 KubeConfig 데이터",
                     "type": "string"
@@ -678,6 +676,24 @@ const docTemplate = `{
                 "namespace": {
                     "description": "네임스페이스",
                     "type": "string"
+                }
+            }
+        },
+        "github_com_taking_kubemigrate_pkg_models.KubeConfigRequest": {
+            "type": "object",
+            "required": [
+                "kubeconfig"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "description": "[필수] Base64 인코딩된 KubeConfig 값",
+                    "type": "string",
+                    "example": "base64 인코딩된 KubeConfig 값"
+                },
+                "namespace": {
+                    "description": "[옵션] 네임스페이스 명 (기본 값 : 'default', 전체 조회  : 'all')",
+                    "type": "string",
+                    "example": "all"
                 }
             }
         },

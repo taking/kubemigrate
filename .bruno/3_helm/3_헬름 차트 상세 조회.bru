@@ -1,18 +1,17 @@
 meta {
-  name: [GET] 헬름 차트 설치 여부 확인
+  name: 3_헬름 차트 상세 조회
   type: http
-  seq: 9
+  seq: 3
 }
 
-post {
-  url: {{host_ip}}:{{host_port}}/api/v1/helm/chart_check
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/chart/podinfo
   body: json
   auth: inherit
 }
 
 body:json {
   {
-    "chartName": "podinfo",
     "kubeconfig": "{{base64_local_kubeconfig}}"
   }
 }
