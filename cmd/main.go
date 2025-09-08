@@ -67,7 +67,7 @@ func main() {
 	setupScalarDocs(e, cfg)
 
 	// 서버 실행
-	startServer(server)
+	startServer(server, cfg)
 }
 
 // setupScalarDocs : ScalarDocs 설정
@@ -89,12 +89,12 @@ func setupScalarDocs(e *echo.Echo, cfg *config.Config) {
 }
 
 // startServer : 서버 실행
-func startServer(server *http.Server) {
+func startServer(server *http.Server, cfg *config.Config) {
 	go func() {
 		logger.Info("KubeMigrate API Server starting",
 			zap.String("addr", server.Addr),
-			zap.String("docs_url", "http://localhost:9091/docs"),
-			zap.String("health_url", "http://localhost:9091/api/v1/health"))
+			zap.String("docs_url", "http://localhost:"+cfg.Server.Port+"/docs"),
+			zap.String("health_url", "http://localhost:"+cfg.Server.Port+"/api/v1/health"))
 
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal("Server failed to start", zap.Error(err))

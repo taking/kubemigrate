@@ -38,7 +38,7 @@ func (h *Handler) GetCharts(c echo.Context) error {
 		namespace = "default"
 	}
 
-	return h.BaseHandler.HandleHelmResource(c, "helm-charts", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleHelmResource(c, "helm-charts", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
 		charts, err := helmClient.GetCharts(ctx, namespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get helm charts: %w", err)
@@ -81,7 +81,7 @@ func (h *Handler) GetChart(c echo.Context) error {
 		}
 	}
 
-	return h.BaseHandler.HandleHelmResource(c, "helm-chart", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleHelmResource(c, "helm-chart", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
 		chart, err := helmClient.GetChart(ctx, chartName, namespace, version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get helm chart %s: %w", chartName, err)
@@ -108,7 +108,7 @@ func (h *Handler) GetChart(c echo.Context) error {
 func (h *Handler) IsChartInstalled(c echo.Context) error {
 	chartName := c.Param("name")
 
-	return h.BaseHandler.HandleHelmResource(c, "helm-chart-status", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleHelmResource(c, "helm-chart-status", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
 		installed, release, err := helmClient.IsChartInstalled(chartName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check chart installation status for %s: %w", chartName, err)
@@ -153,7 +153,7 @@ func (h *Handler) UninstallChart(c echo.Context) error {
 		namespace = "default"
 	}
 
-	return h.BaseHandler.HandleHelmResource(c, "helm-chart-uninstall", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleHelmResource(c, "helm-chart-uninstall", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
 		err := helmClient.UninstallChart(chartName, namespace, dryrun)
 		if err != nil {
 			return nil, fmt.Errorf("failed to uninstall helm chart %s: %w", chartName, err)
@@ -186,7 +186,7 @@ func (h *Handler) UninstallChart(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/helm/health [get]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.BaseHandler.HandleHelmResource(c, "helm-health", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleHelmResource(c, "helm-health", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
 		// Helm 연결 테스트 (헬스 체크)
 		err := helmClient.HealthCheck(ctx)
 		if err != nil {

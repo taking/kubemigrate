@@ -34,9 +34,9 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/kubernetes/pods [post]
 func (h *Handler) GetPods(c echo.Context) error {
-	return h.BaseHandler.HandleKubernetesResource(c, "pods", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleKubernetesResource(c, "pods", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateKubeConfig(c, h.BaseHandler.KubernetesValidator)
+		req, err := utils.BindAndValidateKubeConfig(c, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +52,7 @@ func (h *Handler) GetPods(c echo.Context) error {
 
 		// 생성 시간 기준으로 정렬
 		sort.Slice(pods.Items, func(i, j int) bool {
-			return pods.Items[i].CreationTimestamp.Time.After(pods.Items[j].CreationTimestamp.Time)
+			return pods.Items[j].CreationTimestamp.Before(&pods.Items[i].CreationTimestamp)
 		})
 
 		return pods, nil
@@ -71,7 +71,7 @@ func (h *Handler) GetPods(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/kubernetes/storage-classes [post]
 func (h *Handler) GetStorageClasses(c echo.Context) error {
-	return h.BaseHandler.HandleKubernetesResource(c, "storage-classes", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleKubernetesResource(c, "storage-classes", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
 		// StorageClass 목록 조회
 		storageClasses, err := k8sClient.GetStorageClasses(ctx)
 		if err != nil {
@@ -97,7 +97,7 @@ func (h *Handler) GetStorageClasses(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/kubernetes/health [get]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.BaseHandler.HandleKubernetesResource(c, "kubernetes-health", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleKubernetesResource(c, "kubernetes-health", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
 		// 간단한 Kubernetes 연결 테스트 (네임스페이스 목록 조회)
 		_, err := k8sClient.GetPods(ctx, "default")
 		if err != nil {

@@ -118,7 +118,7 @@ func NewClientWithConfig(cfg config.HelmConfig) (Client, error) {
 // HealthCheck : Helm 연결 확인 (Kubernetes 연결 확인)
 func (h *helmClient) HealthCheck(ctx context.Context) error {
 	// 5초 제한 context 생성
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	_, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	list := action.NewList(h.cfg)

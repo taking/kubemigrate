@@ -30,7 +30,7 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/velero/health [get]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.BaseHandler.HandleVeleroResource(c, "velero-health", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleVeleroResource(c, "velero-health", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 간단한 Velero 연결 테스트 (백업 목록 조회)
 		_, err := veleroClient.GetBackups(ctx, "velero")
 		if err != nil {

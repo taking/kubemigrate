@@ -21,9 +21,9 @@ import (
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/velero/backups [post]
 func (h *Handler) GetBackups(c echo.Context) error {
-	return h.BaseHandler.HandleVeleroResource(c, "backups", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleVeleroResource(c, "backups", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.BaseHandler.MinioValidator, h.BaseHandler.KubernetesValidator)
+		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -39,7 +39,7 @@ func (h *Handler) GetBackups(c echo.Context) error {
 
 		// 생성 시간 기준으로 정렬
 		sort.Slice(backups, func(i, j int) bool {
-			return backups[i].CreationTimestamp.Time.After(backups[j].CreationTimestamp.Time)
+			return backups[j].CreationTimestamp.Before(&backups[i].CreationTimestamp)
 		})
 
 		return backups, nil
@@ -58,9 +58,9 @@ func (h *Handler) GetBackups(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/velero/repositories [get]
 func (h *Handler) GetBackupRepositories(c echo.Context) error {
-	return h.BaseHandler.HandleVeleroResource(c, "backup-repositories", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleVeleroResource(c, "backup-repositories", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.BaseHandler.MinioValidator, h.BaseHandler.KubernetesValidator)
+		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -90,9 +90,9 @@ func (h *Handler) GetBackupRepositories(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/velero/storage-locations [get]
 func (h *Handler) GetBackupStorageLocations(c echo.Context) error {
-	return h.BaseHandler.HandleVeleroResource(c, "backup-storage-locations", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleVeleroResource(c, "backup-storage-locations", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.BaseHandler.MinioValidator, h.BaseHandler.KubernetesValidator)
+		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}

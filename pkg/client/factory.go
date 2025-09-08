@@ -39,11 +39,3 @@ func (f *ClientFactory) CreateRESTConfig(cfg config.KubeConfig) (*rest.Config, e
 
 	return restCfg, nil
 }
-
-// getNamespaceOrDefault : 네임스페이스가 설정되어 있으면 사용, 없으면 기본값 반환
-func getNamespaceOrDefault(namespace, defaultNS string) string {
-	if namespace != "" {
-		return namespace
-	}
-	return defaultNS
-}

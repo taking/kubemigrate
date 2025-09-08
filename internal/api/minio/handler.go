@@ -34,9 +34,9 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/minio/bucket/exists [post]
 func (h *Handler) CheckBucketExists(c echo.Context) error {
-	return h.BaseHandler.HandleMinioResource(c, "bucket-exists", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleMinioResource(c, "bucket-exists", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		_, err := utils.BindAndValidateMinioConfig(c, h.BaseHandler.MinioValidator)
+		_, err := utils.BindAndValidateMinioConfig(c, h.MinioValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -73,9 +73,9 @@ func (h *Handler) CheckBucketExists(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/minio/bucket/create [post]
 func (h *Handler) CreateBucket(c echo.Context) error {
-	return h.BaseHandler.HandleMinioResource(c, "create-bucket", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleMinioResource(c, "create-bucket", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		_, err := utils.BindAndValidateMinioConfig(c, h.BaseHandler.MinioValidator)
+		_, err := utils.BindAndValidateMinioConfig(c, h.MinioValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -112,9 +112,9 @@ func (h *Handler) CreateBucket(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/minio/bucket/create-if-not-exists [post]
 func (h *Handler) CreateBucketIfNotExists(c echo.Context) error {
-	return h.BaseHandler.HandleMinioResource(c, "create-bucket-if-not-exists", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleMinioResource(c, "create-bucket-if-not-exists", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		_, err := utils.BindAndValidateMinioConfig(c, h.BaseHandler.MinioValidator)
+		_, err := utils.BindAndValidateMinioConfig(c, h.MinioValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +157,7 @@ func (h *Handler) CreateBucketIfNotExists(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/minio/health [get]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.BaseHandler.HandleMinioResource(c, "minio-health", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleMinioResource(c, "minio-health", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
 		// 간단한 MinIO 연결 테스트 (버킷 목록 조회)
 		_, err := minioClient.ListBuckets(ctx)
 		if err != nil {

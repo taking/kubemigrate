@@ -29,9 +29,15 @@ func TestLoad(t *testing.T) {
 
 func TestLoadWithEnvVars(t *testing.T) {
 	// 환경변수 설정
-	os.Setenv("PORT", "8080")
-	os.Setenv("LOG_LEVEL", "debug")
-	os.Setenv("LOG_FORMAT", "text")
+	if err := os.Setenv("PORT", "8080"); err != nil {
+		t.Fatalf("Failed to set PORT env var: %v", err)
+	}
+	if err := os.Setenv("LOG_LEVEL", "debug"); err != nil {
+		t.Fatalf("Failed to set LOG_LEVEL env var: %v", err)
+	}
+	if err := os.Setenv("LOG_FORMAT", "text"); err != nil {
+		t.Fatalf("Failed to set LOG_FORMAT env var: %v", err)
+	}
 
 	config := Load()
 
@@ -48,9 +54,15 @@ func TestLoadWithEnvVars(t *testing.T) {
 	}
 
 	// 환경변수 정리
-	os.Unsetenv("PORT")
-	os.Unsetenv("LOG_LEVEL")
-	os.Unsetenv("LOG_FORMAT")
+	if err := os.Unsetenv("PORT"); err != nil {
+		t.Errorf("Failed to unset PORT env var: %v", err)
+	}
+	if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+		t.Errorf("Failed to unset LOG_LEVEL env var: %v", err)
+	}
+	if err := os.Unsetenv("LOG_FORMAT"); err != nil {
+		t.Errorf("Failed to unset LOG_FORMAT env var: %v", err)
+	}
 }
 
 func TestGetDurationOrDefault(t *testing.T) {
@@ -61,18 +73,24 @@ func TestGetDurationOrDefault(t *testing.T) {
 	}
 
 	// 환경변수 테스트
-	os.Setenv("TEST_DURATION", "60s")
+	if err := os.Setenv("TEST_DURATION", "60s"); err != nil {
+		t.Fatalf("Failed to set TEST_DURATION env var: %v", err)
+	}
 	duration = getDurationOrDefault("TEST_DURATION", 30*time.Second)
 	if duration != 60*time.Second {
 		t.Errorf("Expected 60s from env var, got %v", duration)
 	}
 
 	// 잘못된 형식 테스트
-	os.Setenv("TEST_DURATION", "invalid")
+	if err := os.Setenv("TEST_DURATION", "invalid"); err != nil {
+		t.Fatalf("Failed to set TEST_DURATION env var: %v", err)
+	}
 	duration = getDurationOrDefault("TEST_DURATION", 30*time.Second)
 	if duration != 30*time.Second {
 		t.Errorf("Expected 30s default for invalid format, got %v", duration)
 	}
 
-	os.Unsetenv("TEST_DURATION")
+	if err := os.Unsetenv("TEST_DURATION"); err != nil {
+		t.Errorf("Failed to unset TEST_DURATION env var: %v", err)
+	}
 }

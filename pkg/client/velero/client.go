@@ -69,7 +69,9 @@ func NewClient() Client {
 	}
 
 	// Velero 스키마 등록
-	velerov1.AddToScheme(scheme.Scheme)
+	if err := velerov1.AddToScheme(scheme.Scheme); err != nil {
+		panic(err)
+	}
 
 	k8sClient, err := ctrlclient.New(restConfig, ctrlclient.Options{Scheme: scheme.Scheme})
 	if err != nil {
@@ -112,7 +114,9 @@ func NewClientWithConfig(cfg config.VeleroConfig) (Client, error) {
 	}
 
 	// Velero 스키마 등록
-	velerov1.AddToScheme(scheme.Scheme)
+	if err := velerov1.AddToScheme(scheme.Scheme); err != nil {
+		return nil, err
+	}
 
 	k8sClient, err := ctrlclient.New(restConfig, ctrlclient.Options{Scheme: scheme.Scheme})
 	if err != nil {

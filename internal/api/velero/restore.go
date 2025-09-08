@@ -21,9 +21,9 @@ import (
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/velero/restores [post]
 func (h *Handler) GetRestores(c echo.Context) error {
-	return h.BaseHandler.HandleVeleroResource(c, "restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleVeleroResource(c, "restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.BaseHandler.MinioValidator, h.BaseHandler.KubernetesValidator)
+		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -39,7 +39,7 @@ func (h *Handler) GetRestores(c echo.Context) error {
 
 		// 생성 시간 기준으로 정렬
 		sort.Slice(restores, func(i, j int) bool {
-			return restores[i].CreationTimestamp.Time.After(restores[j].CreationTimestamp.Time)
+			return restores[j].CreationTimestamp.Before(&restores[i].CreationTimestamp)
 		})
 
 		return restores, nil
@@ -58,9 +58,9 @@ func (h *Handler) GetRestores(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/velero/volume-snapshot-locations [get]
 func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
-	return h.BaseHandler.HandleVeleroResource(c, "volume-snapshot-locations", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleVeleroResource(c, "volume-snapshot-locations", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.BaseHandler.MinioValidator, h.BaseHandler.KubernetesValidator)
+		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
@@ -90,9 +90,9 @@ func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/velero/pod-volume-restores [get]
 func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
-	return h.BaseHandler.HandleVeleroResource(c, "pod-volume-restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleVeleroResource(c, "pod-volume-restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.BaseHandler.MinioValidator, h.BaseHandler.KubernetesValidator)
+		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
