@@ -12,14 +12,14 @@ get {
 
 body:json {
   {
+    "kubeconfig": {
+      "kubeconfig": "{{base64_local_kubeconfig}}"
+    },
     "minio": {
       "endpoint": "{{minio_url}}",
-      "accessKey": "{{minio_accesskey}}",
-      "secretKey": "{{minio_secretkey}}",
+      "accessKeyID": "{{minio_accesskey}}",
+      "secretAccessKey": "{{minio_secretkey}}",
       "useSSL": false
-    },
-    "kubernetes": {
-      "kubeconfig": "{{base64_local_kubeconfig}}"
     }
   }
 }

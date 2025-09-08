@@ -4,8 +4,8 @@ meta {
   seq: 3
 }
 
-get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kube/storage-classes
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/storage-classes
   body: json
   auth: inherit
 }

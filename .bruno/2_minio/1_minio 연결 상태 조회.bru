@@ -13,8 +13,9 @@ get {
 body:json {
   {
       "endpoint": "{{minio_url}}",
-      "accessKey": "{{minio_accesskey}}",
-      "secretKey": "{{minio_secretkey}}"
+      "AccessKeyID": "{{minio_accesskey}}",
+      "secretAccessKey": "{{minio_secretkey}}",
+      "useSSL": false
   }
 }
 

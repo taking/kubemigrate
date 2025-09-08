@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -15,13 +14,9 @@ import (
 	"go.uber.org/zap"
 
 	_ "github.com/taking/kubemigrate/docs/swagger" // Scalar Docs Swagger
-	"github.com/taking/kubemigrate/pkg/cache"
-	"github.com/taking/kubemigrate/pkg/config"
-	"github.com/taking/kubemigrate/pkg/health"
-	"github.com/taking/kubemigrate/pkg/logger"
-	"github.com/taking/kubemigrate/pkg/middleware"
-	"github.com/taking/kubemigrate/pkg/router"
-	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/internal/logger"
+	"github.com/taking/kubemigrate/internal/server"
 )
 
 // @title KubeMigrate API Server
@@ -53,29 +48,12 @@ func main() {
 	// Config 불러오기
 	cfg := config.Load()
 
-	// 캐시 시스템 초기화 (5분 TTL)
-	appCache := cache.NewCache(5 * time.Minute)
-	logger.Info("Cache system initialized", zap.Duration("ttl", 5*time.Minute))
+	logger.Info("KubeMigrate API Server starting with new architecture")
 
-	// 워커 풀 초기화 (CPU 코어 수 * 2)
-	workerPool := utils.NewWorkerPool(runtime.NumCPU() * 2)
-	defer workerPool.Close()
-	logger.Info("Worker pool initialized", zap.Int("workers", runtime.NumCPU()*2))
-
-	// 헬스체크 매니저 초기화 (30초 타임아웃)
-	healthManager := health.NewHealthManager(30 * time.Second)
-	logger.Info("Health manager initialized", zap.Duration("timeout", 30*time.Second))
-
-	// Echo 인스턴스 생성
-	e := echo.New()
+	// 새로운 라우터 생성 (미들웨어 포함)
+	e := server.NewRouter()
 	e.HideBanner = true
 	e.HidePort = true
-
-	// 기본 미들웨어 설정
-	middleware.SetupMiddleware(e, cfg)
-
-	// API 라우트 등록 (의존성 주입)
-	router.RegisterRoutes(e, appCache, workerPool, healthManager)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
