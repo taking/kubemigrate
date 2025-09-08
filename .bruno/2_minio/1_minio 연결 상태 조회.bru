@@ -4,7 +4,7 @@ meta {
   seq: 1
 }
 
-get {
+post {
   url: {{host_ip}}:{{host_port}}/api/v1/minio/health
   body: json
   auth: inherit
@@ -14,7 +14,8 @@ body:json {
   {
       "endpoint": "{{minio_url}}",
       "accessKey": "{{minio_accesskey}}",
-      "secretKey": "{{minio_secretkey}}"
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
   }
 }
 

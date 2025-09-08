@@ -4,8 +4,8 @@ meta {
   seq: 1
 }
 
-get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kube/health
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/health
   body: json
   auth: inherit
 }
