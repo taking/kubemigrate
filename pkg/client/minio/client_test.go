@@ -43,10 +43,10 @@ func TestGetObject(t *testing.T) {
 func TestNewClientWithConfig(t *testing.T) {
 	// 빈 설정으로 테스트 (에러가 발생할 것으로 예상)
 	cfg := config.MinioConfig{
-		Endpoint:        "localhost:9000",
-		AccessKeyID:     "minioadmin",
-		SecretAccessKey: "minioadmin",
-		UseSSL:          false,
+		Endpoint:  "localhost:9000",
+		AccessKey: "minioadmin",
+		SecretKey: "minioadmin",
+		UseSSL:    false,
 	}
 
 	client, err := NewClientWithConfig(cfg)

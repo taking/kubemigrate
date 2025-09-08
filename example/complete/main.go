@@ -215,7 +215,7 @@ func performBackupSimulation(clients *Clients) error {
 		fmt.Println("    ✅ Velero backup creation simulation completed")
 	}
 
-	// 2. MinIO에 백업 메타데이터 저장
+	// minio에 백업 메타데이터 저장
 	if status.MinIOHealthy {
 		fmt.Println("  2. Storing backup metadata to MinIO...")
 

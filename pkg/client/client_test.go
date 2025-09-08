@@ -41,18 +41,18 @@ func TestNewClientWithConfig(t *testing.T) {
 	veleroConfig := config.VeleroConfig{
 		KubeConfig: kubeConfig,
 		MinioConfig: config.MinioConfig{
-			Endpoint:        "localhost:9000",
-			AccessKeyID:     "minioadmin",
-			SecretAccessKey: "minioadmin",
-			UseSSL:          false,
+			Endpoint:  "localhost:9000",
+			AccessKey: "minioadmin",
+			SecretKey: "minioadmin",
+			UseSSL:    false,
 		},
 	}
 
 	minioConfig := config.MinioConfig{
-		Endpoint:        "localhost:9000",
-		AccessKeyID:     "minioadmin",
-		SecretAccessKey: "minioadmin",
-		UseSSL:          false,
+		Endpoint:  "localhost:9000",
+		AccessKey: "minioadmin",
+		SecretKey: "minioadmin",
+		UseSSL:    false,
 	}
 
 	client := NewClientWithConfig(kubeConfig, helmConfig, veleroConfig, minioConfig)

@@ -48,10 +48,10 @@ func TestNewClientWithConfig(t *testing.T) {
 			Namespace:  "velero",
 		},
 		MinioConfig: config.MinioConfig{
-			Endpoint:        "localhost:9000",
-			AccessKeyID:     "minioadmin",
-			SecretAccessKey: "minioadmin",
-			UseSSL:          false,
+			Endpoint:  "localhost:9000",
+			AccessKey: "minioadmin",
+			SecretKey: "minioadmin",
+			UseSSL:    false,
 		},
 	}
 

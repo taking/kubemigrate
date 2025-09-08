@@ -322,7 +322,7 @@ type VeleroClient interface {
 
 ### 일반적인 문제들
 
-#### 1. Kubernetes 연결 실패
+#### kubernetes 연결 실패
 
 ```bash
 # kubeconfig 파일 확인
@@ -332,7 +332,7 @@ kubectl config current-context
 kubectl cluster-info
 ```
 
-#### 2. MinIO 연결 실패
+#### minio 연결 실패
 
 ```bash
 # MinIO 서버 상태 확인

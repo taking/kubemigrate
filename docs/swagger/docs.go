@@ -23,7 +23,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/helm/chart/{name}": {
+        "/v1/helm/chart/{name}": {
             "get": {
                 "description": "Get specific Helm chart by name",
                 "consumes": [
@@ -46,14 +46,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "default": "default",
-                        "description": "Namespace to get chart from",
+                        "description": "Namespace name (default: 'default', all namespaces: 'all')",
                         "name": "namespace",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Chart version",
+                        "description": "Chart Release version",
                         "name": "version",
                         "in": "query"
                     }
@@ -95,8 +94,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "default": "default",
-                        "description": "Namespace to uninstall chart from",
+                        "description": "Namespace name (default: 'default', all namespaces: 'all')",
                         "name": "namespace",
                         "in": "query"
                     },
@@ -124,7 +122,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/helm/chart/{name}/status": {
+        "/v1/helm/chart/{name}/status": {
             "get": {
                 "description": "Check if Helm chart is installed",
                 "consumes": [
@@ -162,7 +160,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/helm/charts": {
+        "/v1/helm/charts": {
             "get": {
                 "description": "Get list of all Helm charts",
                 "consumes": [
@@ -178,8 +176,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "default": "default",
-                        "description": "Namespace to get charts from",
+                        "description": "Namespace name (default: 'default', all namespaces: 'all')",
                         "name": "namespace",
                         "in": "query"
                     }
@@ -200,9 +197,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/helm/health": {
-            "get": {
-                "description": "Check Helm connection status",
+        "/v1/helm/health": {
+            "post": {
+                "description": "Test Helm connection with provided configuration",
                 "consumes": [
                     "application/json"
                 ],
@@ -212,7 +209,18 @@ const docTemplate = `{
                 "tags": [
                     "helm"
                 ],
-                "summary": "Helm Health Check",
+                "summary": "Helm Connection Test",
+                "parameters": [
+                    {
+                        "description": "Helm configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.HelmConfig"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -229,9 +237,49 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/kubernetes/health": {
+        "/v1/kubernetes/health": {
+            "post": {
+                "description": "Test Kubernetes connection with provided configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kubernetes"
+                ],
+                "summary": "Kubernetes Connection Test",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/kubernetes/{kind}/{name}": {
             "get": {
-                "description": "Check Kubernetes connection status",
+                "description": "Get Kubernetes resources by kind, name (optional) and namespace",
                 "consumes": [
                     "application/json"
                 ],
@@ -241,36 +289,7 @@ const docTemplate = `{
                 "tags": [
                     "kubernetes"
                 ],
-                "summary": "Kubernetes Health Check",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/kubernetes/pods": {
-            "post": {
-                "description": "Get list of pods in specified namespace",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "kubernetes"
-                ],
-                "summary": "Get Pods",
+                "summary": "Get Kubernetes Resources",
                 "parameters": [
                     {
                         "description": "Kubernetes configuration",
@@ -280,6 +299,25 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.KubeConfig"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource kind (pods, configmaps, secrets, storage-classes)",
+                        "name": "kind",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource name (empty for list, specific name for single resource)",
+                        "name": "name",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -304,53 +342,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/kubernetes/storage-classes": {
-            "post": {
-                "description": "Get list of storage classes",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "kubernetes"
-                ],
-                "summary": "Get Storage Classes",
-                "parameters": [
-                    {
-                        "description": "Kubernetes configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.KubeConfig"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/minio/bucket/create": {
+        "/v1/minio/bucket/create": {
             "post": {
                 "description": "Create a new MinIO bucket",
                 "consumes": [
@@ -403,7 +395,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/minio/bucket/create-if-not-exists": {
+        "/v1/minio/bucket/create-if-not-exists": {
             "post": {
                 "description": "Create a MinIO bucket if it doesn't exist",
                 "consumes": [
@@ -456,7 +448,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/minio/bucket/exists": {
+        "/v1/minio/bucket/exists": {
             "post": {
                 "description": "Check if a MinIO bucket exists",
                 "consumes": [
@@ -468,7 +460,7 @@ const docTemplate = `{
                 "tags": [
                     "minio"
                 ],
-                "summary": "Check Bucket Exists",
+                "summary": "2. Check Bucket Exists",
                 "parameters": [
                     {
                         "description": "MinIO configuration",
@@ -509,9 +501,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/minio/health": {
-            "get": {
-                "description": "Check MinIO connection status",
+        "/v1/minio/health": {
+            "post": {
+                "description": "Test MinIO connection with provided configuration",
                 "consumes": [
                     "application/json"
                 ],
@@ -521,7 +513,18 @@ const docTemplate = `{
                 "tags": [
                     "minio"
                 ],
-                "summary": "MinIO Health Check",
+                "summary": "1. MinIO Connection Test",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -538,7 +541,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/velero/backups": {
+        "/v1/velero/backups": {
             "post": {
                 "description": "Get list of Velero backups",
                 "consumes": [
@@ -560,6 +563,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.VeleroConfig"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -584,9 +593,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/velero/health": {
-            "get": {
-                "description": "Check Velero connection status",
+        "/v1/velero/health": {
+            "post": {
+                "description": "Test Velero connection with provided configuration",
                 "consumes": [
                     "application/json"
                 ],
@@ -596,7 +605,18 @@ const docTemplate = `{
                 "tags": [
                     "velero"
                 ],
-                "summary": "Velero Health Check",
+                "summary": "Velero Connection Test",
+                "parameters": [
+                    {
+                        "description": "Velero configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.VeleroConfig"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -613,7 +633,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/velero/pod-volume-restores": {
+        "/v1/velero/pod-volume-restores": {
             "get": {
                 "description": "Get list of Velero pod volume restores",
                 "consumes": [
@@ -635,6 +655,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.VeleroConfig"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -659,7 +685,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/velero/repositories": {
+        "/v1/velero/repositories": {
             "get": {
                 "description": "Get list of Velero backup repositories",
                 "consumes": [
@@ -681,6 +707,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.VeleroConfig"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -705,7 +737,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/velero/restores": {
+        "/v1/velero/restores": {
             "post": {
                 "description": "Get list of Velero restores",
                 "consumes": [
@@ -727,6 +759,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.VeleroConfig"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -751,7 +789,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/velero/storage-locations": {
+        "/v1/velero/storage-locations": {
             "get": {
                 "description": "Get list of Velero backup storage locations",
                 "consumes": [
@@ -773,6 +811,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.VeleroConfig"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -797,7 +841,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/velero/volume-snapshot-locations": {
+        "/v1/velero/volume-snapshot-locations": {
             "get": {
                 "description": "Get list of Velero volume snapshot locations",
                 "consumes": [
@@ -819,6 +863,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.VeleroConfig"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -845,6 +895,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "config.HelmConfig": {
+            "type": "object",
+            "required": [
+                "kubeconfig"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "$ref": "#/definitions/config.KubeConfig"
+                }
+            }
+        },
         "config.KubeConfig": {
             "type": "object",
             "required": [
@@ -852,32 +913,39 @@ const docTemplate = `{
             ],
             "properties": {
                 "kubeconfig": {
-                    "type": "string"
-                },
-                "namespace": {
-                    "type": "string"
+                    "description": "[필수] Base64 인코딩된 KubeConfig 값",
+                    "type": "string",
+                    "example": "base64 인코딩된 KubeConfig 값"
                 }
             }
         },
         "config.MinioConfig": {
             "type": "object",
             "required": [
-                "accessKeyID",
+                "accessKey",
                 "endpoint",
-                "secretAccessKey"
+                "secretKey"
             ],
             "properties": {
-                "accessKeyID": {
-                    "type": "string"
+                "accessKey": {
+                    "description": "[필수] minio accessKey",
+                    "type": "string",
+                    "example": "your_minio_accessKey"
                 },
                 "endpoint": {
-                    "type": "string"
+                    "description": "[필수] minio endpoint 주소",
+                    "type": "string",
+                    "example": "127.0.0.1:9000"
                 },
-                "secretAccessKey": {
-                    "type": "string"
+                "secretKey": {
+                    "description": "[필수] minio secretKey",
+                    "type": "string",
+                    "example": "your_minio_secretKey"
                 },
                 "useSSL": {
-                    "type": "boolean"
+                    "description": "[필수] minio useSSL 여부 (false: http / true: https)",
+                    "type": "boolean",
+                    "example": false
                 }
             }
         },
@@ -963,8 +1031,8 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:9091",
-	BasePath:         "/api/v1",
+	Host:             "",
+	BasePath:         "/api",
 	Schemes:          []string{"http"},
 	Title:            "KubeMigrate API Server",
 	Description:      "Kubernetes cluster migration and backup validation API with multi-cluster support",

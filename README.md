@@ -95,7 +95,8 @@ kubemigrate/
 
 | 환경 변수 | 설명 | 기본값 |
 |-----------|------|--------|
-| `PORT` | 서버 포트 | `9091` |
+| `SERVER_HOST` | 서버 주소 | `localhost` |
+| `SERVER_PORT` | 서버 포트 | `9091` |
 | `READ_TIMEOUT` | 요청 읽기 타임아웃 | `30s` |
 | `WRITE_TIMEOUT` | 응답 쓰기 타임아웃 | `30s` |
 | `IDLE_TIMEOUT` | 연결 유지 타임아웃 | `120s` |

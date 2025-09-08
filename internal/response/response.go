@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/logger"
 	responseTypes "github.com/taking/kubemigrate/pkg/response"
-	"go.uber.org/zap"
 )
 
 // SuccessResponse : 성공 응답 생성
@@ -60,9 +60,9 @@ func RespondJSON(ctx echo.Context, statusCode int, response interface{}) error {
 	}
 
 	// Log response for debugging
-	zap.L().Debug("sending response",
-		zap.Int("status_code", statusCode),
-		zap.String("request_id", ctx.Response().Header().Get(echo.HeaderXRequestID)),
+	logger.Debug("sending response",
+		logger.Int("status_code", statusCode),
+		logger.String("request_id", ctx.Response().Header().Get(echo.HeaderXRequestID)),
 	)
 
 	return ctx.JSON(statusCode, response)
@@ -181,12 +181,12 @@ func RespondWithErrorModel(ctx echo.Context, statusCode int, code, message, deta
 	}
 
 	// 로그 기록
-	zap.L().Error("에러 응답 전송",
-		zap.Int("status_code", statusCode),
-		zap.String("code", code),
-		zap.String("message", message),
-		zap.String("details", details),
-		zap.String("request_id", response.RequestID),
+	logger.Error("에러 응답 전송",
+		logger.Int("status_code", statusCode),
+		logger.String("code", code),
+		logger.String("message", message),
+		logger.String("details", details),
+		logger.String("request_id", response.RequestID),
 	)
 
 	return ctx.JSON(statusCode, response)
@@ -207,10 +207,10 @@ func RespondWithSuccessModel(ctx echo.Context, statusCode int, message string, d
 	}
 
 	// 로그 기록
-	zap.L().Info("성공 응답 전송",
-		zap.Int("status_code", statusCode),
-		zap.String("message", message),
-		zap.String("request_id", response.RequestID),
+	logger.Info("성공 응답 전송",
+		logger.Int("status_code", statusCode),
+		logger.String("message", message),
+		logger.String("request_id", response.RequestID),
 	)
 
 	return ctx.JSON(statusCode, response)
@@ -234,9 +234,9 @@ func RespondWithValidationError(ctx echo.Context, errors []responseTypes.Validat
 	}
 
 	// 로그 기록
-	zap.L().Warn("유효성 검사 실패",
-		zap.Int("error_count", len(errors)),
-		zap.String("request_id", response.RequestID),
+	logger.Warn("유효성 검사 실패",
+		logger.Int("error_count", len(errors)),
+		logger.String("request_id", response.RequestID),
 	)
 
 	return ctx.JSON(http.StatusBadRequest, response)

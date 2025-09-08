@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"sort"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
@@ -22,84 +21,20 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 	}
 }
 
-// GetPods : Pod 목록 조회
-// @Summary Get Pods
-// @Description Get list of pods in specified namespace
+// HealthCheck : Kubernetes 연결 테스트
+// @Summary Kubernetes Connection Test
+// @Description Test Kubernetes connection with provided configuration
 // @Tags kubernetes
 // @Accept json
 // @Produce json
 // @Param request body config.KubeConfig true "Kubernetes configuration"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/kubernetes/pods [post]
-func (h *Handler) GetPods(c echo.Context) error {
-	return h.HandleKubernetesResource(c, "pods", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
-		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateKubeConfig(c, h.KubernetesValidator)
-		if err != nil {
-			return nil, err
-		}
-
-		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(&req, c, "default")
-
-		// Pod 목록 조회
-		pods, err := k8sClient.GetPods(ctx, namespace)
-		if err != nil {
-			return nil, err
-		}
-
-		// 생성 시간 기준으로 정렬
-		sort.Slice(pods.Items, func(i, j int) bool {
-			return pods.Items[j].CreationTimestamp.Before(&pods.Items[i].CreationTimestamp)
-		})
-
-		return pods, nil
-	})
-}
-
-// GetStorageClasses : StorageClass 목록 조회
-// @Summary Get Storage Classes
-// @Description Get list of storage classes
-// @Tags kubernetes
-// @Accept json
-// @Produce json
-// @Param request body config.KubeConfig true "Kubernetes configuration"
-// @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/kubernetes/storage-classes [post]
-func (h *Handler) GetStorageClasses(c echo.Context) error {
-	return h.HandleKubernetesResource(c, "storage-classes", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
-		// StorageClass 목록 조회
-		storageClasses, err := k8sClient.GetStorageClasses(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		// 이름 기준으로 정렬
-		sort.Slice(storageClasses.Items, func(i, j int) bool {
-			return storageClasses.Items[i].Name < storageClasses.Items[j].Name
-		})
-
-		return storageClasses, nil
-	})
-}
-
-// HealthCheck : Kubernetes 연결 상태 확인
-// @Summary Kubernetes Health Check
-// @Description Check Kubernetes connection status
-// @Tags kubernetes
-// @Accept json
-// @Produce json
-// @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/kubernetes/health [get]
+// @Router /v1/kubernetes/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
 	return h.HandleKubernetesResource(c, "kubernetes-health", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
-		// 간단한 Kubernetes 연결 테스트 (네임스페이스 목록 조회)
-		_, err := k8sClient.GetPods(ctx, "default")
+		// Kubernetes 연결 테스트
+		_, err := k8sClient.GetPods(ctx, "default", "")
 		if err != nil {
 			return nil, err
 		}
@@ -109,5 +44,52 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 			"status":  "healthy",
 			"message": "Kubernetes connection is working",
 		}, nil
+	})
+}
+
+// GetResources : Kubernetes 리소스 조회 (통합 API)
+// @Summary Get Kubernetes Resources
+// @Description Get Kubernetes resources by kind, name (optional) and namespace
+// @Tags kubernetes
+// @Accept json
+// @Produce json
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param kind path string true "Resource kind (pods, configmaps, secrets, storage-classes)"
+// @Param name path string false "Resource name (empty for list, specific name for single resource)"
+// @Param namespace query string false "Namespace name (default: 'default', all namespaces: 'all')"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/kubernetes/{kind}/{name} [get]
+func (h *Handler) GetResources(c echo.Context) error {
+	return h.HandleKubernetesResource(c, "resources", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
+		// 요청 바인딩 및 검증
+		_, err := utils.BindAndValidateKubeConfig(c, h.KubernetesValidator)
+		if err != nil {
+			return nil, err
+		}
+
+		// 네임스페이스 결정
+		// "all"이면 모든 네임스페이스 조회,""이면 3번째 파라미터 값을 네임스페이스로 사용
+		namespace := utils.ResolveNamespace(c, "default")
+
+		// GET 요청에서는 body 바인딩 없이 query parameter만 사용
+		// 리소스 종류, 이름, 네임스페이스 결정
+		kind := c.Param("kind")
+		name := c.Param("name")
+
+		// 클라이언트 통합 메서드 사용
+		switch kind {
+		case "pods":
+			return k8sClient.GetPods(ctx, namespace, name)
+		case "configmaps":
+			return k8sClient.GetConfigMaps(ctx, namespace, name)
+		case "secrets":
+			return k8sClient.GetSecrets(ctx, namespace, name)
+		case "storage-classes":
+			return k8sClient.GetStorageClasses(ctx, name)
+		default:
+			return nil, echo.NewHTTPError(400, "Unsupported resource kind: "+kind)
+		}
 	})
 }

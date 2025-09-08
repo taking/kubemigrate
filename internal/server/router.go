@@ -44,9 +44,10 @@ func NewRouter() *echo.Echo {
 	e := echo.New()
 
 	// 기본 미들웨어 설정
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Pre(middleware.RemoveTrailingSlash()) // 모든 요청에서 URL 뒤에 붙은 / 제거
+	e.Use(middleware.Logger())              // 요청/응답 로그 출력
+	e.Use(middleware.Recover())             // panic 발생 시 서버가 죽지 않고 500 에러로 복구
+	e.Use(middleware.CORS())                // 기본 CORS 허용 설정
 
 	// 공통 컴포넌트 초기화
 	workerPool := utils.NewWorkerPool(10) // 10개 워커
@@ -74,7 +75,7 @@ func NewRouter() *echo.Echo {
 
 	// Velero 관련 라우트 (백업 + 복구 통합)
 	veleroGroup := api.Group("/velero")
-	veleroGroup.GET("/health", veleroHandler.HealthCheck)
+	veleroGroup.POST("/health", veleroHandler.HealthCheck)
 	// 백업 관련
 	veleroGroup.POST("/backups", veleroHandler.GetBackups)
 	veleroGroup.GET("/repositories", veleroHandler.GetBackupRepositories)
@@ -86,7 +87,7 @@ func NewRouter() *echo.Echo {
 
 	// Helm 관련 라우트
 	helmGroup := api.Group("/helm")
-	helmGroup.GET("/health", helmHandler.HealthCheck)
+	helmGroup.POST("/health", helmHandler.HealthCheck)
 	helmGroup.GET("/charts", helmHandler.GetCharts)
 	helmGroup.GET("/chart/:name", helmHandler.GetChart)
 	helmGroup.GET("/chart/:name/status", helmHandler.IsChartInstalled)
@@ -94,13 +95,15 @@ func NewRouter() *echo.Echo {
 
 	// Kubernetes 관련 라우트
 	k8sGroup := api.Group("/kubernetes")
-	k8sGroup.GET("/health", kubernetesHandler.HealthCheck)
-	k8sGroup.POST("/pods", kubernetesHandler.GetPods)
-	k8sGroup.POST("/storage-classes", kubernetesHandler.GetStorageClasses)
+	k8sGroup.POST("/health", kubernetesHandler.HealthCheck)
+
+	// 통합 API (조회)
+	k8sGroup.GET("/:kind", kubernetesHandler.GetResources)       // 리스트 조회
+	k8sGroup.GET("/:kind/:name", kubernetesHandler.GetResources) // 단일 조회
 
 	// MinIO 관련 라우트
 	minioGroup := api.Group("/minio")
-	minioGroup.GET("/health", minioHandler.HealthCheck)
+	minioGroup.POST("/health", minioHandler.HealthCheck)
 	minioGroup.POST("/bucket/exists", minioHandler.CheckBucketExists)
 	minioGroup.POST("/bucket/create", minioHandler.CreateBucket)
 	minioGroup.POST("/bucket/create-if-not-exists", minioHandler.CreateBucketIfNotExists)
@@ -167,7 +170,7 @@ func checkKubernetesHealth(c echo.Context) ServiceHealth {
 	}
 
 	// 간단한 연결 테스트
-	_, err := k8sClient.GetPods(c.Request().Context(), "default")
+	_, err := k8sClient.GetPods(c.Request().Context(), "default", "")
 	if err != nil {
 		return ServiceHealth{
 			Status:    "unhealthy",

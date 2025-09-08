@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/pkg/client/helm"
+	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // Handler : Helm 관련 HTTP 핸들러
@@ -22,23 +23,55 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 	}
 }
 
+// HealthCheck : Helm 연결 테스트
+// @Summary Helm Connection Test
+// @Description Test Helm connection with provided configuration
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param request body config.HelmConfig true "Helm configuration"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/helm/health [post]
+func (h *Handler) HealthCheck(c echo.Context) error {
+	return h.HandleHelmResource(c, "helm-health", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+		// Helm 연결 테스트
+		err := helmClient.HealthCheck(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("helm health check failed: %w", err)
+		}
+
+		return map[string]interface{}{
+			"service": "helm",
+			"status":  "healthy",
+			"message": "Helm connection is working",
+		}, nil
+	})
+}
+
 // GetCharts : Helm 차트 목록 조회
 // @Summary Get Helm Charts
 // @Description Get list of all Helm charts
 // @Tags helm
 // @Accept json
 // @Produce json
-// @Param namespace query string false "Namespace to get charts from" default(default)
+// @Param namespace query string false "Namespace name (default: 'default', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/helm/charts [get]
+// @Router /v1/helm/charts [get]
 func (h *Handler) GetCharts(c echo.Context) error {
-	namespace := c.QueryParam("namespace")
-	if namespace == "" {
-		namespace = "default"
-	}
-
 	return h.HandleHelmResource(c, "helm-charts", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+		// 요청 바인딩 및 검증
+		_, err := utils.BindAndValidateHelmConfig(c, h.KubernetesValidator)
+		if err != nil {
+			return nil, err
+		}
+
+		// 네임스페이스 결정
+		// "all"이면 모든 네임스페이스 조회,""이면 3번째 파라미터 값을 네임스페이스로 사용
+		namespace := utils.ResolveNamespace(c, "default")
+
+		// Helm 차트 목록 조회
 		charts, err := helmClient.GetCharts(ctx, namespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get helm charts: %w", err)
@@ -59,29 +92,35 @@ func (h *Handler) GetCharts(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param name path string true "Chart name"
-// @Param namespace query string false "Namespace to get chart from" default(default)
-// @Param version query string false "Chart version"
+// @Param namespace query string false "Namespace name (default: 'default', all namespaces: 'all')"
+// @Param version query string false "Chart Release version"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/helm/chart/{name} [get]
+// @Router /v1/helm/chart/{name} [get]
 func (h *Handler) GetChart(c echo.Context) error {
-	chartName := c.Param("name")
-	namespace := c.QueryParam("namespace")
-	versionStr := c.QueryParam("version")
-
-	if namespace == "" {
-		namespace = "default"
-	}
-
-	// version을 int로 변환 (기본값: 0)
-	version := 0
-	if versionStr != "" {
-		if v, err := strconv.Atoi(versionStr); err == nil {
-			version = v
-		}
-	}
-
 	return h.HandleHelmResource(c, "helm-chart", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
+		// 요청 바인딩 및 검증
+		_, err := utils.BindAndValidateHelmConfig(c, h.KubernetesValidator)
+		if err != nil {
+			return nil, err
+		}
+
+		// 네임스페이스 결정
+		// "all"이면 모든 네임스페이스 조회,""이면 3번째 파라미터 값을 네임스페이스로 사용
+		namespace := utils.ResolveNamespace(c, "default")
+
+		chartName := c.Param("name")
+		versionStr := c.QueryParam("version")
+
+		// version을 int로 변환 (기본값: 0)
+		version := 0
+		if versionStr != "" {
+			if v, err := strconv.Atoi(versionStr); err == nil {
+				version = v
+			}
+		}
+
+		// Helm 차트 단일 조회
 		chart, err := helmClient.GetChart(ctx, chartName, namespace, version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get helm chart %s: %w", chartName, err)
@@ -104,7 +143,7 @@ func (h *Handler) GetChart(c echo.Context) error {
 // @Param name path string true "Chart name"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/helm/chart/{name}/status [get]
+// @Router /v1/helm/chart/{name}/status [get]
 func (h *Handler) IsChartInstalled(c echo.Context) error {
 	chartName := c.Param("name")
 
@@ -139,22 +178,28 @@ func (h *Handler) IsChartInstalled(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param name path string true "Chart name"
-// @Param namespace query string false "Namespace to uninstall chart from" default(default)
+// @Param namespace query string false "Namespace name (default: 'default', all namespaces: 'all')"
 // @Param dryrun query boolean false "Dry run mode" default(false)
 // @Success 200 {object} response.SuccessResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/helm/chart/{name} [delete]
+// @Router /v1/helm/chart/{name} [delete]
 func (h *Handler) UninstallChart(c echo.Context) error {
-	chartName := c.Param("name")
-	namespace := c.QueryParam("namespace")
-	dryrun := c.QueryParam("dryrun") == "true"
-
-	if namespace == "" {
-		namespace = "default"
-	}
-
 	return h.HandleHelmResource(c, "helm-chart-uninstall", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
-		err := helmClient.UninstallChart(chartName, namespace, dryrun)
+		// 요청 바인딩 및 검증
+		_, err := utils.BindAndValidateHelmConfig(c, h.KubernetesValidator)
+		if err != nil {
+			return nil, err
+		}
+
+		// 네임스페이스 결정
+		// "all"이면 모든 네임스페이스 조회,""이면 3번째 파라미터 값을 네임스페이스로 사용
+		namespace := utils.ResolveNamespace(c, "default")
+
+		chartName := c.Param("name")
+		dryrun := c.QueryParam("dryrun") == "true"
+
+		// Helm 차트 제거
+		err = helmClient.UninstallChart(chartName, namespace, dryrun)
 		if err != nil {
 			return nil, fmt.Errorf("failed to uninstall helm chart %s: %w", chartName, err)
 		}
@@ -173,30 +218,5 @@ func (h *Handler) UninstallChart(c echo.Context) error {
 		}
 
 		return result, nil
-	})
-}
-
-// HealthCheck : Helm 연결 상태 확인
-// @Summary Helm Health Check
-// @Description Check Helm connection status
-// @Tags helm
-// @Accept json
-// @Produce json
-// @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/helm/health [get]
-func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleHelmResource(c, "helm-health", func(helmClient helm.Client, ctx context.Context) (interface{}, error) {
-		// Helm 연결 테스트 (헬스 체크)
-		err := helmClient.HealthCheck(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("helm health check failed: %w", err)
-		}
-
-		return map[string]interface{}{
-			"service": "helm",
-			"status":  "healthy",
-			"message": "Helm connection is working",
-		}, nil
 	})
 }

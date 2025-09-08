@@ -11,9 +11,8 @@ import (
 
 	openapidocs "github.com/kohkimakimoto/echo-openapidocs"
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 
-	_ "github.com/taking/kubemigrate/docs/swagger" // Scalar Docs Swagger
+	"github.com/taking/kubemigrate/docs/swagger"
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/logger"
 	"github.com/taking/kubemigrate/internal/server"
@@ -30,8 +29,7 @@ import (
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host localhost:9091
-// @BasePath /api/v1
+// @BasePath /api
 // @schemes http
 
 // @securityDefinitions.apikey ApiKeyAuth
@@ -39,16 +37,19 @@ import (
 // @name Authorization
 // @description Type "Bearer" followed by a space and JWT token.
 func main() {
-	// Logger 초기화
-	if err := logger.InitDefault(); err != nil {
-		panic("failed to initialize logger: " + err.Error())
-	}
-	defer logger.Sync()
-
 	// Config 불러오기
 	cfg := config.Load()
 
-	logger.Info("KubeMigrate API Server starting with new architecture")
+	// Config 기반으로 Logger 초기화
+	if err := logger.Init(logger.Config{
+		Level:      cfg.Logging.Level,
+		Format:     cfg.Logging.Format,
+		OutputPath: "stdout",
+	}); err != nil {
+		panic("failed to logger initialize: " + err.Error())
+	}
+
+	logger.Info("KubeMigrate API Server starting")
 
 	// 새로운 라우터 생성 (미들웨어 포함)
 	e := server.NewRouter()
@@ -72,6 +73,9 @@ func main() {
 
 // setupScalarDocs : ScalarDocs 설정
 func setupScalarDocs(e *echo.Echo, cfg *config.Config) {
+	// SwaggerInfo의 Host를 동적으로 설정
+	swagger.SwaggerInfo.Host = cfg.Server.Host + ":" + cfg.Server.Port
+
 	// OpenAPI JSON 엔드포인트
 	e.GET("/swagger.json", func(c echo.Context) error {
 		return c.File("docs/swagger/swagger.json")
@@ -85,19 +89,19 @@ func setupScalarDocs(e *echo.Echo, cfg *config.Config) {
 	})
 
 	logger.Info("API Documentation available",
-		zap.String("url", "http://localhost:"+cfg.Server.Port+"/docs"))
+		logger.String("url", "http://"+cfg.Server.Host+":"+cfg.Server.Port+"/docs"))
 }
 
 // startServer : 서버 실행
 func startServer(server *http.Server, cfg *config.Config) {
 	go func() {
 		logger.Info("KubeMigrate API Server starting",
-			zap.String("addr", server.Addr),
-			zap.String("docs_url", "http://localhost:"+cfg.Server.Port+"/docs"),
-			zap.String("health_url", "http://localhost:"+cfg.Server.Port+"/api/v1/health"))
+			logger.String("addr", cfg.Server.Host+":"+cfg.Server.Port),
+			logger.String("docs_url", "http://"+cfg.Server.Host+":"+cfg.Server.Port+"/docs"),
+			logger.String("health_url", "http://"+cfg.Server.Host+":"+cfg.Server.Port+"/api/v1/health"))
 
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Fatal("Server failed to start", zap.Error(err))
+			logger.Fatal("Server failed to start", logger.ErrorAttr(err))
 		}
 	}()
 
@@ -112,7 +116,7 @@ func startServer(server *http.Server, cfg *config.Config) {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("Server forced to shutdown", zap.Error(err))
+		logger.Error("Server forced to shutdown", logger.ErrorAttr(err))
 	}
 
 	logger.Info("Server exited gracefully")

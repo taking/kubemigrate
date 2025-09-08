@@ -42,11 +42,11 @@ func (v *MinioValidator) ValidateMinioConfig(cfg *config.MinioConfig) error {
 		return fmt.Errorf("minio endpoint must be a valid hostname or IP with optional port")
 	}
 
-	if cfg.AccessKeyID == "" || !v.accessKeyPattern.MatchString(cfg.AccessKeyID) {
+	if cfg.AccessKey == "" || !v.accessKeyPattern.MatchString(cfg.AccessKey) {
 		return fmt.Errorf("invalid minio access key format")
 	}
 
-	if cfg.SecretAccessKey == "" || !v.secretKeyPattern.MatchString(cfg.SecretAccessKey) {
+	if cfg.SecretKey == "" || !v.secretKeyPattern.MatchString(cfg.SecretKey) {
 		return fmt.Errorf("invalid minio secret key format (min 8 chars, no spaces)")
 	}
 

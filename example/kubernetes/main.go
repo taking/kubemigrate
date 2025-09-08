@@ -11,7 +11,7 @@ import (
 func main() {
 	fmt.Println("=== Kubernetes Client Usage Example ===")
 
-	// 1. Kubernetes 클라이언트 생성
+	// kubernetes 클라이언트 생성
 	fmt.Println("\n1. Creating Kubernetes client...")
 	client := kubernetes.NewClient()
 	ctx := context.Background()

@@ -1,10 +1,10 @@
 meta {
-  name: [GET] Velero 동작 여부 확인
+  name: [POST] Velero 동작 여부 확인
   type: http
   seq: 1
 }
 
-get {
+post {
   url: {{host_ip}}:{{host_port}}/api/v1/velero/health
   body: json
   auth: inherit
@@ -12,7 +12,15 @@ get {
 
 body:json {
   {
-    "kubeconfig": "{{base64_local_kubeconfig}}"
+    "kubeconfig": {
+      "kubeconfig": "{{base64_local_kubeconfig}}"
+    },
+    "minio": {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
+    }
   }
 }
 

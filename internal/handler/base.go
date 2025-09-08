@@ -89,8 +89,8 @@ func (h *BaseHandler) HandleHelmResource(c echo.Context, cacheKey string,
 func (h *BaseHandler) HandleMinioResource(c echo.Context, cacheKey string,
 	getResource func(minio.Client, context.Context) (interface{}, error)) error {
 
-	// MinIO 클라이언트 생성
-	minioClient := client.NewClient().Minio()
+	// MinIO 클라이언트만 생성 (Kubernetes 클라이언트 생성하지 않음)
+	minioClient := minio.NewClient()
 
 	// 리소스 조회
 	resource, err := getResource(minioClient, c.Request().Context())

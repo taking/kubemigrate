@@ -3,9 +3,10 @@ package utils
 import (
 	"context"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strconv"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/config"
@@ -59,14 +60,21 @@ func StringToBoolOrDefault(s string, def bool) bool {
 }
 
 // ResolveNamespace : 네임스페이스 결정
-func ResolveNamespace(req *config.KubeConfig, ctx echo.Context, defaultNS string) string {
-	if req.Namespace != "" {
-		return req.Namespace
-	}
+func ResolveNamespace(ctx echo.Context, defaultNS string) string {
+	var namespace string
+
 	if ns := ctx.QueryParam("namespace"); ns != "" {
-		return ns
+		namespace = ns
+	} else {
+		return defaultNS
 	}
-	return defaultNS
+
+	// "all"을 빈 문자열로 변환 (모든 namespace 조회)
+	if namespace == "all" {
+		return ""
+	}
+
+	return namespace
 }
 
 // RunWithTimeout : 타임아웃과 함께 함수 실행

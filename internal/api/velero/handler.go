@@ -20,18 +20,19 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 	}
 }
 
-// HealthCheck : Velero 연결 상태 확인
-// @Summary Velero Health Check
-// @Description Check Velero connection status
+// HealthCheck : Velero 연결 테스트
+// @Summary Velero Connection Test
+// @Description Test Velero connection with provided configuration
 // @Tags velero
 // @Accept json
 // @Produce json
+// @Param request body config.VeleroConfig true "Velero configuration"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/velero/health [get]
+// @Router /v1/velero/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
 	return h.HandleVeleroResource(c, "velero-health", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
-		// 간단한 Velero 연결 테스트 (백업 목록 조회)
+		// Velero 연결 테스트
 		_, err := veleroClient.GetBackups(ctx, "velero")
 		if err != nil {
 			return nil, err

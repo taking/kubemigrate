@@ -10,7 +10,8 @@ import (
 func Load() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Port:         getEnvOrDefault("PORT", "9091"),
+			Host:         getEnvOrDefault("SERVER_HOST", "localhost"),
+			Port:         getEnvOrDefault("SERVER_PORT", "9091"),
 			ReadTimeout:  getDurationOrDefault("READ_TIMEOUT", 30*time.Second),
 			WriteTimeout: getDurationOrDefault("WRITE_TIMEOUT", 30*time.Second),
 			IdleTimeout:  getDurationOrDefault("IDLE_TIMEOUT", 120*time.Second),
@@ -21,7 +22,7 @@ func Load() *Config {
 		},
 		Logging: LoggingConfig{
 			Level:  getEnvOrDefault("LOG_LEVEL", "info"),
-			Format: getEnvOrDefault("LOG_FORMAT", "json"),
+			Format: getEnvOrDefault("LOG_FORMAT", "pretty"),
 		},
 	}
 }

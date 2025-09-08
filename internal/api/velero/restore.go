@@ -16,20 +16,21 @@ import (
 // @Accept json
 // @Produce json
 // @Param request body config.VeleroConfig true "Velero configuration"
+// @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/velero/restores [post]
+// @Router /v1/velero/restores [post]
 func (h *Handler) GetRestores(c echo.Context) error {
 	return h.HandleVeleroResource(c, "restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
+		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
 
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(&req.KubeConfig, c, "velero")
+		namespace := utils.ResolveNamespace(c, "velero")
 
 		// 복구 목록 조회
 		restores, err := veleroClient.GetRestores(ctx, namespace)
@@ -53,20 +54,21 @@ func (h *Handler) GetRestores(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param request body config.VeleroConfig true "Velero configuration"
+// @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/velero/volume-snapshot-locations [get]
+// @Router /v1/velero/volume-snapshot-locations [get]
 func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 	return h.HandleVeleroResource(c, "volume-snapshot-locations", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
+		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
 
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(&req.KubeConfig, c, "velero")
+		namespace := utils.ResolveNamespace(c, "velero")
 
 		// 볼륨 스냅샷 위치 목록 조회
 		locations, err := veleroClient.GetVolumeSnapshotLocations(ctx, namespace)
@@ -85,20 +87,21 @@ func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param request body config.VeleroConfig true "Velero configuration"
+// @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/velero/pod-volume-restores [get]
+// @Router /v1/velero/pod-volume-restores [get]
 func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
 	return h.HandleVeleroResource(c, "pod-volume-restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
-		req, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
+		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
 			return nil, err
 		}
 
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(&req.KubeConfig, c, "velero")
+		namespace := utils.ResolveNamespace(c, "velero")
 
 		// Pod 볼륨 복구 목록 조회
 		restores, err := veleroClient.GetPodVolumeRestores(ctx, namespace)

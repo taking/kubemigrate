@@ -21,6 +21,32 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 	}
 }
 
+// HealthCheck : MinIO 연결 상태 확인
+// @Summary MinIO Connection Test
+// @Description Test MinIO connection with provided configuration
+// @Tags minio
+// @Accept json
+// @Produce json
+// @Param request body config.MinioConfig true "MinIO configuration"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/minio/health [post]
+func (h *Handler) HealthCheck(c echo.Context) error {
+	return h.HandleMinioResource(c, "minio-health", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
+		// MinIO 연결 테스트
+		_, err := minioClient.ListBuckets(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		return map[string]interface{}{
+			"service": "minio",
+			"status":  "healthy",
+			"message": "MinIO connection is working",
+		}, nil
+	})
+}
+
 // CheckBucketExists : 버킷 존재 여부 확인
 // @Summary Check Bucket Exists
 // @Description Check if a MinIO bucket exists
@@ -32,7 +58,7 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/minio/bucket/exists [post]
+// @Router /v1/minio/bucket/exists [post]
 func (h *Handler) CheckBucketExists(c echo.Context) error {
 	return h.HandleMinioResource(c, "bucket-exists", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
@@ -71,7 +97,7 @@ func (h *Handler) CheckBucketExists(c echo.Context) error {
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/minio/bucket/create [post]
+// @Router /v1/minio/bucket/create [post]
 func (h *Handler) CreateBucket(c echo.Context) error {
 	return h.HandleMinioResource(c, "create-bucket", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
@@ -110,7 +136,7 @@ func (h *Handler) CreateBucket(c echo.Context) error {
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/minio/bucket/create-if-not-exists [post]
+// @Router /v1/minio/bucket/create-if-not-exists [post]
 func (h *Handler) CreateBucketIfNotExists(c echo.Context) error {
 	return h.HandleMinioResource(c, "create-bucket-if-not-exists", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
@@ -143,31 +169,6 @@ func (h *Handler) CreateBucketIfNotExists(c echo.Context) error {
 			"bucket": bucketName,
 			"exists": true,
 			"status": "created_or_exists",
-		}, nil
-	})
-}
-
-// HealthCheck : MinIO 연결 상태 확인
-// @Summary MinIO Health Check
-// @Description Check MinIO connection status
-// @Tags minio
-// @Accept json
-// @Produce json
-// @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/minio/health [get]
-func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleMinioResource(c, "minio-health", func(minioClient minio.Client, ctx context.Context) (interface{}, error) {
-		// 간단한 MinIO 연결 테스트 (버킷 목록 조회)
-		_, err := minioClient.ListBuckets(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		return map[string]interface{}{
-			"service": "minio",
-			"status":  "healthy",
-			"message": "MinIO connection is working",
 		}, nil
 	})
 }

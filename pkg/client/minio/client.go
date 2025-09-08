@@ -55,7 +55,7 @@ func NewClient() Client {
 func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
 	// MinIO 클라이언트 초기화
 	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
+		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.UseSSL,
 	})
 	if err != nil {
