@@ -54,15 +54,20 @@ func NewClient() Client {
 
 // NewClientWithConfig 설정을 받아서 MinIO 클라이언트를 생성합니다
 func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
+	// 디버깅을 위한 로그 추가
+	fmt.Printf("DEBUG: Creating MinIO client with config: %+v\n", cfg)
+
 	// MinIO 클라이언트 초기화
 	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.UseSSL,
 	})
 	if err != nil {
+		fmt.Printf("DEBUG: Failed to create MinIO client: %v\n", err)
 		return nil, fmt.Errorf("failed to create minio client: %w", err)
 	}
 
+	fmt.Printf("DEBUG: MinIO client created successfully\n")
 	return &client{
 		minioClient: minioClient,
 	}, nil

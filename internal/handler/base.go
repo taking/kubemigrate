@@ -59,9 +59,15 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 		},
 	)
 
-	// 리소스 조회
-	resource, err := getResource(unifiedClient, c.Request().Context())
+	// 리소스 조회 (타임아웃 설정)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 30*time.Second)
+	defer cancel()
+
+	resource, err := getResource(unifiedClient, ctx)
 	if err != nil {
+		// 디버깅을 위한 로그 추가
+		fmt.Printf("DEBUG: Resource fetch failed for %s: %v\n", cacheKey, err)
+		fmt.Printf("DEBUG: Unified client: %+v\n", unifiedClient)
 		return response.RespondWithErrorModel(c, http.StatusInternalServerError,
 			"RESOURCE_FETCH_FAILED",
 			fmt.Sprintf("Failed to get %s", cacheKey),
