@@ -22,15 +22,15 @@ func TestLoad(t *testing.T) {
 		t.Errorf("Expected default log level 'info', got %s", config.Logging.Level)
 	}
 
-	if config.Logging.Format != "json" {
-		t.Errorf("Expected default log format 'json', got %s", config.Logging.Format)
+	if config.Logging.Format != "pretty" {
+		t.Errorf("Expected default log format 'pretty', got %s", config.Logging.Format)
 	}
 }
 
 func TestLoadWithEnvVars(t *testing.T) {
 	// 환경변수 설정
-	if err := os.Setenv("PORT", "8080"); err != nil {
-		t.Fatalf("Failed to set PORT env var: %v", err)
+	if err := os.Setenv("SERVER_PORT", "8080"); err != nil {
+		t.Fatalf("Failed to set SERVER_PORT env var: %v", err)
 	}
 	if err := os.Setenv("LOG_LEVEL", "debug"); err != nil {
 		t.Fatalf("Failed to set LOG_LEVEL env var: %v", err)
@@ -54,8 +54,8 @@ func TestLoadWithEnvVars(t *testing.T) {
 	}
 
 	// 환경변수 정리
-	if err := os.Unsetenv("PORT"); err != nil {
-		t.Errorf("Failed to unset PORT env var: %v", err)
+	if err := os.Unsetenv("SERVER_PORT"); err != nil {
+		t.Errorf("Failed to unset SERVER_PORT env var: %v", err)
 	}
 	if err := os.Unsetenv("LOG_LEVEL"); err != nil {
 		t.Errorf("Failed to unset LOG_LEVEL env var: %v", err)
