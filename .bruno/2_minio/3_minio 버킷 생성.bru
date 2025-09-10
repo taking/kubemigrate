@@ -5,16 +5,20 @@ meta {
 }
 
 post {
-  url: {{host_ip}}:{{host_port}}/api/v1/minio/bucket/create?bucket=velero
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/buckets/test-bucket
   body: json
   auth: inherit
+}
+
+params:query {
+  bucket: velero
 }
 
 body:json {
   {
       "endpoint": "{{minio_url}}",
-      "accessKeyID": "{{minio_accesskey}}",
-      "secretAccessKey": "{{minio_secretkey}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
       "useSSL": false
   }
 }

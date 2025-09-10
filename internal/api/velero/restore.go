@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	"github.com/labstack/echo/v4"
-	"github.com/taking/kubemigrate/pkg/client/velero"
+	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -22,7 +22,7 @@ import (
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/velero/restores [post]
 func (h *Handler) GetRestores(c echo.Context) error {
-	return h.HandleVeleroResource(c, "restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleResourceClient(c, "restores", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
 		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
@@ -33,7 +33,7 @@ func (h *Handler) GetRestores(c echo.Context) error {
 		namespace := utils.ResolveNamespace(c, "velero")
 
 		// 복구 목록 조회
-		restores, err := veleroClient.GetRestores(ctx, namespace)
+		restores, err := client.Velero().GetRestores(ctx, namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -60,7 +60,7 @@ func (h *Handler) GetRestores(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/velero/volume-snapshot-locations [get]
 func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
-	return h.HandleVeleroResource(c, "volume-snapshot-locations", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleResourceClient(c, "volume-snapshot-locations", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
 		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
@@ -71,7 +71,7 @@ func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 		namespace := utils.ResolveNamespace(c, "velero")
 
 		// 볼륨 스냅샷 위치 목록 조회
-		locations, err := veleroClient.GetVolumeSnapshotLocations(ctx, namespace)
+		locations, err := client.Velero().GetVolumeSnapshotLocations(ctx, namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/velero/pod-volume-restores [get]
 func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
-	return h.HandleVeleroResource(c, "pod-volume-restores", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleResourceClient(c, "pod-volume-restores", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 요청 바인딩 및 검증
 		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
 		if err != nil {
@@ -104,7 +104,7 @@ func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
 		namespace := utils.ResolveNamespace(c, "velero")
 
 		// Pod 볼륨 복구 목록 조회
-		restores, err := veleroClient.GetPodVolumeRestores(ctx, namespace)
+		restores, err := client.Velero().GetPodVolumeRestores(ctx, namespace)
 		if err != nil {
 			return nil, err
 		}

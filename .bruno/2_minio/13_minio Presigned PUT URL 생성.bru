@@ -1,0 +1,24 @@
+meta {
+  name: 13_minio Presigned PUT URL 생성
+  type: http
+  seq: 13
+}
+
+put {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/buckets/test-bucket/objects/test-file.txt/presigned-put?expiry=1800
+  body: multipartForm
+  auth: inherit
+}
+
+params:query {
+  expiry: 1800
+}
+
+body:multipart-form {
+  file: @file(test_img.png)
+  config: {"endpoint":"192.168.110.118:9000","accessKey":"admin","secretKey":"password","useSSL":false}
+}
+
+settings {
+  encodeUrl: true
+}

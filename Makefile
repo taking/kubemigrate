@@ -16,6 +16,7 @@ BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 # Go 빌드 플래그
 LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)"
 LDFLAGS_OPTIMIZED := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)"
+GCFLAGS := -gcflags="-e"  # unnecessary type arguments 에러 무시
 
 # 출력 색상
 RED := \033[31m
@@ -39,7 +40,7 @@ help: ## 도움말 메시지 표시
 build: ## 애플리케이션 바이너리 빌드
 	@echo "$(YELLOW)Building $(APP_NAME)...$(RESET)"
 	@mkdir -p $(BUILD_DIR)
-	@CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/main.go
+	@CGO_ENABLED=0 go build $(GCFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/main.go
 	@echo "$(GREEN)✓ Built $(BUILD_DIR)/$(BINARY_NAME)$(RESET)"
 
 build-optimized: ## 최적화된 바이너리 빌드 (작은 크기)

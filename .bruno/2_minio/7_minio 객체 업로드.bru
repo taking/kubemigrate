@@ -1,0 +1,20 @@
+meta {
+  name: 7_minio 객체 업로드
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/buckets/test-bucket/objects/test-file.txt
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  file: @file(test_img.png)
+  config: {"endpoint":"192.168.110.118:9000","accessKey":"admin","secretKey":"password","useSSL":false}
+}
+
+settings {
+  encodeUrl: true
+}

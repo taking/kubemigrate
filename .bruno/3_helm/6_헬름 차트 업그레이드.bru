@@ -1,16 +1,17 @@
 meta {
-  name: 2_파드 목록 조회
+  name: 6_헬름 차트 업그레이드
   type: http
-  seq: 2
+  seq: 6
 }
 
-get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/pods?namespace=default
+put {
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/nginx?chartPath=bitnami/nginx&namespace=default
   body: json
   auth: inherit
 }
 
 params:query {
+  chartPath: bitnami/nginx
   namespace: default
 }
 

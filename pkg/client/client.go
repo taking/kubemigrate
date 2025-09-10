@@ -54,58 +54,50 @@ func (c *client) Minio() minio.Client {
 	return c.minio
 }
 
+// createClientWithFallback 설정에 따라 클라이언트를 생성하고 실패 시 fallback 사용
+func createClientWithFallback[T any, R any](
+	config interface{},
+	creator func(T) (R, error),
+	fallback R,
+) R {
+	if config == nil {
+		return fallback
+	}
+
+	if typedConfig, ok := config.(T); ok {
+		if client, err := creator(typedConfig); err == nil {
+			return client
+		}
+	}
+
+	return fallback
+}
+
 // NewClientWithConfig 설정을 사용하여 새로운 통합 클라이언트를 생성합니다
 func NewClientWithConfig(kubeConfig, helmConfig, veleroConfig, minioConfig interface{}) Client {
-	// 타입 어설션 및 에러 처리
-	var k8sClient kubernetes.Client
-	var helmClient helm.Client
-	var veleroClient velero.Client
-	var minioClient minio.Client
-
-	if kubeCfg, ok := kubeConfig.(config.KubeConfig); ok {
-		if client, err := kubernetes.NewClientWithConfig(kubeCfg); err == nil {
-			k8sClient = client
-		} else {
-			k8sClient = kubernetes.NewClient() // 기본 클라이언트 사용
-		}
-	} else {
-		k8sClient = kubernetes.NewClient() // 기본 클라이언트 사용
-	}
-
-	if helmCfg, ok := helmConfig.(config.HelmConfig); ok {
-		if client, err := helm.NewClientWithConfig(helmCfg); err == nil {
-			helmClient = client
-		} else {
-			helmClient = helm.NewClient() // 기본 클라이언트 사용
-		}
-	} else {
-		helmClient = helm.NewClient() // 기본 클라이언트 사용
-	}
-
-	if veleroCfg, ok := veleroConfig.(config.VeleroConfig); ok {
-		if client, err := velero.NewClientWithConfig(veleroCfg); err == nil {
-			veleroClient = client
-		} else {
-			veleroClient = velero.NewClient() // 기본 클라이언트 사용
-		}
-	} else {
-		veleroClient = velero.NewClient() // 기본 클라이언트 사용
-	}
-
-	if minioCfg, ok := minioConfig.(config.MinioConfig); ok {
-		if client, err := minio.NewClientWithConfig(minioCfg); err == nil {
-			minioClient = client
-		} else {
-			minioClient = minio.NewClient() // 기본 클라이언트 사용
-		}
-	} else {
-		minioClient = minio.NewClient() // 기본 클라이언트 사용
-	}
-
 	return &client{
-		kubernetes: k8sClient,
-		helm:       helmClient,
-		velero:     veleroClient,
-		minio:      minioClient,
+		kubernetes: createClientWithFallback[config.KubeConfig, kubernetes.Client]( //nolint:typecheck
+			kubeConfig,
+			kubernetes.NewClientWithConfig,
+			kubernetes.NewClient(),
+		),
+
+		helm: createClientWithFallback[config.KubeConfig, helm.Client]( //nolint:typecheck
+			helmConfig,
+			helm.NewClientWithConfig,
+			helm.NewClient(),
+		),
+
+		velero: createClientWithFallback[config.VeleroConfig, velero.Client]( //nolint:typecheck
+			veleroConfig,
+			velero.NewClientWithConfig,
+			velero.NewClient(),
+		),
+
+		minio: createClientWithFallback[config.MinioConfig, minio.Client]( //nolint:typecheck
+			minioConfig,
+			minio.NewClientWithConfig,
+			minio.NewClient(),
+		),
 	}
 }
