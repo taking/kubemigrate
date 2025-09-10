@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -129,55 +130,124 @@ func (c *client) ListBuckets(ctx context.Context) (interface{}, error) {
 
 // PutObject 객체를 업로드합니다
 func (c *client) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64) (interface{}, error) {
-	return map[string]interface{}{
-		"message": fmt.Sprintf("Put object %s to bucket %s", objectName, bucketName),
-		"status":  "success",
-	}, nil
+	if c.minioClient == nil {
+		return nil, fmt.Errorf("minio client not initialized")
+	}
+
+	uploadInfo, err := c.minioClient.PutObject(ctx, bucketName, objectName, reader, objectSize, minio.PutObjectOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return uploadInfo, nil
 }
 
 // GetObject 객체를 다운로드합니다
 func (c *client) GetObject(ctx context.Context, bucketName, objectName string) (interface{}, error) {
-	return map[string]interface{}{
-		"message": fmt.Sprintf("Get object %s from bucket %s", objectName, bucketName),
-		"status":  "success",
-	}, nil
+	if c.minioClient == nil {
+		return nil, fmt.Errorf("minio client not initialized")
+	}
+
+	object, err := c.minioClient.GetObject(ctx, bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return object, nil
 }
 
 // DeleteObject 객체를 삭제합니다
 func (c *client) DeleteObject(ctx context.Context, bucketName, objectName string) error {
-	return nil
+	if c.minioClient == nil {
+		return fmt.Errorf("minio client not initialized")
+	}
+
+	return c.minioClient.RemoveObject(ctx, bucketName, objectName, minio.RemoveObjectOptions{})
 }
 
 // ListObjects 객체 목록을 조회합니다
 func (c *client) ListObjects(ctx context.Context, bucketName string) (interface{}, error) {
-	return map[string]interface{}{
-		"message": fmt.Sprintf("List objects in bucket %s", bucketName),
-		"status":  "success",
-	}, nil
+	if c.minioClient == nil {
+		return nil, fmt.Errorf("minio client not initialized")
+	}
+
+	var objects []minio.ObjectInfo
+	objectCh := c.minioClient.ListObjects(ctx, bucketName, minio.ListObjectsOptions{})
+
+	for object := range objectCh {
+		if object.Err != nil {
+			return nil, object.Err
+		}
+		objects = append(objects, object)
+	}
+
+	return objects, nil
 }
 
 // StatObject 객체 정보를 조회합니다
 func (c *client) StatObject(ctx context.Context, bucketName, objectName string) (interface{}, error) {
-	return map[string]interface{}{
-		"message": fmt.Sprintf("Stat object %s in bucket %s", objectName, bucketName),
-		"status":  "success",
-	}, nil
+	if c.minioClient == nil {
+		return nil, fmt.Errorf("minio client not initialized")
+	}
+
+	objectInfo, err := c.minioClient.StatObject(ctx, bucketName, objectName, minio.StatObjectOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return objectInfo, nil
 }
 
 // CopyObject 객체를 복사합니다
 func (c *client) CopyObject(ctx context.Context, srcBucket, srcObject, dstBucket, dstObject string) (interface{}, error) {
-	return map[string]interface{}{
-		"message": fmt.Sprintf("Copy object from %s/%s to %s/%s", srcBucket, srcObject, dstBucket, dstObject),
-		"status":  "success",
-	}, nil
+	if c.minioClient == nil {
+		return nil, fmt.Errorf("minio client not initialized")
+	}
+
+	// 소스 객체 정보
+	src := minio.CopySrcOptions{
+		Bucket: srcBucket,
+		Object: srcObject,
+	}
+
+	// 대상 객체 설정
+	dst := minio.CopyDestOptions{
+		Bucket: dstBucket,
+		Object: dstObject,
+	}
+
+	uploadInfo, err := c.minioClient.CopyObject(ctx, dst, src)
+	if err != nil {
+		return nil, err
+	}
+
+	return uploadInfo, nil
 }
 
 // PresignedGetObject Presigned GET URL을 생성합니다
 func (c *client) PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry int) (string, error) {
-	return fmt.Sprintf("https://example.com/presigned-get/%s/%s?expiry=%d", bucketName, objectName, expiry), nil
+	if c.minioClient == nil {
+		return "", fmt.Errorf("minio client not initialized")
+	}
+
+	url, err := c.minioClient.PresignedGetObject(ctx, bucketName, objectName, time.Duration(expiry)*time.Second, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return url.String(), nil
 }
 
 // PresignedPutObject Presigned PUT URL을 생성합니다
 func (c *client) PresignedPutObject(ctx context.Context, bucketName, objectName string, expiry int) (string, error) {
-	return fmt.Sprintf("https://example.com/presigned-put/%s/%s?expiry=%d", bucketName, objectName, expiry), nil
+	if c.minioClient == nil {
+		return "", fmt.Errorf("minio client not initialized")
+	}
+
+	url, err := c.minioClient.PresignedPutObject(ctx, bucketName, objectName, time.Duration(expiry)*time.Second)
+	if err != nil {
+		return "", err
+	}
+
+	return url.String(), nil
 }

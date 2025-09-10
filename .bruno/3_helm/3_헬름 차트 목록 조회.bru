@@ -1,13 +1,17 @@
 meta {
-  name: 3_헬름 차트 상세 조회
+  name: 3_헬름 차트 목록 조회
   type: http
   seq: 3
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/helm/chart/podinfo2
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts?namespace=default
   body: json
   auth: inherit
+}
+
+params:query {
+  namespace: default
 }
 
 body:json {

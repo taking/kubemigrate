@@ -44,11 +44,6 @@ type MinioConfig struct {
 	UseSSL    bool   `json:"useSSL" example:"false"`                                      // [필수] minio useSSL 여부 (false: http / true: https)
 }
 
-// HelmConfig Helm 설정 구조체
-type HelmConfig struct {
-	KubeConfig KubeConfig `json:"kubeconfig" binding:"required"`
-}
-
 // VeleroConfig Velero 설정 구조체
 type VeleroConfig struct {
 	KubeConfig  KubeConfig  `json:"kubeconfig" binding:"required"`

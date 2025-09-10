@@ -1,131 +1,153 @@
-# Kubernetes Client
+# Kubernetes 클라이언트
 
-A unified client for Kubernetes resource operations that simplifies common tasks by providing a single interface for both list and single resource retrieval.
+Kubernetes 리소스 작업을 위한 통합 클라이언트로, 리스트 조회와 단일 리소스 조회를 위한 단일 인터페이스를 제공하여 일반적인 작업을 단순화합니다.
 
-## Features
+## 기능
 
-- **Unified API**: Single method for both list and single resource operations
-- **Type Safety**: Clear documentation for type assertions
-- **Namespace Support**: Full namespace support including "all" namespaces
-- **Error Handling**: Comprehensive error handling with detailed messages
+- **통합 API**: 리스트 및 단일 리소스 작업을 위한 단일 메서드
+- **타입 안전성**: 타입 어설션에 대한 명확한 문서화
+- **네임스페이스 지원**: "모든" 네임스페이스를 포함한 전체 네임스페이스 지원
+- **에러 처리**: 상세한 메시지와 함께 포괄적인 에러 처리
 
-## Quick Start
+## 빠른 시작
 
 ```go
 import "github.com/taking/kubemigrate/pkg/client/kubernetes"
 
-// Create a client
+// 클라이언트 생성
 client := kubernetes.NewClient()
 
-// List all pods in default namespace
+// default 네임스페이스의 모든 파드 목록 조회
 response, err := client.GetPods(ctx, "default", "")
 if err != nil {
     return err
 }
 
-// Type assertion for list response
+// 리스트 응답에 대한 타입 어설션
 podList, ok := response.(*v1.PodList)
 if !ok {
     return fmt.Errorf("unexpected response type")
 }
 
-// Iterate through pods
+// 파드 반복 처리
 for _, pod := range podList.Items {
     fmt.Printf("Pod: %s\n", pod.Name)
 }
 ```
 
-## API Reference
+## API 참조
 
 ### GetPods
 
-Retrieves pods from a specified namespace.
+지정된 네임스페이스에서 파드를 조회합니다.
 
 ```go
 func (c *client) GetPods(ctx context.Context, namespace, name string) (interface{}, error)
 ```
 
-**Parameters:**
-- `ctx`: Context for the request
-- `namespace`: Namespace name (use "" for all namespaces)
-- `name`: Pod name (use "" for list, specific name for single pod)
+**매개변수:**
+- `ctx`: 요청을 위한 컨텍스트
+- `namespace`: 네임스페이스 이름 (모든 네임스페이스의 경우 "" 사용)
+- `name`: 파드 이름 (목록의 경우 "", 특정 파드의 경우 이름 지정)
 
-**Returns:**
-- `(*v1.PodList, error)` when name is empty (list all pods)
-- `(*v1.Pod, error)` when name is provided (single pod)
+**반환값:**
+- `name`이 비어있을 때: `(*v1.PodList, error)` (모든 파드 목록)
+- `name`이 제공될 때: `(*v1.Pod, error)` (단일 파드)
 
-**Example:**
+**예제:**
 ```go
-// List all pods
+// 모든 파드 목록 조회
 response, err := client.GetPods(ctx, "default", "")
 podList := response.(*v1.PodList)
 
-// Get specific pod
+// 특정 파드 조회
 response, err = client.GetPods(ctx, "default", "my-pod")
 pod := response.(*v1.Pod)
 ```
 
 ### GetConfigMaps
 
-Retrieves ConfigMaps from a specified namespace.
+지정된 네임스페이스에서 ConfigMap을 조회합니다.
 
 ```go
 func (c *client) GetConfigMaps(ctx context.Context, namespace, name string) (interface{}, error)
 ```
 
-**Returns:**
-- `(*v1.ConfigMapList, error)` when name is empty (list all configmaps)
-- `(*v1.ConfigMap, error)` when name is provided (single configmap)
+**반환값:**
+- `name`이 비어있을 때: `(*v1.ConfigMapList, error)` (모든 configmap 목록)
+- `name`이 제공될 때: `(*v1.ConfigMap, error)` (단일 configmap)
 
 ### GetSecrets
 
-Retrieves Secrets from a specified namespace.
+지정된 네임스페이스에서 Secret을 조회합니다.
 
 ```go
 func (c *client) GetSecrets(ctx context.Context, namespace, name string) (interface{}, error)
 ```
 
-**Returns:**
-- `(*v1.SecretList, error)` when name is empty (list all secrets)
-- `(*v1.Secret, error)` when name is provided (single secret)
+**반환값:**
+- `name`이 비어있을 때: `(*v1.SecretList, error)` (모든 secret 목록)
+- `name`이 제공될 때: `(*v1.Secret, error)` (단일 secret)
 
 ### GetStorageClasses
 
-Retrieves StorageClasses (cluster-scoped resource).
+StorageClass를 조회합니다 (클러스터 범위 리소스).
 
 ```go
 func (c *client) GetStorageClasses(ctx context.Context, name string) (interface{}, error)
 ```
 
-**Returns:**
-- `(*storagev1.StorageClassList, error)` when name is empty (list all storage classes)
-- `(*storagev1.StorageClass, error)` when name is provided (single storage class)
+**반환값:**
+- `name`이 비어있을 때: `(*storagev1.StorageClassList, error)` (모든 storage class 목록)
+- `name`이 제공될 때: `(*storagev1.StorageClass, error)` (단일 storage class)
 
-## Type Assertion Guide
+### GetNamespaces
 
-Since all methods return `interface{}`, you need to perform type assertions based on the parameters:
+모든 네임스페이스 목록을 조회합니다.
 
-### List Operations (name is empty)
+```go
+func (c *client) GetNamespaces(ctx context.Context) (*v1.NamespaceList, error)
+```
 
-| Method | Expected Type |
-|--------|---------------|
+**반환값:**
+- `(*v1.NamespaceList, error)`: 네임스페이스 목록, 에러
+
+### GetNamespace
+
+특정 네임스페이스를 조회합니다.
+
+```go
+func (c *client) GetNamespace(ctx context.Context, name string) (*v1.Namespace, error)
+```
+
+**반환값:**
+- `(*v1.Namespace, error)`: 네임스페이스 정보, 에러
+
+## 타입 어설션 가이드
+
+모든 메서드가 `interface{}`를 반환하므로, 매개변수에 따라 타입 어설션을 수행해야 합니다:
+
+### 목록 작업 (name이 비어있음)
+
+| 메서드 | 예상 타입 |
+|--------|-----------|
 | `GetPods(ctx, namespace, "")` | `*v1.PodList` |
 | `GetConfigMaps(ctx, namespace, "")` | `*v1.ConfigMapList` |
 | `GetSecrets(ctx, namespace, "")` | `*v1.SecretList` |
 | `GetStorageClasses(ctx, "")` | `*storagev1.StorageClassList` |
 
-### Single Resource Operations (name is provided)
+### 단일 리소스 작업 (name이 제공됨)
 
-| Method | Expected Type |
-|--------|---------------|
+| 메서드 | 예상 타입 |
+|--------|-----------|
 | `GetPods(ctx, namespace, "pod-name")` | `*v1.Pod` |
 | `GetConfigMaps(ctx, namespace, "cm-name")` | `*v1.ConfigMap` |
 | `GetSecrets(ctx, namespace, "secret-name")` | `*v1.Secret` |
 | `GetStorageClasses(ctx, "sc-name")` | `*storagev1.StorageClass` |
 
-## Error Handling
+## 에러 처리
 
-Always check for errors and perform safe type assertions:
+항상 에러를 확인하고 안전한 타입 어설션을 수행하세요:
 
 ```go
 response, err := client.GetPods(ctx, "default", "")
@@ -138,28 +160,28 @@ if !ok {
     return fmt.Errorf("unexpected response type: expected *v1.PodList")
 }
 
-// Use podList safely
+// podList를 안전하게 사용
 for _, pod := range podList.Items {
-    // Process pod
+    // 파드 처리
 }
 ```
 
-## Namespace Handling
+## 네임스페이스 처리
 
-- **Specific namespace**: `"default"`, `"kube-system"`, etc.
-- **All namespaces**: `""` (empty string)
-- **Default behavior**: If namespace is empty, it defaults to "default"
+- **특정 네임스페이스**: `"default"`, `"kube-system"` 등
+- **모든 네임스페이스**: `""` (빈 문자열)
+- **기본 동작**: 네임스페이스가 비어있으면 "default"로 기본 설정
 
-## Best Practices
+## 모범 사례
 
-1. **Always check errors**: Handle errors before type assertions
-2. **Use safe type assertions**: Use the two-value form `value, ok := response.(*Type)`
-3. **Handle unexpected types**: Always check the `ok` value from type assertions
-4. **Use context**: Always pass a context for cancellation and timeouts
+1. **항상 에러 확인**: 타입 어설션 전에 에러 처리
+2. **안전한 타입 어설션 사용**: 두 값 형태 `value, ok := response.(*Type)` 사용
+3. **예상치 못한 타입 처리**: 타입 어설션에서 항상 `ok` 값 확인
+4. **컨텍스트 사용**: 취소 및 타임아웃을 위해 항상 컨텍스트 전달
 
-## Examples
+## 예제
 
-### List All Pods in All Namespaces
+### 모든 네임스페이스의 모든 파드 목록
 
 ```go
 response, err := client.GetPods(ctx, "", "")
@@ -172,10 +194,10 @@ if !ok {
     return fmt.Errorf("unexpected response type")
 }
 
-fmt.Printf("Found %d pods across all namespaces\n", len(podList.Items))
+fmt.Printf("모든 네임스페이스에서 %d개의 파드를 찾았습니다\n", len(podList.Items))
 ```
 
-### Get Specific ConfigMap
+### 특정 ConfigMap 조회
 
 ```go
 response, err := client.GetConfigMaps(ctx, "kube-system", "kubeconfig")
@@ -191,7 +213,7 @@ if !ok {
 fmt.Printf("ConfigMap: %s\n", configMap.Name)
 ```
 
-### List Storage Classes
+### Storage Class 목록
 
 ```go
 response, err := client.GetStorageClasses(ctx, "")
@@ -206,5 +228,47 @@ if !ok {
 
 for _, sc := range storageClassList.Items {
     fmt.Printf("StorageClass: %s\n", sc.Name)
+}
+```
+
+## 테스트
+
+클라이언트 테스트는 다음과 같이 실행할 수 있습니다:
+
+```bash
+go test ./pkg/client/kubernetes/... -v
+```
+
+### 테스트 커버리지
+
+현재 테스트는 다음 기능들을 커버합니다:
+
+- ✅ `NewClient()` - 기본 클라이언트 생성
+- ✅ `NewClientWithConfig()` - 설정을 통한 클라이언트 생성
+- ✅ `GetPods()` - 파드 조회 (목록/단일)
+- ✅ `GetConfigMaps()` - ConfigMap 조회 (목록/단일)
+- ✅ `GetSecrets()` - Secret 조회 (목록/단일)
+- ✅ `GetStorageClasses()` - StorageClass 조회 (목록/단일)
+- ✅ `GetNamespaces()` - 네임스페이스 목록 조회
+- ✅ `GetNamespace()` - 특정 네임스페이스 조회
+
+### 테스트 실행 예제
+
+```go
+func TestKubernetesClient(t *testing.T) {
+    // 기본 클라이언트 생성
+    client := kubernetes.NewClient()
+    if client == nil {
+        t.Fatal("NewClient() returned nil")
+    }
+
+    // 파드 목록 조회 테스트
+    ctx := context.Background()
+    response, err := client.GetPods(ctx, "default", "")
+    if err != nil {
+        t.Logf("GetPods failed as expected: %v", err)
+    } else {
+        t.Log("GetPods succeeded - this might indicate a real cluster is available")
+    }
 }
 ```

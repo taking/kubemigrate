@@ -5,7 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
-	"github.com/taking/kubemigrate/pkg/client/velero"
+	"github.com/taking/kubemigrate/pkg/client"
 )
 
 // Handler : Velero 관련 HTTP 핸들러
@@ -31,16 +31,15 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/velero/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleVeleroResource(c, "velero-health", func(veleroClient velero.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleResourceClient(c, "velero-health", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// Velero 연결 테스트
-		_, err := veleroClient.GetBackups(ctx, "velero")
+		_, err := client.Velero().GetBackups(ctx, "velero")
 		if err != nil {
 			return nil, err
 		}
 
 		return map[string]interface{}{
 			"service": "velero",
-			"status":  "healthy",
 			"message": "Velero connection is working",
 		}, nil
 	})

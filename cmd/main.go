@@ -49,10 +49,14 @@ func main() {
 		panic("failed to logger initialize: " + err.Error())
 	}
 
-	logger.Info("KubeMigrate API Server starting")
+	logger.Info("server starting",
+		logger.String("service", "kubemigrate"),
+		logger.String("version", "1.0.0"),
+		logger.String("environment", "production"),
+	)
 
 	// 새로운 라우터 생성 (미들웨어 포함)
-	e := server.NewRouter()
+	e := server.NewRouter(cfg)
 	e.HideBanner = true
 	e.HidePort = true
 

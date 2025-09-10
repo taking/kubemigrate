@@ -2,10 +2,11 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
-	"github.com/taking/kubemigrate/pkg/client/kubernetes"
+	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -32,22 +33,21 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/kubernetes/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleKubernetesResource(c, "kubernetes-health", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
+	return h.HandleResourceClient(c, "kubernetes-health", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// Kubernetes 연결 테스트
-		_, err := k8sClient.GetPods(ctx, "default", "")
+		_, err := client.Kubernetes().GetPods(ctx, "default", "")
 		if err != nil {
 			return nil, err
 		}
 
 		return map[string]interface{}{
 			"service": "kubernetes",
-			"status":  "healthy",
 			"message": "Kubernetes connection is working",
 		}, nil
 	})
 }
 
-// GetResources : Kubernetes 리소스 조회 (통합 API)
+// GetResources : Kubernetes 리소스 조회
 // @Summary Get Kubernetes Resources
 // @Description Get Kubernetes resources by kind, name (optional) and namespace
 // @Tags kubernetes
@@ -62,13 +62,7 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/kubernetes/{kind}/{name} [get]
 func (h *Handler) GetResources(c echo.Context) error {
-	return h.HandleKubernetesResource(c, "resources", func(k8sClient kubernetes.Client, ctx context.Context) (interface{}, error) {
-		// 요청 바인딩 및 검증
-		_, err := utils.BindAndValidateKubeConfig(c, h.KubernetesValidator)
-		if err != nil {
-			return nil, err
-		}
-
+	return h.HandleResourceClient(c, "resources", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
 		// "all"이면 모든 네임스페이스 조회,""이면 3번째 파라미터 값을 네임스페이스로 사용
 		namespace := utils.ResolveNamespace(c, "default")
@@ -81,15 +75,17 @@ func (h *Handler) GetResources(c echo.Context) error {
 		// 클라이언트 통합 메서드 사용
 		switch kind {
 		case "pods":
-			return k8sClient.GetPods(ctx, namespace, name)
+			return client.Kubernetes().GetPods(ctx, namespace, name)
 		case "configmaps":
-			return k8sClient.GetConfigMaps(ctx, namespace, name)
+			return client.Kubernetes().GetConfigMaps(ctx, namespace, name)
 		case "secrets":
-			return k8sClient.GetSecrets(ctx, namespace, name)
+			return client.Kubernetes().GetSecrets(ctx, namespace, name)
 		case "storage-classes":
-			return k8sClient.GetStorageClasses(ctx, name)
+			return client.Kubernetes().GetStorageClasses(ctx, name)
 		default:
-			return nil, echo.NewHTTPError(400, "Unsupported resource kind: "+kind)
+			supportedResources := []string{"pods", "configmaps", "secrets", "storage-classes"}
+			errorMsg := fmt.Sprintf("Unsupported resource kind: %s. Supported resources: %v", kind, supportedResources)
+			return nil, echo.NewHTTPError(400, errorMsg)
 		}
 	})
 }
