@@ -12,6 +12,9 @@ import (
 // SetupMiddleware : Echo 서버에 공통 미들웨어 설정
 // 로깅, 복구, CORS, 압축, 타임아웃, 레이트 제한 등을 구성
 func SetupMiddleware(e *echo.Echo, cfg *config.Config) {
+	// 기본 미들웨어 설정
+	e.Pre(middleware.RemoveTrailingSlash()) // 모든 요청에서 URL 뒤에 붙은 / 제거
+
 	// Request ID 생성 미들웨어
 	e.Use(middleware.RequestID())
 

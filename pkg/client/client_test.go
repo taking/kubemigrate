@@ -34,9 +34,7 @@ func TestNewClientWithConfig(t *testing.T) {
 		Namespace:  "default",
 	}
 
-	helmConfig := config.HelmConfig{
-		KubeConfig: kubeConfig,
-	}
+	helmConfig := kubeConfig
 
 	veleroConfig := config.VeleroConfig{
 		KubeConfig: kubeConfig,

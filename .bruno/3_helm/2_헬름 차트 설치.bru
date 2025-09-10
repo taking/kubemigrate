@@ -1,0 +1,28 @@
+meta {
+  name: 2_헬름 차트 설치
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts?releaseName=nginx&chartURL=https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz&version=15.4.2&namespace=default
+  body: json
+  auth: inherit
+}
+
+params:query {
+  releaseName: nginx
+  chartURL: https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz
+  version: 15.4.2
+  namespace: default
+}
+
+body:json {
+  {
+    "kubeconfig": "{{base64_local_kubeconfig}}"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

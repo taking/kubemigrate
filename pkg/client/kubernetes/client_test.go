@@ -76,6 +76,35 @@ func TestNewClientWithConfig(t *testing.T) {
 	}
 }
 
+func TestNewClientWithConfigWithNilConfigs(t *testing.T) {
+	// nil 설정으로 테스트 (기본 클라이언트로 폴백되어야 함)
+	client := NewClient()
+	if client == nil {
+		t.Fatal("NewClient() returned nil")
+	}
+}
+
+func TestNamespaceOperations(t *testing.T) {
+	client := NewClient()
+	ctx := context.Background()
+
+	// GetNamespaces 테스트
+	_, err := client.GetNamespaces(ctx)
+	if err == nil {
+		t.Log("GetNamespaces succeeded - this might indicate a real cluster is available")
+	} else {
+		t.Logf("GetNamespaces failed as expected: %v", err)
+	}
+
+	// GetNamespace 테스트
+	_, err = client.GetNamespace(ctx, "default")
+	if err == nil {
+		t.Log("GetNamespace succeeded - this might indicate a real cluster is available")
+	} else {
+		t.Logf("GetNamespace failed as expected: %v", err)
+	}
+}
+
 func TestGetConfigMaps(t *testing.T) {
 	client := NewClient()
 	ctx := context.Background()

@@ -1,18 +1,17 @@
 meta {
-  name: 6_헬름 차트 삭제
+  name: 7_헬름 차트 히스토리 조회
   type: http
-  seq: 6
+  seq: 7
 }
 
-delete {
-  url: {{host_ip}}:{{host_port}}/api/v1/helm/chart/podinfo?namespace=default&dryrun=true
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/nginx/history?namespace=default
   body: json
   auth: inherit
 }
 
 params:query {
   namespace: default
-  dryrun: true
 }
 
 body:json {

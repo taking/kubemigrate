@@ -3,12 +3,18 @@ package helm
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/validator"
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/release"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -24,12 +30,9 @@ type Client interface {
 	IsChartInstalled(releaseName string) (bool, *release.Release, error)
 
 	// Chart 설치/제거
-	InstallChart(releaseName, chartPath string, values map[string]interface{}) error
+	InstallChart(releaseName, chartURL, version string, values map[string]interface{}) error
 	UninstallChart(releaseName, namespace string, dryRun bool) error
 	UpgradeChart(releaseName, chartPath string, values map[string]interface{}) error
-
-	// Health Check
-	HealthCheck(ctx context.Context) error
 }
 
 // helmClient : Helm 클라이언트
@@ -71,13 +74,13 @@ func NewClient() Client {
 }
 
 // NewClientWithConfig 설정을 받아서 Helm 클라이언트를 생성합니다
-func NewClientWithConfig(cfg config.HelmConfig) (Client, error) {
+func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 	var restCfg *rest.Config
 	var err error
 
-	if cfg.KubeConfig.KubeConfig != "" {
+	if cfg.KubeConfig != "" {
 		// 외부 kubeconfig 사용 (base64 디코딩)
-		decodedKubeConfig, err := validator.DecodeIfBase64(cfg.KubeConfig.KubeConfig)
+		decodedKubeConfig, err := validator.DecodeIfBase64(cfg.KubeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode kubeconfig: %w", err)
 		}
@@ -94,7 +97,7 @@ func NewClientWithConfig(cfg config.HelmConfig) (Client, error) {
 		}
 	}
 
-	ns := getNamespaceOrDefault(cfg.KubeConfig.Namespace, "default")
+	ns := getNamespaceOrDefault(cfg.Namespace, "default")
 
 	// genericclioptions.ConfigFlags 생성
 	flags := genericclioptions.NewConfigFlags(false)
@@ -171,8 +174,8 @@ func (h *helmClient) IsChartInstalled(releaseName string) (bool, *release.Releas
 	return false, nil, nil
 }
 
-// InstallChart : Helm 차트를 통해 설치, 설치 후 확인
-func (h *helmClient) InstallChart(releaseName, chartPath string, values map[string]interface{}) error {
+// InstallChart : Helm 차트를 URL에서 설치 (버전 지원)
+func (h *helmClient) InstallChart(releaseName, chartURL, version string, values map[string]interface{}) error {
 	// 설치 여부 확인 (릴리스 이름 기준)
 	installed, _, err := h.IsChartInstalled(releaseName)
 	if err != nil {
@@ -182,13 +185,20 @@ func (h *helmClient) InstallChart(releaseName, chartPath string, values map[stri
 		return fmt.Errorf("release '%s' is already installed", releaseName)
 	}
 
+	// chartURL이 URL인지 확인
+	if !strings.HasPrefix(chartURL, "http://") && !strings.HasPrefix(chartURL, "https://") {
+		return fmt.Errorf("chartURL must be a valid HTTP/HTTPS URL, got: %s", chartURL)
+	}
+
 	install := action.NewInstall(h.cfg)
 	install.ReleaseName = releaseName
 	install.Namespace = h.namespace
+	install.Version = version
 
-	chart, err := loader.Load(chartPath)
+	// URL에서 차트 다운로드 및 로드
+	chart, err := h.loadChartFromURL(chartURL, version)
 	if err != nil {
-		return fmt.Errorf("failed to load chart: %w", err)
+		return fmt.Errorf("failed to load chart from URL: %w", err)
 	}
 
 	if values == nil {
@@ -213,6 +223,79 @@ func (h *helmClient) InstallChart(releaseName, chartPath string, values map[stri
 	}
 
 	return nil
+}
+
+// loadChartFromURL : URL에서 차트를 다운로드하고 로드
+func (h *helmClient) loadChartFromURL(chartURL, version string) (*chart.Chart, error) {
+	// 임시 디렉토리 생성
+	tmpDir, err := os.MkdirTemp("", "helm-chart-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// 차트 다운로드
+	chartPath, err := h.downloadChart(chartURL, version, tmpDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download chart: %w", err)
+	}
+
+	// 차트 로드
+	chart, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load downloaded chart: %w", err)
+	}
+
+	return chart, nil
+}
+
+// downloadChart : 차트를 다운로드
+func (h *helmClient) downloadChart(chartURL, version, destDir string) (string, error) {
+	// HTTP 클라이언트 생성
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// 차트 URL에 버전이 포함되어 있지 않으면 추가
+	if version != "" && !strings.Contains(chartURL, version) {
+		if strings.HasSuffix(chartURL, ".tgz") {
+			// URL이 .tgz로 끝나는 경우 버전을 파일명에 추가
+			baseURL := strings.TrimSuffix(chartURL, ".tgz")
+			chartURL = fmt.Sprintf("%s-%s.tgz", baseURL, version)
+		}
+	}
+
+	// 차트 다운로드
+	resp, err := client.Get(chartURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to download chart from %s: %w", chartURL, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to download chart: HTTP %d", resp.StatusCode)
+	}
+
+	// 파일명 추출
+	filename := filepath.Base(chartURL)
+	if filename == "." || filename == "/" {
+		filename = "chart.tgz"
+	}
+
+	// 파일 저장
+	filePath := filepath.Join(destDir, filename)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to save chart: %w", err)
+	}
+
+	return filePath, nil
 }
 
 // UninstallChart : Helm 차트 삭제
