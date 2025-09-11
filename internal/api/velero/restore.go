@@ -18,8 +18,8 @@ import (
 // @Param request body config.VeleroConfig true "Velero configuration"
 // @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/velero/restores [post]
 func (h *Handler) GetRestores(c echo.Context) error {
 	return h.HandleResourceClient(c, "restores", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -50,8 +50,8 @@ func (h *Handler) GetRestores(c echo.Context) error {
 // @Param request body config.VeleroConfig true "Velero configuration"
 // @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/velero/volume-snapshot-locations [get]
 func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 	return h.HandleResourceClient(c, "volume-snapshot-locations", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -77,8 +77,8 @@ func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 // @Param request body config.VeleroConfig true "Velero configuration"
 // @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/velero/pod-volume-restores [get]
 func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
 	return h.HandleResourceClient(c, "pod-volume-restores", func(client client.Client, ctx context.Context) (interface{}, error) {

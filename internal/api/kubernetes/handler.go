@@ -31,7 +31,7 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Produce json
 // @Param request body config.KubeConfig true "Kubernetes configuration"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/kubernetes/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
 	return h.HandleResourceClient(c, "kubernetes-health", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -41,10 +41,10 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 			return nil, errors.NewExternalError("kubernetes", "GetPods", err)
 		}
 
-		return map[string]interface{}{
-			"service": "kubernetes",
-			"message": "Kubernetes connection is working",
-		}, nil
+		healthData := map[string]interface{}{
+			"status": "UP",
+		}
+		return healthData, nil
 	})
 }
 
@@ -59,8 +59,8 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 // @Param name path string false "Resource name (empty for list, specific name for single resource)"
 // @Param namespace query string false "Namespace name (default: 'default', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/kubernetes/{kind}/{name} [get]
 func (h *Handler) GetResources(c echo.Context) error {
 	return h.HandleResourceClient(c, "resources", func(client client.Client, ctx context.Context) (interface{}, error) {

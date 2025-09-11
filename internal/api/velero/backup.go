@@ -18,8 +18,8 @@ import (
 // @Param request body config.VeleroConfig true "Velero configuration"
 // @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/velero/backups [post]
 func (h *Handler) GetBackups(c echo.Context) error {
 	return h.HandleResourceClient(c, "backups", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -50,8 +50,8 @@ func (h *Handler) GetBackups(c echo.Context) error {
 // @Param request body config.VeleroConfig true "Velero configuration"
 // @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/velero/repositories [get]
 func (h *Handler) GetBackupRepositories(c echo.Context) error {
 	return h.HandleResourceClient(c, "backup-repositories", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -77,8 +77,8 @@ func (h *Handler) GetBackupRepositories(c echo.Context) error {
 // @Param request body config.VeleroConfig true "Velero configuration"
 // @Param namespace query string false "Namespace name (default: 'velero', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/velero/storage-locations [get]
 func (h *Handler) GetBackupStorageLocations(c echo.Context) error {
 	return h.HandleResourceClient(c, "backup-storage-locations", func(client client.Client, ctx context.Context) (interface{}, error) {

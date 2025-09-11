@@ -36,7 +36,7 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Produce json
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
 	return h.HandleResourceClient(c, "minio-health", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -47,10 +47,10 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 			return nil, errors.NewExternalError("minio", "ListBuckets", err)
 		}
 
-		return map[string]interface{}{
-			"service": "minio",
-			"message": "MinIO connection is working",
-		}, nil
+		healthData := map[string]interface{}{
+			"status": "UP",
+		}
+		return healthData, nil
 	})
 }
 
@@ -63,8 +63,8 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Param bucket path string true "Bucket name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket} [get]
 func (h *Handler) CheckBucketExists(c echo.Context) error {
 	return h.HandleResourceClient(c, "bucket-exists", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -80,10 +80,11 @@ func (h *Handler) CheckBucketExists(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"exists": exists,
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -96,8 +97,8 @@ func (h *Handler) CheckBucketExists(c echo.Context) error {
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Param bucket path string true "Bucket name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket} [post]
 func (h *Handler) CreateBucket(c echo.Context) error {
 	return h.HandleResourceClient(c, "create-bucket", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -113,10 +114,11 @@ func (h *Handler) CreateBucket(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"status": "created",
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -129,8 +131,8 @@ func (h *Handler) CreateBucket(c echo.Context) error {
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Param bucket path string true "Bucket name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/create-if-not-exists [post]
 func (h *Handler) CreateBucketIfNotExists(c echo.Context) error {
 	return h.HandleResourceClient(c, "create-bucket-if-not-exists", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -154,11 +156,12 @@ func (h *Handler) CreateBucketIfNotExists(c echo.Context) error {
 			}
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"exists": true,
 			"status": "created_or_exists",
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -170,7 +173,7 @@ func (h *Handler) CreateBucketIfNotExists(c echo.Context) error {
 // @Produce json
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets [get]
 func (h *Handler) ListBuckets(c echo.Context) error {
 	return h.HandleResourceClient(c, "list-buckets", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -187,10 +190,11 @@ func (h *Handler) ListBuckets(c echo.Context) error {
 			bucketList[i] = bucket
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"buckets": bucketList,
 			"count":   len(bucketSlice),
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -203,8 +207,8 @@ func (h *Handler) ListBuckets(c echo.Context) error {
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Param bucket path string true "Bucket name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket} [delete]
 func (h *Handler) DeleteBucket(c echo.Context) error {
 	return h.HandleResourceClient(c, "delete-bucket", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -220,10 +224,11 @@ func (h *Handler) DeleteBucket(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"status": "deleted",
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -236,8 +241,8 @@ func (h *Handler) DeleteBucket(c echo.Context) error {
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Param bucket path string true "Bucket name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects [get]
 func (h *Handler) ListObjects(c echo.Context) error {
 	return h.HandleResourceClient(c, "list-objects", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -260,11 +265,12 @@ func (h *Handler) ListObjects(c echo.Context) error {
 			objectList[i] = object
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket":  bucketName,
 			"objects": objectList,
 			"count":   len(objectSlice),
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -278,8 +284,8 @@ func (h *Handler) ListObjects(c echo.Context) error {
 // @Param bucket path string true "Bucket name"
 // @Param object path string true "Object name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects/{object} [get]
 func (h *Handler) GetObject(c echo.Context) error {
 	return h.HandleResourceClient(c, "get-object", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -296,11 +302,12 @@ func (h *Handler) GetObject(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"object": objectName,
 			"data":   object,
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -315,8 +322,8 @@ func (h *Handler) GetObject(c echo.Context) error {
 // @Param config formData string true "MinIO configuration JSON"
 // @Param file formData file true "File to upload"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects/{object} [put]
 func (h *Handler) PutObject(c echo.Context) error {
 	// 버킷 이름과 객체 이름 가져오기
@@ -377,12 +384,13 @@ func (h *Handler) PutObject(c echo.Context) error {
 		return errors.NewExternalError("minio", "PutObject", err)
 	}
 
-	return response.RespondWithData(c, http.StatusOK, map[string]interface{}{
+	uploadData := map[string]interface{}{
 		"bucket":     bucketName,
 		"object":     objectName,
 		"uploadInfo": uploadInfo,
 		"status":     "uploaded",
-	})
+	}
+	return response.RespondWithData(c, http.StatusOK, uploadData)
 }
 
 // DeleteObject : 객체 삭제
@@ -395,8 +403,8 @@ func (h *Handler) PutObject(c echo.Context) error {
 // @Param bucket path string true "Bucket name"
 // @Param object path string true "Object name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects/delete [delete]
 func (h *Handler) DeleteObject(c echo.Context) error {
 	return h.HandleResourceClient(c, "delete-object", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -413,11 +421,12 @@ func (h *Handler) DeleteObject(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"object": objectName,
 			"status": "deleted",
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -431,8 +440,8 @@ func (h *Handler) DeleteObject(c echo.Context) error {
 // @Param bucket path string true "Bucket name"
 // @Param object path string true "Object name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects/stat [get]
 func (h *Handler) StatObject(c echo.Context) error {
 	return h.HandleResourceClient(c, "stat-object", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -449,11 +458,12 @@ func (h *Handler) StatObject(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket":     bucketName,
 			"object":     objectName,
 			"objectInfo": objectInfo,
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -469,8 +479,8 @@ func (h *Handler) StatObject(c echo.Context) error {
 // @Param dstBucket path string true "Destination bucket name"
 // @Param dstObject path string true "Destination object name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{srcBucket}/objects/{srcObject}/copy/{dstBucket}/{dstObject} [post]
 func (h *Handler) CopyObject(c echo.Context) error {
 	return h.HandleResourceClient(c, "copy-object", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -490,14 +500,15 @@ func (h *Handler) CopyObject(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"srcBucket": srcBucket,
 			"srcObject": srcObject,
 			"dstBucket": dstBucket,
 			"dstObject": dstObject,
 			"copyInfo":  copyInfo,
 			"status":    "copied",
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -512,8 +523,8 @@ func (h *Handler) CopyObject(c echo.Context) error {
 // @Param object path string true "Object name"
 // @Param expiry query int false "Expiry time in seconds (default: 3600)"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects/{object}/presigned-get [get]
 func (h *Handler) PresignedGetObject(c echo.Context) error {
 	return h.HandleResourceClient(c, "presigned-get-object", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -538,12 +549,13 @@ func (h *Handler) PresignedGetObject(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"object": objectName,
 			"url":    url,
 			"expiry": expiry,
-		}, nil
+		}
+		return result, nil
 	})
 }
 
@@ -558,8 +570,8 @@ func (h *Handler) PresignedGetObject(c echo.Context) error {
 // @Param object path string true "Object name"
 // @Param expiry query int false "Expiry time in seconds (default: 3600)"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects/{object}/presigned-put [put]
 func (h *Handler) PresignedPutObject(c echo.Context) error {
 	return h.HandleResourceClient(c, "presigned-put-object", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -584,11 +596,12 @@ func (h *Handler) PresignedPutObject(c echo.Context) error {
 			return nil, err
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"bucket": bucketName,
 			"object": objectName,
 			"url":    url,
 			"expiry": expiry,
-		}, nil
+		}
+		return result, nil
 	})
 }

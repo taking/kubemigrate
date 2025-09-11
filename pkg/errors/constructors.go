@@ -6,8 +6,8 @@ import (
 )
 
 // NewValidationError 유효성 검증 에러 생성
-func NewValidationError(code ErrorCode, message, details string) *AppError {
-	return &AppError{
+func NewValidationError(code ErrorCode, message, details string) *ErrorResponse {
+	return &ErrorResponse{
 		Type:      ErrorTypeValidation,
 		Code:      code,
 		Message:   message,
@@ -17,8 +17,8 @@ func NewValidationError(code ErrorCode, message, details string) *AppError {
 }
 
 // NewNotFoundError 리소스 없음 에러 생성
-func NewNotFoundError(resource string) *AppError {
-	return &AppError{
+func NewNotFoundError(resource string) *ErrorResponse {
+	return &ErrorResponse{
 		Type:      ErrorTypeNotFound,
 		Code:      CodeResourceNotFound,
 		Message:   fmt.Sprintf("Resource not found: %s", resource),
@@ -27,8 +27,8 @@ func NewNotFoundError(resource string) *AppError {
 }
 
 // NewInternalError 내부 에러 생성
-func NewInternalError(operation string, cause error) *AppError {
-	return &AppError{
+func NewInternalError(operation string, cause error) *ErrorResponse {
+	return &ErrorResponse{
 		Type:      ErrorTypeInternal,
 		Code:      CodeInternalError,
 		Message:   fmt.Sprintf("Internal error in %s", operation),
@@ -39,8 +39,8 @@ func NewInternalError(operation string, cause error) *AppError {
 }
 
 // NewExternalError 외부 서비스 에러 생성
-func NewExternalError(service string, operation string, cause error) *AppError {
-	return &AppError{
+func NewExternalError(service string, operation string, cause error) *ErrorResponse {
+	return &ErrorResponse{
 		Type:    ErrorTypeExternal,
 		Code:    getServiceErrorCode(service),
 		Message: fmt.Sprintf("External service error: %s", service),
@@ -55,8 +55,8 @@ func NewExternalError(service string, operation string, cause error) *AppError {
 }
 
 // NewTimeoutError 타임아웃 에러 생성
-func NewTimeoutError(operation string, timeout time.Duration) *AppError {
-	return &AppError{
+func NewTimeoutError(operation string, timeout time.Duration) *ErrorResponse {
+	return &ErrorResponse{
 		Type:    ErrorTypeTimeout,
 		Code:    CodeTimeout,
 		Message: fmt.Sprintf("Operation timed out: %s", operation),
@@ -70,8 +70,8 @@ func NewTimeoutError(operation string, timeout time.Duration) *AppError {
 }
 
 // NewRateLimitError 레이트 리미트 에러 생성
-func NewRateLimitError(limit int, window time.Duration) *AppError {
-	return &AppError{
+func NewRateLimitError(limit int, window time.Duration) *ErrorResponse {
+	return &ErrorResponse{
 		Type:    ErrorTypeRateLimit,
 		Code:    CodeRateLimitExceeded,
 		Message: "Rate limit exceeded",

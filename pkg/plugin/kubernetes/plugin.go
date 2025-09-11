@@ -104,8 +104,7 @@ func (p *KubernetesPlugin) HealthCheckHandler(c echo.Context) error {
 	}
 
 	return response.RespondWithSuccessModel(c, 200, "Kubernetes connection is working", map[string]interface{}{
-		"service": "kubernetes",
-		"message": "Kubernetes connection is working",
+		"status": "UP",
 	})
 }
 

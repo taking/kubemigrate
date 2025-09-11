@@ -29,7 +29,7 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Produce json
 // @Param request body config.VeleroConfig true "Velero configuration"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/velero/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
 	return h.HandleResourceClient(c, "velero-health", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -39,9 +39,9 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 			return nil, errors.NewExternalError("velero", "GetBackups", err)
 		}
 
-		return map[string]interface{}{
-			"service": "velero",
-			"message": "Velero connection is working",
-		}, nil
+		healthData := map[string]interface{}{
+			"status": "UP",
+		}
+		return healthData, nil
 	})
 }

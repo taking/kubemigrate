@@ -52,8 +52,8 @@ const (
 	CodeNetworkError    ErrorCode = "NETWORK_ERROR"
 )
 
-// AppError 애플리케이션 에러 구조체
-type AppError struct {
+// ErrorResponse 표준 에러 응답 구조체
+type ErrorResponse struct {
 	Type       ErrorType              `json:"type"`
 	Code       ErrorCode              `json:"code"`
 	Message    string                 `json:"message"`
@@ -66,7 +66,7 @@ type AppError struct {
 }
 
 // Error error 인터페이스 구현
-func (e *AppError) Error() string {
+func (e *ErrorResponse) Error() string {
 	if e.Details != "" {
 		return fmt.Sprintf("%s: %s - %s", e.Code, e.Message, e.Details)
 	}
@@ -74,6 +74,6 @@ func (e *AppError) Error() string {
 }
 
 // Unwrap 원본 에러 반환
-func (e *AppError) Unwrap() error {
+func (e *ErrorResponse) Unwrap() error {
 	return e.Cause
 }

@@ -32,7 +32,7 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Produce json
 // @Param request body config.KubeConfig true "Kubernetes configuration"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-health", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -47,10 +47,10 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 			return nil, errors.NewExternalError("helm", "GetCharts", err)
 		}
 
-		return map[string]interface{}{
-			"service": "helm",
-			"message": "Helm connection is working",
-		}, nil
+		healthData := map[string]interface{}{
+			"status": "UP",
+		}
+		return healthData, nil
 	})
 }
 
@@ -62,7 +62,7 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 // @Produce json
 // @Param namespace query string false "Namespace name (default: 'default', all namespaces: 'all')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts [get]
 func (h *Handler) GetCharts(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-charts", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -89,8 +89,8 @@ func (h *Handler) GetCharts(c echo.Context) error {
 // @Param name path string true "Chart name"
 // @Param namespace query string false "Namespace name (default: 'default')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts/{name} [get]
 func (h *Handler) GetChart(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -122,8 +122,8 @@ func (h *Handler) GetChart(c echo.Context) error {
 // @Param name path string true "Chart name"
 // @Param namespace query string false "Namespace name (default: 'default')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts/{name}/status [get]
 func (h *Handler) IsChartInstalled(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-status", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -168,8 +168,8 @@ func (h *Handler) IsChartInstalled(c echo.Context) error {
 // @Param version query string false "Chart version (optional)"
 // @Param namespace query string false "Namespace name (default: 'default')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts [post]
 func (h *Handler) InstallChart(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-install", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -216,8 +216,8 @@ func (h *Handler) InstallChart(c echo.Context) error {
 // @Param namespace query string false "Namespace name (default: 'default')"
 // @Param dryRun query boolean false "Dry run mode (default: false)"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts/{name} [delete]
 func (h *Handler) UninstallChart(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-uninstall", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -269,8 +269,8 @@ func (h *Handler) UninstallChart(c echo.Context) error {
 // @Param chartPath query string true "Chart path or URL"
 // @Param namespace query string false "Namespace name (default: 'default')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts/{name} [put]
 func (h *Handler) UpgradeChart(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-upgrade", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -315,8 +315,8 @@ func (h *Handler) UpgradeChart(c echo.Context) error {
 // @Param name path string true "Chart name"
 // @Param namespace query string false "Namespace name (default: 'default')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts/{name}/history [get]
 func (h *Handler) GetChartHistory(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-history", func(client client.Client, ctx context.Context) (interface{}, error) {
@@ -359,8 +359,8 @@ func (h *Handler) GetChartHistory(c echo.Context) error {
 // @Param name path string true "Chart name"
 // @Param namespace query string false "Namespace name (default: 'default')"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
 // @Router /v1/helm/charts/{name}/values [get]
 func (h *Handler) GetChartValues(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-values", func(client client.Client, ctx context.Context) (interface{}, error) {

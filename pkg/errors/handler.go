@@ -25,29 +25,29 @@ func NewErrorHandler(logger *slog.Logger, debug bool) *ErrorHandler {
 
 // HandleError 에러 처리 및 응답
 func (eh *ErrorHandler) HandleError(c echo.Context, err error, operation string) error {
-	appErr := eh.wrapError(err, operation, c)
+	errorResp := eh.wrapError(err, operation, c)
 
 	// 에러 로깅
-	eh.logError(appErr, c)
+	eh.logError(errorResp, c)
 
 	// HTTP 상태 코드 결정
-	statusCode := eh.getStatusCode(appErr.Type)
+	statusCode := eh.getStatusCode(errorResp.Type)
 
 	// 에러 응답 반환
-	return c.JSON(statusCode, appErr)
+	return c.JSON(statusCode, errorResp)
 }
 
-// wrapError 에러를 AppError로 래핑
-func (eh *ErrorHandler) wrapError(err error, operation string, c echo.Context) *AppError {
-	// 이미 AppError인 경우
-	if appErr, ok := err.(*AppError); ok {
-		appErr.RequestID = eh.getRequestID(c)
-		appErr.Timestamp = time.Now()
-		return appErr
+// wrapError 에러를 ErrorResponse로 래핑
+func (eh *ErrorHandler) wrapError(err error, operation string, c echo.Context) *ErrorResponse {
+	// 이미 ErrorResponse인 경우
+	if errorResp, ok := err.(*ErrorResponse); ok {
+		errorResp.RequestID = eh.getRequestID(c)
+		errorResp.Timestamp = time.Now()
+		return errorResp
 	}
 
-	// 일반 에러를 AppError로 변환
-	appErr := &AppError{
+	// 일반 에러를 ErrorResponse로 변환
+	errorResp := &ErrorResponse{
 		Type:    ErrorTypeInternal,
 		Code:    CodeInternalError,
 		Message: "An unexpected error occurred",
@@ -62,14 +62,14 @@ func (eh *ErrorHandler) wrapError(err error, operation string, c echo.Context) *
 
 	// 디버그 모드에서 스택 트레이스 추가
 	if eh.debug {
-		appErr.StackTrace = eh.getStackTrace()
+		errorResp.StackTrace = eh.getStackTrace()
 	}
 
-	return appErr
+	return errorResp
 }
 
 // logError 에러 로깅
-func (eh *ErrorHandler) logError(err *AppError, c echo.Context) {
+func (eh *ErrorHandler) logError(err *ErrorResponse, c echo.Context) {
 	attrs := []slog.Attr{
 		slog.String("error_type", string(err.Type)),
 		slog.String("error_code", string(err.Code)),

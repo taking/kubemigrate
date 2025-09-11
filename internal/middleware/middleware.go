@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/pkg/errors"
 )
 
 // SetupMiddleware : Echo 서버에 공통 미들웨어 설정
@@ -69,11 +70,15 @@ func SetupMiddleware(e *echo.Echo, cfg *config.Config) {
 		},
 		// 레이트 초과 시 응답
 		ErrorHandler: func(context echo.Context, err error) error {
-			return context.JSON(429, map[string]string{"error": "rate limit exceeded"})
+			rateLimitErr := errors.NewRateLimitError(100, time.Minute)
+			rateLimitErr.RequestID = context.Response().Header().Get(echo.HeaderXRequestID)
+			return context.JSON(429, rateLimitErr)
 		},
 		// 레이트 초과 시 DenyHandler 호출
 		DenyHandler: func(context echo.Context, identifier string, err error) error {
-			return context.JSON(429, map[string]string{"error": "rate limit exceeded"})
+			rateLimitErr := errors.NewRateLimitError(100, time.Minute)
+			rateLimitErr.RequestID = context.Response().Header().Get(echo.HeaderXRequestID)
+			return context.JSON(429, rateLimitErr)
 		},
 	}))
 }

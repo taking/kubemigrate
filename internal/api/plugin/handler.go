@@ -45,7 +45,7 @@ func (h *Handler) ListPlugins(c echo.Context) error {
 // @Produce json
 // @Param name path string true "Plugin name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 404 {object} response.ErrorResponse
+// @Failure 404 {object} errors.ErrorResponse
 // @Router /v1/plugins/{name} [get]
 func (h *Handler) GetPlugin(c echo.Context) error {
 	pluginName := c.Param("name")
@@ -84,22 +84,40 @@ func (h *Handler) GetPlugin(c echo.Context) error {
 func (h *Handler) HealthCheckAllPlugins(c echo.Context) error {
 	results := h.pluginManager.HealthCheckAllPlugins(c.Request().Context())
 
-	// 결과를 정리하여 반환
-	healthStatus := make(map[string]interface{})
+	// Spring Boot Actuator 스타일로 결과 정리
+	components := make(map[string]interface{})
 	for name, err := range results {
 		if err != nil {
-			healthStatus[name] = map[string]interface{}{
-				"status": "unhealthy",
-				"error":  err.Error(),
+			components[name] = map[string]interface{}{
+				"status": "DOWN",
+				"details": map[string]interface{}{
+					"error": err.Error(),
+				},
 			}
 		} else {
-			healthStatus[name] = map[string]interface{}{
-				"status": "healthy",
+			components[name] = map[string]interface{}{
+				"status": "UP",
 			}
 		}
 	}
 
-	return response.RespondWithData(c, http.StatusOK, healthStatus)
+	// 전체 상태 결정 (모든 컴포넌트가 UP이면 UP, 하나라도 DOWN이면 DOWN)
+	overallStatus := "UP"
+	for _, component := range components {
+		if comp, ok := component.(map[string]interface{}); ok {
+			if status, exists := comp["status"]; exists && status == "DOWN" {
+				overallStatus = "DOWN"
+				break
+			}
+		}
+	}
+
+	healthData := map[string]interface{}{
+		"status":     overallStatus,
+		"components": components,
+	}
+
+	return response.RespondWithData(c, http.StatusOK, healthData)
 }
 
 // HealthCheckPlugin 특정 플러그인 헬스체크
@@ -110,7 +128,7 @@ func (h *Handler) HealthCheckAllPlugins(c echo.Context) error {
 // @Produce json
 // @Param name path string true "Plugin name"
 // @Success 200 {object} response.SuccessResponse
-// @Failure 404 {object} response.ErrorResponse
+// @Failure 404 {object} errors.ErrorResponse
 // @Router /v1/plugins/{name}/health [get]
 func (h *Handler) HealthCheckPlugin(c echo.Context) error {
 	pluginName := c.Param("name")
@@ -125,15 +143,27 @@ func (h *Handler) HealthCheckPlugin(c echo.Context) error {
 
 	err := plugin.HealthCheck(c.Request().Context())
 	if err != nil {
-		return response.RespondWithData(c, http.StatusOK, map[string]interface{}{
-			"plugin": pluginName,
-			"status": "unhealthy",
-			"error":  err.Error(),
-		})
+		healthData := map[string]interface{}{
+			"status": "DOWN",
+			"components": map[string]interface{}{
+				pluginName: map[string]interface{}{
+					"status": "DOWN",
+					"details": map[string]interface{}{
+						"error": err.Error(),
+					},
+				},
+			},
+		}
+		return response.RespondWithData(c, http.StatusOK, healthData)
 	}
 
-	return response.RespondWithData(c, http.StatusOK, map[string]interface{}{
-		"plugin": pluginName,
-		"status": "healthy",
-	})
+	healthData := map[string]interface{}{
+		"status": "UP",
+		"components": map[string]interface{}{
+			pluginName: map[string]interface{}{
+				"status": "UP",
+			},
+		},
+	}
+	return response.RespondWithData(c, http.StatusOK, healthData)
 }

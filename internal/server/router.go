@@ -8,6 +8,7 @@ import (
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/handler"
 	appMiddleware "github.com/taking/kubemigrate/internal/middleware"
+	"github.com/taking/kubemigrate/internal/response"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
@@ -52,11 +53,15 @@ func NewRouter(cfg *config.Config, pluginManager *pluginpkg.Manager) *echo.Echo 
 
 	// 헬스체크 엔드포인트
 	e.GET("/api/v1/health", func(c echo.Context) error {
-		return c.JSON(200, map[string]interface{}{
-			"status":    "healthy",
-			"timestamp": time.Now().UTC(),
-			"service":   "kubemigrate",
-		})
+		healthData := map[string]interface{}{
+			"status": "UP",
+			"components": map[string]interface{}{
+				"kubemigrate": map[string]interface{}{
+					"status": "UP",
+				},
+			},
+		}
+		return response.RespondWithData(c, 200, healthData)
 	})
 
 	return e
