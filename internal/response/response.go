@@ -76,3 +76,33 @@ func RespondWithMessage(ctx echo.Context, statusCode int, message string) error 
 
 	return ctx.JSON(statusCode, response)
 }
+
+// RespondWithError : 에러 응답을 보냅니다
+func RespondWithError(ctx echo.Context, statusCode int, code, message, details string) error {
+	response := map[string]interface{}{
+		"status":    "error",
+		"code":      code,
+		"message":   message,
+		"details":   details,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	// 요청 ID 추가
+	if requestID := ctx.Response().Header().Get(echo.HeaderXRequestID); requestID != "" {
+		response["request_id"] = requestID
+	}
+
+	// 로그 기록
+	requestID := ""
+	if rid, ok := response["request_id"].(string); ok {
+		requestID = rid
+	}
+	logger.Error("에러 응답 전송",
+		logger.Int("status_code", statusCode),
+		logger.String("code", code),
+		logger.String("message", message),
+		logger.String("request_id", requestID),
+	)
+
+	return ctx.JSON(statusCode, response)
+}

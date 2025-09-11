@@ -96,6 +96,11 @@ func (p *HelmPlugin) GetClient() interface{} {
 	return p.client
 }
 
+// SetPluginManager 플러그인 매니저 설정
+func (p *HelmPlugin) SetPluginManager(manager interface{}) {
+	// Helm 플러그인에서는 현재 사용하지 않음
+}
+
 // HealthCheckHandler 헬스체크 핸들러
 func (p *HelmPlugin) HealthCheckHandler(c echo.Context) error {
 	var req config.KubeConfig
@@ -110,8 +115,7 @@ func (p *HelmPlugin) HealthCheckHandler(c echo.Context) error {
 	}
 
 	return response.RespondWithSuccessModel(c, 200, "Helm connection is working", map[string]interface{}{
-		"service": "helm",
-		"message": "Helm connection is working",
+		"status": "UP",
 	})
 }
 

@@ -1,0 +1,15 @@
+meta {
+  name: 3_모든 캐시 무효화
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/cache/invalidate-all
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

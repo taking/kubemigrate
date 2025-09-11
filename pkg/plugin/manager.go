@@ -4,22 +4,26 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/pkg/plugin/cache"
 )
 
 // Manager 플러그인 매니저
 type Manager struct {
-	plugins map[string]Plugin
-	configs map[string]PluginConfig
-	mutex   sync.RWMutex
+	plugins      map[string]Plugin
+	configs      map[string]PluginConfig
+	cacheManager *cache.Manager
+	mutex        sync.RWMutex
 }
 
 // NewManager 새로운 플러그인 매니저 생성
 func NewManager() *Manager {
 	return &Manager{
-		plugins: make(map[string]Plugin),
-		configs: make(map[string]PluginConfig),
+		plugins:      make(map[string]Plugin),
+		configs:      make(map[string]PluginConfig),
+		cacheManager: cache.NewManager(5 * time.Minute), // 5분 TTL
 	}
 }
 
@@ -64,7 +68,15 @@ func (m *Manager) InitializePlugin(name string) error {
 		return nil
 	}
 
-	return plugin.Initialize(config.Config)
+	// 플러그인 초기화
+	if err := plugin.Initialize(config.Config); err != nil {
+		return err
+	}
+
+	// 플러그인 매니저 참조 설정 (캐시 사용을 위해)
+	plugin.SetPluginManager(m)
+
+	return nil
 }
 
 // InitializeAllPlugins 모든 플러그인 초기화
@@ -189,4 +201,44 @@ func (m *Manager) HealthCheckAllPlugins(ctx context.Context) map[string]error {
 	}
 
 	return results
+}
+
+// GetCachedClient 캐시된 클라이언트 조회 또는 생성
+func (m *Manager) GetCachedClient(apiType string, config map[string]interface{}) (interface{}, error) {
+	return m.cacheManager.GetCachedClient(apiType, config)
+}
+
+// GetCacheStats 캐시 통계 조회
+func (m *Manager) GetCacheStats() map[string]interface{} {
+	return m.cacheManager.GetStats()
+}
+
+// CleanupCache 캐시 정리
+func (m *Manager) CleanupCache() {
+	m.cacheManager.Cleanup()
+}
+
+// InvalidateCache 특정 설정의 캐시 무효화
+func (m *Manager) InvalidateCache(apiType string, config map[string]interface{}) {
+	m.cacheManager.Invalidate(apiType, config)
+}
+
+// InvalidateAllCache 모든 캐시 무효화
+func (m *Manager) InvalidateAllCache() {
+	m.cacheManager.InvalidateAll()
+}
+
+// GetCacheKey 캐시 키 생성 (디버깅용)
+func (m *Manager) GetCacheKey(apiType string, config map[string]interface{}) string {
+	return m.cacheManager.GetCacheKey(apiType, config)
+}
+
+// GetCacheInfo 특정 설정의 캐시 정보 조회
+func (m *Manager) GetCacheInfo(apiType string, config map[string]interface{}) map[string]interface{} {
+	return m.cacheManager.GetCacheInfo(apiType, config)
+}
+
+// GetCacheManager 캐시 매니저 반환
+func (m *Manager) GetCacheManager() *cache.Manager {
+	return m.cacheManager
 }

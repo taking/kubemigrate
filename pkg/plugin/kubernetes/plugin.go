@@ -15,9 +15,10 @@ import (
 
 // KubernetesPlugin Kubernetes 플러그인
 type KubernetesPlugin struct {
-	client    kubernetes.Client
-	config    map[string]interface{}
-	validator *validator.KubernetesValidator
+	client        kubernetes.Client
+	config        map[string]interface{}
+	validator     *validator.KubernetesValidator
+	pluginManager interface{} // 플러그인 매니저 참조 (캐시 사용을 위해)
 }
 
 // NewPlugin 새로운 Kubernetes 플러그인 생성
@@ -46,8 +47,7 @@ func (p *KubernetesPlugin) Description() string {
 func (p *KubernetesPlugin) Initialize(config map[string]interface{}) error {
 	p.config = config
 
-	// Kubernetes 클라이언트 초기화 (기본 설정 사용)
-	// TODO: 설정 기반 클라이언트 초기화 구현 필요
+	// 기본 클라이언트 초기화 (캐시는 필요시 생성)
 	p.client = kubernetes.NewClient()
 
 	return nil
@@ -90,6 +90,11 @@ func (p *KubernetesPlugin) GetClient() interface{} {
 	return p.client
 }
 
+// SetPluginManager 플러그인 매니저 설정
+func (p *KubernetesPlugin) SetPluginManager(manager interface{}) {
+	p.pluginManager = manager
+}
+
 // HealthCheckHandler 헬스체크 핸들러
 func (p *KubernetesPlugin) HealthCheckHandler(c echo.Context) error {
 	var req config.KubeConfig
@@ -97,8 +102,21 @@ func (p *KubernetesPlugin) HealthCheckHandler(c echo.Context) error {
 		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid request body", err.Error())
 	}
 
+	// 미들웨어에서 캐시된 클라이언트 사용
+	var clientToUse kubernetes.Client
+	if cachedClient := c.Get("cached_client"); cachedClient != nil {
+		if k8sClient, ok := cachedClient.(kubernetes.Client); ok {
+			clientToUse = k8sClient
+		}
+	}
+
+	// 캐시된 클라이언트가 없으면 기본 클라이언트 사용
+	if clientToUse == nil {
+		clientToUse = p.client
+	}
+
 	// Kubernetes 연결 테스트
-	_, err := p.client.GetPods(c.Request().Context(), "default", "")
+	_, err := clientToUse.GetPods(c.Request().Context(), "default", "")
 	if err != nil {
 		return errors.NewExternalError("kubernetes", "GetPods", err)
 	}
@@ -168,12 +186,12 @@ func (p *KubernetesPlugin) GetConfigMapHandler(c echo.Context) error {
 	namespace := utils.ResolveNamespace(c, "default")
 	configMapName := c.Param("name")
 
-	configMap, err := p.client.GetConfigMaps(c.Request().Context(), namespace, configMapName)
+	configMapResult, err := p.client.GetConfigMaps(c.Request().Context(), namespace, configMapName)
 	if err != nil {
 		return errors.NewExternalError("kubernetes", "GetConfigMaps", err)
 	}
 
-	return response.RespondWithData(c, 200, configMap)
+	return response.RespondWithData(c, 200, configMapResult)
 }
 
 // GetSecretsHandler Secret 목록 조회 핸들러

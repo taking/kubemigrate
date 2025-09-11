@@ -38,6 +38,11 @@ func NewRouter(cfg *config.Config, pluginManager *pluginpkg.Manager) *echo.Echo 
 	// API 그룹 생성
 	apiGroup := e.Group("/api/v1")
 
+	// 캐시 미들웨어 적용 (플러그인 라우트에만)
+	// 플러그인 매니저의 캐시 매니저 사용
+	cacheManager := pluginManager.GetCacheManager()
+	apiGroup.Use(appMiddleware.CacheMiddleware(cacheManager))
+
 	// 플러그인 라우트 등록
 	if err := pluginManager.RegisterAllRoutes(apiGroup); err != nil {
 		panic("Failed to register plugin routes: " + err.Error())
@@ -48,6 +53,7 @@ func NewRouter(cfg *config.Config, pluginManager *pluginpkg.Manager) *echo.Echo 
 	pluginGroup := apiGroup.Group("/plugins")
 	pluginGroup.GET("", pluginHandler.ListPlugins)
 	pluginGroup.GET("/:name", pluginHandler.GetPlugin)
+
 	pluginGroup.GET("/health", pluginHandler.HealthCheckAllPlugins)
 	pluginGroup.GET("/:name/health", pluginHandler.HealthCheckPlugin)
 

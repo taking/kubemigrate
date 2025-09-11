@@ -17,6 +17,7 @@ import (
 	"github.com/taking/kubemigrate/internal/logger"
 	"github.com/taking/kubemigrate/internal/server"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
+	"github.com/taking/kubemigrate/pkg/plugin/cache"
 	"github.com/taking/kubemigrate/pkg/plugin/helm"
 	"github.com/taking/kubemigrate/pkg/plugin/kubernetes"
 	"github.com/taking/kubemigrate/pkg/plugin/minio"
@@ -150,6 +151,9 @@ func setupPlugins() *pluginpkg.Manager {
 	}
 	if err := pluginManager.RegisterPlugin(velero.NewPlugin()); err != nil {
 		logger.Fatal("Failed to register Velero plugin", logger.ErrorAttr(err))
+	}
+	if err := pluginManager.RegisterPlugin(cache.NewPlugin()); err != nil {
+		logger.Fatal("Failed to register Cache plugin", logger.ErrorAttr(err))
 	}
 
 	// 플러그인 초기화

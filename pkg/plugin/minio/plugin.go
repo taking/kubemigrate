@@ -102,6 +102,11 @@ func (p *MinioPlugin) GetClient() interface{} {
 	return p.client
 }
 
+// SetPluginManager 플러그인 매니저 설정
+func (p *MinioPlugin) SetPluginManager(manager interface{}) {
+	// Minio 플러그인에서는 현재 사용하지 않음
+}
+
 // HealthCheckHandler 헬스체크 핸들러
 func (p *MinioPlugin) HealthCheckHandler(c echo.Context) error {
 	var req config.MinioConfig

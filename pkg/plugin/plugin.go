@@ -22,6 +22,9 @@ type Plugin interface {
 
 	// 헬스체크
 	HealthCheck(ctx context.Context) error
+
+	// 플러그인 매니저 설정 (캐시 사용을 위해)
+	SetPluginManager(manager interface{})
 }
 
 // ServicePlugin - 서비스별 플러그인 인터페이스
