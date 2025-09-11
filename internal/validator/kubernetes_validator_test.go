@@ -36,32 +36,32 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "네임스페이스가 있는 유효한 설정",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  "default",
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: "default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "네임스페이스가 없는 유효한 설정",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  "",
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: "",
 			},
 			wantErr: false,
 		},
 		{
 			name: "Base64로 인코딩된 유효한 설정",
 			config: &config.KubeConfig{
-				KubeConfig: base64.StdEncoding.EncodeToString([]byte("apiVersion: v1\nkind: Config")),
-				Namespace:  "kube-system",
+				Config:    base64.StdEncoding.EncodeToString([]byte("apiVersion: v1\nkind: Config")),
+				Namespace: "kube-system",
 			},
 			wantErr: false,
 		},
 		{
 			name: "빈 kubeconfig",
 			config: &config.KubeConfig{
-				KubeConfig: "",
-				Namespace:  "default",
+				Config:    "",
+				Namespace: "default",
 			},
 			wantErr: true,
 			errMsg:  "kubeconfig is required",
@@ -69,8 +69,8 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "kubeconfig 크기 초과",
 			config: &config.KubeConfig{
-				KubeConfig: string(make([]byte, 100001)), // 100KB + 1 byte
-				Namespace:  "default",
+				Config:    string(make([]byte, 100001)), // 100KB + 1 byte
+				Namespace: "default",
 			},
 			wantErr: true,
 			errMsg:  "kubeconfig too large (max 100KB)",
@@ -78,8 +78,8 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "apiVersion이 누락된 잘못된 kubeconfig",
 			config: &config.KubeConfig{
-				KubeConfig: "kind: Config",
-				Namespace:  "default",
+				Config:    "kind: Config",
+				Namespace: "default",
 			},
 			wantErr: true,
 			errMsg:  "kubeconfig appears to be invalid (missing apiVersion)",
@@ -87,8 +87,8 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "잘못된 네임스페이스 형식",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  "INVALID_NAMESPACE",
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: "INVALID_NAMESPACE",
 			},
 			wantErr: true,
 			errMsg:  "invalid namespace format: must be lowercase alphanumeric with hyphens",
@@ -96,8 +96,8 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "대문자가 포함된 네임스페이스",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  "Default",
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: "Default",
 			},
 			wantErr: true,
 			errMsg:  "invalid namespace format: must be lowercase alphanumeric with hyphens",
@@ -105,8 +105,8 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "하이픈으로 시작하는 네임스페이스",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  "-invalid",
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: "-invalid",
 			},
 			wantErr: true,
 			errMsg:  "invalid namespace format: must be lowercase alphanumeric with hyphens",
@@ -114,8 +114,8 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "하이픈으로 끝나는 네임스페이스",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  "invalid-",
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: "invalid-",
 			},
 			wantErr: true,
 			errMsg:  "invalid namespace format: must be lowercase alphanumeric with hyphens",
@@ -123,16 +123,16 @@ func TestKubernetesValidator_ValidateKubernetesConfig(t *testing.T) {
 		{
 			name: "숫자와 하이픈이 포함된 유효한 네임스페이스",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  "test-namespace-123",
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: "test-namespace-123",
 			},
 			wantErr: false,
 		},
 		{
 			name: "너무 긴 네임스페이스",
 			config: &config.KubeConfig{
-				KubeConfig: "apiVersion: v1\nkind: Config",
-				Namespace:  string(make([]byte, 64)), // 64 characters
+				Config:    "apiVersion: v1\nkind: Config",
+				Namespace: string(make([]byte, 64)), // 64 characters
 			},
 			wantErr: true,
 			errMsg:  "invalid namespace format: must be lowercase alphanumeric with hyphens",

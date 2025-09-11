@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/errors"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -43,7 +44,7 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 		// Helm 연결 테스트
 		_, err := client.Helm().GetCharts(ctx, namespace)
 		if err != nil {
-			return nil, err
+			return nil, errors.NewExternalError("helm", "GetCharts", err)
 		}
 
 		return map[string]interface{}{

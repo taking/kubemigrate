@@ -1383,6 +1383,128 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/plugins": {
+            "get": {
+                "description": "Get list of all registered plugins",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugin"
+                ],
+                "summary": "List Plugins",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/health": {
+            "get": {
+                "description": "Check health status of all plugins",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugin"
+                ],
+                "summary": "Health Check All Plugins",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/{name}": {
+            "get": {
+                "description": "Get information about a specific plugin",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugin"
+                ],
+                "summary": "Get Plugin Info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plugin name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/{name}/health": {
+            "get": {
+                "description": "Check health status of a specific plugin",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugin"
+                ],
+                "summary": "Health Check Plugin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plugin name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/velero/backups": {
             "post": {
                 "description": "Get list of Velero backups",

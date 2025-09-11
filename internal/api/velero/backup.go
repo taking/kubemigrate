@@ -23,12 +23,6 @@ import (
 // @Router /v1/velero/backups [post]
 func (h *Handler) GetBackups(c echo.Context) error {
 	return h.HandleResourceClient(c, "backups", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// 요청 바인딩 및 검증
-		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
-		if err != nil {
-			return nil, err
-		}
-
 		// 네임스페이스 결정
 		namespace := utils.ResolveNamespace(c, "velero")
 
@@ -61,12 +55,6 @@ func (h *Handler) GetBackups(c echo.Context) error {
 // @Router /v1/velero/repositories [get]
 func (h *Handler) GetBackupRepositories(c echo.Context) error {
 	return h.HandleResourceClient(c, "backup-repositories", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// 요청 바인딩 및 검증
-		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
-		if err != nil {
-			return nil, err
-		}
-
 		// 네임스페이스 결정
 		namespace := utils.ResolveNamespace(c, "velero")
 
@@ -94,12 +82,6 @@ func (h *Handler) GetBackupRepositories(c echo.Context) error {
 // @Router /v1/velero/storage-locations [get]
 func (h *Handler) GetBackupStorageLocations(c echo.Context) error {
 	return h.HandleResourceClient(c, "backup-storage-locations", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// 요청 바인딩 및 검증
-		_, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
-		if err != nil {
-			return nil, err
-		}
-
 		// 네임스페이스 결정
 		namespace := utils.ResolveNamespace(c, "velero")
 

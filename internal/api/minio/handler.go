@@ -13,6 +13,7 @@ import (
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/minio"
+	"github.com/taking/kubemigrate/pkg/errors"
 )
 
 // Handler : MinIO 관련 HTTP 핸들러
@@ -42,7 +43,8 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 		// MinIO 연결 테스트
 		_, err := client.Minio().ListBuckets(ctx)
 		if err != nil {
-			return nil, err
+			// MinIO 연결 실패를 외부 서비스 에러로 래핑
+			return nil, errors.NewExternalError("minio", "ListBuckets", err)
 		}
 
 		return map[string]interface{}{
@@ -321,46 +323,43 @@ func (h *Handler) PutObject(c echo.Context) error {
 	bucketName := c.Param("bucket")
 	objectName := c.Param("*")
 	if bucketName == "" || objectName == "" {
-		return echo.NewHTTPError(400, "bucket and object parameters are required")
+		return errors.NewValidationError(errors.CodeMissingParameter, "Missing required parameters", "bucket and object parameters are required")
 	}
 
 	// multipart/form-data에서 설정과 파일 처리
 	form, err := c.MultipartForm()
 	if err != nil {
-		return echo.NewHTTPError(400, "multipart form is required")
+		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid request format", "multipart form is required")
 	}
 
 	// MinIO 설정 가져오기
 	configValue := form.Value["config"]
 	if len(configValue) == 0 {
-		return echo.NewHTTPError(400, "config is required")
+		return errors.NewValidationError(errors.CodeMissingParameter, "Missing configuration", "config is required")
 	}
 
 	// JSON 설정 파싱
 	var minioConfig config.MinioConfig
 	if err := json.Unmarshal([]byte(configValue[0]), &minioConfig); err != nil {
-		return echo.NewHTTPError(400, "invalid config format")
+		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid configuration format", "invalid config format")
 	}
 
 	// MinIO 설정 검증
 	if err := h.MinioValidator.ValidateMinioConfig(&minioConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_MINIO_CONFIG",
-			"Invalid MinIO configuration",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidConfiguration, "Invalid MinIO configuration", err.Error())
 	}
 
 	// 파일 가져오기
 	files := form.File["file"]
 	if len(files) == 0 {
-		return echo.NewHTTPError(400, "file is required")
+		return errors.NewValidationError(errors.CodeMissingParameter, "Missing file", "file is required")
 	}
 	file := files[0]
 
 	// 파일 열기
 	src, err := file.Open()
 	if err != nil {
-		return err
+		return errors.NewInternalError("file_open", err)
 	}
 	defer func() {
 		_ = src.Close() // 에러 무시 (defer에서 에러 반환 불가)
@@ -369,19 +368,13 @@ func (h *Handler) PutObject(c echo.Context) error {
 	// MinIO 클라이언트 생성
 	minioClient, err := minio.NewClientWithConfig(minioConfig)
 	if err != nil {
-		return response.RespondWithErrorModel(c, http.StatusInternalServerError,
-			"MINIO_CLIENT_CREATION_FAILED",
-			"Failed to create MinIO client",
-			err.Error())
+		return errors.NewInternalError("minio_client_creation", err)
 	}
 
 	// 객체 업로드
 	uploadInfo, err := minioClient.PutObject(c.Request().Context(), bucketName, objectName, src, file.Size)
 	if err != nil {
-		return response.RespondWithErrorModel(c, http.StatusInternalServerError,
-			"OBJECT_UPLOAD_FAILED",
-			"Failed to upload object",
-			err.Error())
+		return errors.NewExternalError("minio", "PutObject", err)
 	}
 
 	return response.RespondWithData(c, http.StatusOK, map[string]interface{}{

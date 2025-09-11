@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/errors"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -37,7 +38,7 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 		// Kubernetes 연결 테스트
 		_, err := client.Kubernetes().GetPods(ctx, "default", "")
 		if err != nil {
-			return nil, err
+			return nil, errors.NewExternalError("kubernetes", "GetPods", err)
 		}
 
 		return map[string]interface{}{
@@ -85,7 +86,7 @@ func (h *Handler) GetResources(c echo.Context) error {
 		default:
 			supportedResources := []string{"pods", "configmaps", "secrets", "storage-classes"}
 			errorMsg := fmt.Sprintf("Unsupported resource kind: %s. Supported resources: %v", kind, supportedResources)
-			return nil, echo.NewHTTPError(400, errorMsg)
+			return nil, errors.NewValidationError(errors.CodeInvalidParameter, "Unsupported resource kind", errorMsg)
 		}
 	})
 }

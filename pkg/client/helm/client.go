@@ -78,9 +78,9 @@ func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 	var restCfg *rest.Config
 	var err error
 
-	if cfg.KubeConfig != "" {
+	if cfg.Config != "" {
 		// 외부 kubeconfig 사용 (base64 디코딩)
-		decodedKubeConfig, err := validator.DecodeIfBase64(cfg.KubeConfig)
+		decodedKubeConfig, err := validator.DecodeIfBase64(cfg.Config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode kubeconfig: %w", err)
 		}

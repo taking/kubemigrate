@@ -32,8 +32,8 @@ type LoggingConfig struct {
 
 // KubeConfig Kubernetes 설정 구조체
 type KubeConfig struct {
-	KubeConfig string `json:"kubeconfig" binding:"required" example:"base64 인코딩된 KubeConfig 값"` // [필수] Base64 인코딩된 KubeConfig 값
-	Namespace  string `json:"namespace,omitempty" example:"all" swaggerignore:"true"`           // [옵션] 네임스페이스 명 (기본 값 : 'default', 전체 조회  : 'all')
+	Config    string `json:"kubeconfig" binding:"required" example:"base64 인코딩된 KubeConfig 값"` // [필수] Base64 인코딩된 KubeConfig 값
+	Namespace string `json:"namespace,omitempty" example:"all" swaggerignore:"true"`           // [옵션] 네임스페이스 명 (기본 값 : 'default', 전체 조회  : 'all')
 }
 
 // MinioConfig MinIO 설정 구조체

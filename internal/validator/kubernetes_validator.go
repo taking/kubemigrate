@@ -25,15 +25,15 @@ func NewKubernetesValidator() *KubernetesValidator {
 
 // ValidateKubernetesConfig : KubernetesConfig 검증
 func (v *KubernetesValidator) ValidateKubernetesConfig(req *config.KubeConfig) (string, error) {
-	if req.KubeConfig == "" {
+	if req.Config == "" {
 		return "", fmt.Errorf("kubeconfig is required")
 	}
 
-	if len(req.KubeConfig) > 100000 { // 100KB limit
+	if len(req.Config) > 100000 { // 100KB limit
 		return "", fmt.Errorf("kubeconfig too large (max 100KB)")
 	}
 
-	decodeSourceKubeConfig, _ := decodeIfBase64(req.KubeConfig)
+	decodeSourceKubeConfig, _ := DecodeIfBase64(req.Config)
 
 	if !strings.Contains(decodeSourceKubeConfig, "apiVersion") {
 		return "", fmt.Errorf("kubeconfig appears to be invalid (missing apiVersion)")
@@ -56,11 +56,6 @@ func DecodeIfBase64(s string) (string, error) {
 		return s, nil
 	}
 	return string(decoded), nil
-}
-
-// decodeIfBase64 : 내부 헬퍼 함수 (DecodeIfBase64와 동일)
-func decodeIfBase64(s string) (string, error) {
-	return DecodeIfBase64(s)
 }
 
 // isValidNamespace : 네임스페이스 검증

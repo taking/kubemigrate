@@ -23,8 +23,11 @@ func SetupMiddleware(e *echo.Echo, cfg *config.Config) {
 		Format: `{"time":"${time_rfc3339}","level":"info","message":"${method} ${uri}","status":${status},"latency":"${latency_human}","request_id":"${id}"}` + "\n",
 	}))
 
+	// 에러 처리 미들웨어 (Recover 전에 배치)
+	e.Use(ErrorHandlerMiddleware(cfg))
+
 	// Recover 미들웨어: Panic 발생 시 서버 종료 방지 및 500 응답 반환
-	e.Use(middleware.Recover())
+	e.Use(RecoveryMiddleware())
 
 	// CORS 설정: 모든 도메인 허용, GET/POST/PUT/DELETE/OPTIONS 메서드 허용
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{

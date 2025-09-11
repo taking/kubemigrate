@@ -10,10 +10,6 @@ post {
   auth: inherit
 }
 
-params:query {
-  bucket: velero
-}
-
 body:json {
   {
       "endpoint": "{{minio_url}}",

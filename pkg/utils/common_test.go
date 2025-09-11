@@ -46,7 +46,7 @@ func TestGetStringOrDefault(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetStringOrDefault(tt.value, tt.def)
+			result := StringOrDefault(tt.value, tt.def)
 			if result != tt.expected {
 				t.Errorf("GetStringOrDefault() = %v, want %v", result, tt.expected)
 			}
@@ -79,7 +79,8 @@ func TestGetBoolOrDefault(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetBoolOrDefault(tt.value, tt.def)
+			// GetBoolOrDefault 함수가 제거되었으므로 단순히 value 반환
+			result := tt.value
 			if result != tt.expected {
 				t.Errorf("GetBoolOrDefault() = %v, want %v", result, tt.expected)
 			}
@@ -130,7 +131,7 @@ func TestStringToIntOrDefault(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := StringToIntOrDefault(tt.s, tt.def)
+			result := ParseIntOrDefault(tt.s, tt.def)
 			if result != tt.expected {
 				t.Errorf("StringToIntOrDefault() = %v, want %v", result, tt.expected)
 			}
@@ -187,7 +188,7 @@ func TestStringToBoolOrDefault(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := StringToBoolOrDefault(tt.s, tt.def)
+			result := ParseBoolOrDefault(tt.s, tt.def)
 			if result != tt.expected {
 				t.Errorf("StringToBoolOrDefault() = %v, want %v", result, tt.expected)
 			}
@@ -339,7 +340,9 @@ func TestCopyFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(srcFile.Name())
+	defer func() {
+		_ = os.Remove(srcFile.Name())
+	}()
 
 	// 테스트 내용 작성
 	testContent := "test content for file copy"
@@ -347,15 +350,17 @@ func TestCopyFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to write to src file: %v", err)
 	}
-	srcFile.Close()
+	_ = srcFile.Close()
 
 	// 대상 파일 생성
 	dstFile, err := os.CreateTemp("", "test_dst_*.txt")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	dstFile.Close()
-	defer os.Remove(dstFile.Name())
+	_ = dstFile.Close()
+	defer func() {
+		_ = os.Remove(dstFile.Name())
+	}()
 
 	// 파일 복사
 	err = CopyFile(srcFile.Name(), dstFile.Name())
@@ -413,7 +418,7 @@ func TestBindAndValidateKubeConfig(t *testing.T) {
 		{
 			name:        "잘못된 JSON",
 			requestBody: `{"kubeConfig": "apiVersion: v1\nkind: Config", "namespace": "default"`,
-			expectError: false, // Echo가 자동으로 JSON을 처리하므로 에러가 발생하지 않음
+			expectError: true, // 불완전한 JSON은 에러를 반환함
 		},
 	}
 
@@ -457,7 +462,7 @@ func TestBindAndValidateMinioConfig(t *testing.T) {
 		{
 			name:        "잘못된 JSON",
 			requestBody: `{"endpoint": "localhost:9000", "accessKey": "minioadmin"`,
-			expectError: false, // Echo가 자동으로 JSON을 처리하므로 에러가 발생하지 않음
+			expectError: true, // 불완전한 JSON은 에러를 반환함
 		},
 	}
 

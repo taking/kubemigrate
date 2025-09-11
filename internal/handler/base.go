@@ -13,6 +13,7 @@ import (
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/validator"
 	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/errors"
 	pkgutils "github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -39,13 +40,17 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 	getResource func(client.Client, context.Context) (interface{}, error)) error {
 
 	// API 타입별 설정 파싱 및 검증
-	kubeConfig, veleroConfig, minioConfig, err := h.parseAndValidateConfig(c, cacheKey)
+	kubeConfig, veleroConfig, minioConfig, err := h.parseAndValidateConfig(c)
 	if err != nil {
 		return err
 	}
 
+	// API 타입 감지
+	apiType := h.detectApiType(c.Request().URL.Path)
+
 	// 캐시에서 클라이언트 조회 또는 생성
 	unifiedClient := h.clientCache.GetOrCreate(
+		apiType,
 		kubeConfig,
 		kubeConfig,
 		veleroConfig,
@@ -68,17 +73,16 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 		// 디버깅을 위한 로그 추가
 		fmt.Printf("DEBUG: Resource fetch failed for %s: %v\n", cacheKey, err)
 		fmt.Printf("DEBUG: Unified client: %+v\n", unifiedClient)
-		return response.RespondWithErrorModel(c, http.StatusInternalServerError,
-			"RESOURCE_FETCH_FAILED",
-			fmt.Sprintf("Failed to get %s", cacheKey),
-			err.Error())
+
+		// 공통 에러 처리 패키지 사용
+		return errors.NewInternalError(cacheKey, err)
 	}
 
 	return response.RespondWithData(c, http.StatusOK, resource)
 }
 
 // parseAndValidateConfig : API 타입별 설정 파싱 및 검증
-func (h *BaseHandler) parseAndValidateConfig(c echo.Context, cacheKey string) (
+func (h *BaseHandler) parseAndValidateConfig(c echo.Context) (
 	config.KubeConfig, config.VeleroConfig, config.MinioConfig, error) {
 
 	var kubeConfig config.KubeConfig
@@ -103,10 +107,7 @@ func (h *BaseHandler) parseAndValidateConfig(c echo.Context, cacheKey string) (
 		return kubeConfig, veleroConfig, minioConfig, h.parseVeleroConfig(c, &kubeConfig, &veleroConfig, &minioConfig)
 	}
 
-	return kubeConfig, veleroConfig, minioConfig, response.RespondWithErrorModel(c, http.StatusBadRequest,
-		"UNSUPPORTED_API_PATH",
-		"Unsupported API path",
-		fmt.Sprintf("API path not supported: %s", c.Request().URL.Path))
+	return kubeConfig, veleroConfig, minioConfig, errors.NewValidationError(errors.CodeUnsupportedPath, "Unsupported API path", fmt.Sprintf("API path not supported: %s", c.Request().URL.Path))
 }
 
 // parseKubeConfig : Kubernetes 설정 파싱 및 검증
@@ -116,18 +117,12 @@ func (h *BaseHandler) parseKubeConfig(c echo.Context, kubeConfig *config.KubeCon
 	}
 
 	if err := c.Bind(&req); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_REQUEST_BODY",
-			"Invalid request body",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid request body", err.Error())
 	}
 
-	kubeConfig.KubeConfig = req.KubeConfig
+	kubeConfig.Config = req.KubeConfig
 	if _, err := h.KubernetesValidator.ValidateKubernetesConfig(kubeConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_KUBERNETES_CONFIG",
-			"Invalid Kubernetes configuration",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidConfiguration, "Invalid Kubernetes configuration", err.Error())
 	}
 
 	return nil
@@ -143,10 +138,7 @@ func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.Minio
 	}
 
 	if err := c.Bind(&req); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_REQUEST_BODY",
-			"Invalid request body",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid request body", err.Error())
 	}
 
 	// MinIO 설정 매핑
@@ -156,10 +148,7 @@ func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.Minio
 	minioConfig.UseSSL = req.UseSSL
 
 	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_MINIO_CONFIG",
-			"Invalid MinIO configuration",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidConfiguration, "Invalid MinIO configuration", err.Error())
 	}
 
 	return nil
@@ -177,19 +166,13 @@ func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeC
 	}
 
 	if err := c.Bind(&req); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_REQUEST_BODY",
-			"Invalid request body",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid request body", err.Error())
 	}
 
 	// Kubernetes 설정
-	kubeConfig.KubeConfig = req.KubeConfig.KubeConfig
+	kubeConfig.Config = req.KubeConfig.KubeConfig
 	if _, err := h.KubernetesValidator.ValidateKubernetesConfig(kubeConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_KUBERNETES_CONFIG",
-			"Invalid Kubernetes configuration",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidConfiguration, "Invalid Kubernetes configuration", err.Error())
 	}
 
 	// Velero 설정 (Kubernetes 설정과 동일)
@@ -198,10 +181,7 @@ func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeC
 	// MinIO 설정
 	*minioConfig = req.Minio
 	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_MINIO_CONFIG",
-			"Invalid MinIO configuration",
-			err.Error())
+		return errors.NewValidationError(errors.CodeInvalidConfiguration, "Invalid MinIO configuration", err.Error())
 	}
 
 	return nil
@@ -215,4 +195,28 @@ func (h *BaseHandler) GetCacheStats() map[string]interface{} {
 // CleanupCache : 만료된 캐시 정리
 func (h *BaseHandler) CleanupCache() {
 	h.clientCache.Cleanup()
+}
+
+// InvalidateCache : 특정 설정의 캐시 무효화
+func (h *BaseHandler) InvalidateCache(apiType string, kubeConfig config.KubeConfig, helmConfig config.KubeConfig, veleroConfig config.VeleroConfig, minioConfig config.MinioConfig) {
+	h.clientCache.Invalidate(apiType, kubeConfig, helmConfig, veleroConfig, minioConfig)
+}
+
+// InvalidateAllCache : 모든 캐시 무효화
+func (h *BaseHandler) InvalidateAllCache() {
+	h.clientCache.InvalidateAll()
+}
+
+// detectApiType : API 타입 감지
+func (h *BaseHandler) detectApiType(path string) string {
+	if strings.Contains(path, "/minio/") {
+		return "minio"
+	} else if strings.Contains(path, "/helm/") {
+		return "helm"
+	} else if strings.Contains(path, "/velero/") {
+		return "velero"
+	} else if strings.Contains(path, "/kubernetes/") {
+		return "kubernetes"
+	}
+	return "unknown"
 }

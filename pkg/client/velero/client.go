@@ -89,9 +89,9 @@ func NewClientWithConfig(cfg config.VeleroConfig) (Client, error) {
 	var restConfig *rest.Config
 	var err error
 
-	if cfg.KubeConfig.KubeConfig != "" {
+	if cfg.KubeConfig.Config != "" {
 		// 외부 kubeconfig 사용 (base64 디코딩)
-		decodedKubeConfig, err := validator.DecodeIfBase64(cfg.KubeConfig.KubeConfig)
+		decodedKubeConfig, err := validator.DecodeIfBase64(cfg.KubeConfig.Config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode kubeconfig: %w", err)
 		}

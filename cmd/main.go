@@ -16,6 +16,11 @@ import (
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/logger"
 	"github.com/taking/kubemigrate/internal/server"
+	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
+	"github.com/taking/kubemigrate/pkg/plugin/helm"
+	"github.com/taking/kubemigrate/pkg/plugin/kubernetes"
+	"github.com/taking/kubemigrate/pkg/plugin/minio"
+	"github.com/taking/kubemigrate/pkg/plugin/velero"
 )
 
 // @title KubeMigrate API Server
@@ -55,8 +60,11 @@ func main() {
 		logger.String("environment", "production"),
 	)
 
-	// 새로운 라우터 생성 (미들웨어 포함)
-	e := server.NewRouter(cfg)
+	// 플러그인 매니저 생성 및 설정
+	pluginManager := setupPlugins()
+
+	// 새로운 라우터 생성 (플러그인 아키텍처)
+	e := server.NewRouter(cfg, pluginManager)
 	e.HideBanner = true
 	e.HidePort = true
 
@@ -124,4 +132,33 @@ func startServer(server *http.Server, cfg *config.Config) {
 	}
 
 	logger.Info("Server exited gracefully")
+}
+
+// setupPlugins 플러그인 설정 및 초기화
+func setupPlugins() *pluginpkg.Manager {
+	pluginManager := pluginpkg.NewManager()
+
+	// 플러그인 등록
+	if err := pluginManager.RegisterPlugin(kubernetes.NewPlugin()); err != nil {
+		logger.Fatal("Failed to register Kubernetes plugin", logger.ErrorAttr(err))
+	}
+	if err := pluginManager.RegisterPlugin(minio.NewPlugin()); err != nil {
+		logger.Fatal("Failed to register MinIO plugin", logger.ErrorAttr(err))
+	}
+	if err := pluginManager.RegisterPlugin(helm.NewPlugin()); err != nil {
+		logger.Fatal("Failed to register Helm plugin", logger.ErrorAttr(err))
+	}
+	if err := pluginManager.RegisterPlugin(velero.NewPlugin()); err != nil {
+		logger.Fatal("Failed to register Velero plugin", logger.ErrorAttr(err))
+	}
+
+	// 플러그인 초기화
+	if err := pluginManager.InitializeAllPlugins(); err != nil {
+		logger.Fatal("Failed to initialize plugins", logger.ErrorAttr(err))
+	}
+
+	logger.Info("Plugins initialized successfully",
+		logger.Int("count", len(pluginManager.ListPlugins())))
+
+	return pluginManager
 }

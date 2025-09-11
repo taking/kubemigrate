@@ -23,9 +23,9 @@ func (f *ClientFactory) CreateRESTConfig(cfg config.KubeConfig) (*rest.Config, e
 	var restCfg *rest.Config
 	var err error
 
-	if cfg.KubeConfig != "" {
+	if cfg.Config != "" {
 		// 외부 kubeconfig 사용
-		restCfg, err = clientcmd.RESTConfigFromKubeConfig([]byte(cfg.KubeConfig))
+		restCfg, err = clientcmd.RESTConfigFromKubeConfig([]byte(cfg.Config))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
 		}
