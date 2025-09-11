@@ -11,9 +11,9 @@ import (
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/cache"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/errors"
-	"github.com/taking/kubemigrate/pkg/plugin/cache"
 	pkgutils "github.com/taking/kubemigrate/pkg/utils"
 )
 

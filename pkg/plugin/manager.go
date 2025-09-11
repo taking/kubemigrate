@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/taking/kubemigrate/pkg/plugin/cache"
+	"github.com/taking/kubemigrate/pkg/cache"
+	cacheplugin "github.com/taking/kubemigrate/pkg/plugin/plugins/cache"
 )
 
 // Manager 플러그인 매니저
@@ -20,11 +21,17 @@ type Manager struct {
 
 // NewManager 새로운 플러그인 매니저 생성
 func NewManager() *Manager {
-	return &Manager{
+	m := &Manager{
 		plugins:      make(map[string]Plugin),
 		configs:      make(map[string]PluginConfig),
 		cacheManager: cache.NewManager(5 * time.Minute), // 5분 TTL
 	}
+
+	// 캐시 플러그인 자동 등록
+	cachePlugin := cacheplugin.NewPlugin()
+	m.plugins["cache"] = cachePlugin
+
+	return m
 }
 
 // RegisterPlugin 플러그인 등록
@@ -203,39 +210,9 @@ func (m *Manager) HealthCheckAllPlugins(ctx context.Context) map[string]error {
 	return results
 }
 
-// GetCachedClient 캐시된 클라이언트 조회 또는 생성
+// GetCachedClient 캐시된 클라이언트 조회 또는 생성 (위임)
 func (m *Manager) GetCachedClient(apiType string, config map[string]interface{}) (interface{}, error) {
 	return m.cacheManager.GetCachedClient(apiType, config)
-}
-
-// GetCacheStats 캐시 통계 조회
-func (m *Manager) GetCacheStats() map[string]interface{} {
-	return m.cacheManager.GetStats()
-}
-
-// CleanupCache 캐시 정리
-func (m *Manager) CleanupCache() {
-	m.cacheManager.Cleanup()
-}
-
-// InvalidateCache 특정 설정의 캐시 무효화
-func (m *Manager) InvalidateCache(apiType string, config map[string]interface{}) {
-	m.cacheManager.Invalidate(apiType, config)
-}
-
-// InvalidateAllCache 모든 캐시 무효화
-func (m *Manager) InvalidateAllCache() {
-	m.cacheManager.InvalidateAll()
-}
-
-// GetCacheKey 캐시 키 생성 (디버깅용)
-func (m *Manager) GetCacheKey(apiType string, config map[string]interface{}) string {
-	return m.cacheManager.GetCacheKey(apiType, config)
-}
-
-// GetCacheInfo 특정 설정의 캐시 정보 조회
-func (m *Manager) GetCacheInfo(apiType string, config map[string]interface{}) map[string]interface{} {
-	return m.cacheManager.GetCacheInfo(apiType, config)
 }
 
 // GetCacheManager 캐시 매니저 반환

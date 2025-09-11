@@ -9,6 +9,7 @@ import (
 	"github.com/taking/kubemigrate/internal/handler"
 	appMiddleware "github.com/taking/kubemigrate/internal/middleware"
 	"github.com/taking/kubemigrate/internal/response"
+	"github.com/taking/kubemigrate/pkg/cache"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
@@ -41,7 +42,7 @@ func NewRouter(cfg *config.Config, pluginManager *pluginpkg.Manager) *echo.Echo 
 	// 캐시 미들웨어 적용 (플러그인 라우트에만)
 	// 플러그인 매니저의 캐시 매니저 사용
 	cacheManager := pluginManager.GetCacheManager()
-	apiGroup.Use(appMiddleware.CacheMiddleware(cacheManager))
+	apiGroup.Use(cache.CacheMiddleware(cacheManager))
 
 	// 플러그인 라우트 등록
 	if err := pluginManager.RegisterAllRoutes(apiGroup); err != nil {

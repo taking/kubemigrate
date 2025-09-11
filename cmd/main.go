@@ -17,11 +17,10 @@ import (
 	"github.com/taking/kubemigrate/internal/logger"
 	"github.com/taking/kubemigrate/internal/server"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
-	"github.com/taking/kubemigrate/pkg/plugin/cache"
-	"github.com/taking/kubemigrate/pkg/plugin/helm"
-	"github.com/taking/kubemigrate/pkg/plugin/kubernetes"
-	"github.com/taking/kubemigrate/pkg/plugin/minio"
-	"github.com/taking/kubemigrate/pkg/plugin/velero"
+	"github.com/taking/kubemigrate/pkg/plugin/plugins/helm"
+	"github.com/taking/kubemigrate/pkg/plugin/plugins/kubernetes"
+	"github.com/taking/kubemigrate/pkg/plugin/plugins/minio"
+	"github.com/taking/kubemigrate/pkg/plugin/plugins/velero"
 )
 
 // @title KubeMigrate API Server
@@ -152,9 +151,7 @@ func setupPlugins() *pluginpkg.Manager {
 	if err := pluginManager.RegisterPlugin(velero.NewPlugin()); err != nil {
 		logger.Fatal("Failed to register Velero plugin", logger.ErrorAttr(err))
 	}
-	if err := pluginManager.RegisterPlugin(cache.NewPlugin()); err != nil {
-		logger.Fatal("Failed to register Cache plugin", logger.ErrorAttr(err))
-	}
+	// 캐시 플러그인은 별도로 등록하지 않음 (플러그인 매니저에서 자동 관리)
 
 	// 플러그인 초기화
 	if err := pluginManager.InitializeAllPlugins(); err != nil {

@@ -1,4 +1,4 @@
-package middleware
+package cache
 
 import (
 	"crypto/sha256"
@@ -10,11 +10,10 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/taking/kubemigrate/pkg/plugin/cache"
 )
 
 // CacheMiddleware 캐시 미들웨어
-func CacheMiddleware(cacheManager *cache.Manager) echo.MiddlewareFunc {
+func CacheMiddleware(cacheManager *Manager) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// 요청에서 설정 추출
@@ -199,7 +198,7 @@ func GetConfigHashFromContext(c echo.Context) string {
 }
 
 // InvalidateCacheByConfig 설정 변경 시 캐시 무효화
-func InvalidateCacheByConfig(cacheManager *cache.Manager, apiType string, oldConfig, newConfig map[string]interface{}) {
+func InvalidateCacheByConfig(cacheManager *Manager, apiType string, oldConfig, newConfig map[string]interface{}) {
 	// 설정이 변경되었는지 확인
 	if !reflect.DeepEqual(oldConfig, newConfig) {
 		cacheManager.Invalidate(apiType, oldConfig)
