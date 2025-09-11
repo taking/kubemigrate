@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/pkg/client"
 )
 
@@ -62,7 +63,7 @@ func (m *Manager) GetCachedClient(apiType string, config map[string]interface{})
 	m.missCount++
 
 	// 캐시에 없거나 만료되었으면 새로 생성
-	unifiedClient := client.NewClient()
+	unifiedClient := m.createClientWithConfig(apiType, config)
 	m.clients[cacheKey] = &CachedClient{
 		Client:    unifiedClient,
 		ApiType:   apiType,
@@ -73,6 +74,49 @@ func (m *Manager) GetCachedClient(apiType string, config map[string]interface{})
 
 	m.createCount++
 	return unifiedClient, nil
+}
+
+// createClientWithConfig 설정을 사용하여 클라이언트 생성
+func (m *Manager) createClientWithConfig(apiType string, configMap map[string]interface{}) client.Client {
+	// 설정 변환기 사용
+	converter := config.NewMapConfigConverter(configMap)
+
+	// API 타입에 따라 적절한 설정 추출
+	var kubeConfig *config.KubeConfig
+	var veleroConfig *config.VeleroConfig
+	var minioConfig *config.MinioConfig
+
+	// 모든 API 타입에서 공통으로 사용할 수 있는 설정들 추출
+	if kubeConfigRaw := converter.ToKubernetesConfig(); kubeConfigRaw != nil {
+		kubeConfig = kubeConfigRaw
+	}
+
+	if veleroConfigRaw := converter.ToVeleroConfig(); veleroConfigRaw != nil {
+		veleroConfig = veleroConfigRaw
+	}
+
+	if minioConfigRaw := converter.ToMinioConfig(); minioConfigRaw != nil {
+		minioConfig = minioConfigRaw
+	}
+
+	// API 타입에 따라 적절한 클라이언트 생성
+	switch apiType {
+	case "minio":
+		// MinIO API: minioConfig만 사용
+		return client.NewClientWithConfig(nil, nil, nil, minioConfig)
+	case "helm":
+		// Helm API: kubeConfig만 사용 (helmConfig는 kubeConfig와 동일)
+		return client.NewClientWithConfig(kubeConfig, kubeConfig, nil, nil)
+	case "kubernetes":
+		// Kubernetes API: kubeConfig만 사용
+		return client.NewClientWithConfig(kubeConfig, nil, nil, nil)
+	case "velero":
+		// Velero API: kubeConfig, veleroConfig, minioConfig 모두 사용
+		return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+	default:
+		// 알 수 없는 API 타입: 기본 클라이언트 반환
+		return client.NewClient()
+	}
 }
 
 // generateSimpleCacheKey 설정 기반 캐시 키 생성

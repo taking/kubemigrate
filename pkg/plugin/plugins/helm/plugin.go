@@ -4,20 +4,23 @@ import (
 	"context"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/cache"
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/utils"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/helm"
 	// "helm.sh/helm/v3/pkg/release" // 사용하지 않음
 )
 
 // HelmPlugin Helm 플러그인
 type HelmPlugin struct {
-	client    helm.Client
-	config    map[string]interface{}
-	validator *validator.KubernetesValidator
+	client       helm.Client
+	config       map[string]interface{}
+	validator    *validator.KubernetesValidator
+	cacheManager *cache.Manager
 }
 
 // NewPlugin 새로운 Helm 플러그인 생성
@@ -116,7 +119,20 @@ func (p *HelmPlugin) GetClient() interface{} {
 
 // SetPluginManager 플러그인 매니저 설정
 func (p *HelmPlugin) SetPluginManager(manager interface{}) {
-	// Helm 플러그인에서는 현재 사용하지 않음
+	// 플러그인 매니저에서 캐시 매니저 참조 설정
+	if pm, ok := manager.(interface{ GetCacheManager() *cache.Manager }); ok {
+		p.cacheManager = pm.GetCacheManager()
+	}
+}
+
+// getUnifiedClient 캐시 매니저를 통해 통합 클라이언트 가져오기
+func (p *HelmPlugin) getUnifiedClient(req config.KubeConfig) (client.Client, error) {
+	configMap := map[string]interface{}{
+		"kubeconfig": req.Config,
+		"namespace":  req.Namespace,
+	}
+
+	return p.cacheManager.GetCachedClient("helm", configMap)
 }
 
 // HealthCheckHandler 헬스체크 핸들러
@@ -126,8 +142,14 @@ func (p *HelmPlugin) HealthCheckHandler(c echo.Context) error {
 		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid request body", err.Error())
 	}
 
+	// 통합 클라이언트 가져오기
+	unifiedClient, err := p.getUnifiedClient(req)
+	if err != nil {
+		return errors.NewExternalError("helm", "ClientCreation", err)
+	}
+
 	// Helm 연결 테스트
-	_, err := p.client.GetCharts(c.Request().Context(), "default")
+	_, err = unifiedClient.Helm().GetCharts(c.Request().Context(), "default")
 	if err != nil {
 		return errors.NewExternalError("helm", "GetCharts", err)
 	}

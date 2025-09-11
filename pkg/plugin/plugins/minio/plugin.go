@@ -5,18 +5,21 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/cache"
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/minio"
 )
 
 // MinioPlugin MinIO 플러그인
 type MinioPlugin struct {
-	client    minio.Client
-	config    map[string]interface{}
-	validator *validator.MinioValidator
+	client       minio.Client
+	config       map[string]interface{}
+	validator    *validator.MinioValidator
+	cacheManager *cache.Manager
 }
 
 // NewPlugin 새로운 MinIO 플러그인 생성
@@ -124,7 +127,22 @@ func (p *MinioPlugin) GetClient() interface{} {
 
 // SetPluginManager 플러그인 매니저 설정
 func (p *MinioPlugin) SetPluginManager(manager interface{}) {
-	// Minio 플러그인에서는 현재 사용하지 않음
+	// 플러그인 매니저에서 캐시 매니저 참조 설정
+	if pm, ok := manager.(interface{ GetCacheManager() *cache.Manager }); ok {
+		p.cacheManager = pm.GetCacheManager()
+	}
+}
+
+// getUnifiedClient 캐시 매니저를 통해 통합 클라이언트 가져오기
+func (p *MinioPlugin) getUnifiedClient(req config.MinioConfig) (client.Client, error) {
+	configMap := map[string]interface{}{
+		"endpoint":  req.Endpoint,
+		"accessKey": req.AccessKey,
+		"secretKey": req.SecretKey,
+		"useSSL":    req.UseSSL,
+	}
+
+	return p.cacheManager.GetCachedClient("minio", configMap)
 }
 
 // HealthCheckHandler 헬스체크 핸들러
@@ -134,8 +152,14 @@ func (p *MinioPlugin) HealthCheckHandler(c echo.Context) error {
 		return errors.NewValidationError(errors.CodeInvalidRequest, "Invalid request body", err.Error())
 	}
 
+	// 통합 클라이언트 가져오기
+	unifiedClient, err := p.getUnifiedClient(req)
+	if err != nil {
+		return errors.NewExternalError("minio", "ClientCreation", err)
+	}
+
 	// MinIO 연결 테스트
-	_, err := p.client.ListBuckets(c.Request().Context())
+	_, err = unifiedClient.Minio().ListBuckets(c.Request().Context())
 	if err != nil {
 		return errors.NewExternalError("minio", "ListBuckets", err)
 	}
@@ -158,7 +182,13 @@ func (p *MinioPlugin) CheckBucketExistsHandler(c echo.Context) error {
 		return errors.NewValidationError(errors.CodeMissingParameter, "Missing bucket name", "bucket parameter is required")
 	}
 
-	exists, err := p.client.BucketExists(c.Request().Context(), bucketName)
+	// 통합 클라이언트 가져오기
+	unifiedClient, err := p.getUnifiedClient(req)
+	if err != nil {
+		return errors.NewExternalError("minio", "ClientCreation", err)
+	}
+
+	exists, err := unifiedClient.Minio().BucketExists(c.Request().Context(), bucketName)
 	if err != nil {
 		return errors.NewExternalError("minio", "BucketExists", err)
 	}

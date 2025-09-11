@@ -3,7 +3,6 @@ package minio
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -11,7 +10,6 @@ import (
 	"github.com/taking/kubemigrate/internal/api"
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/errors"
-	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/minio"
 )
@@ -372,25 +370,22 @@ func (h *Handler) PutObject(c echo.Context) error {
 		_ = src.Close() // 에러 무시 (defer에서 에러 반환 불가)
 	}()
 
-	// MinIO 클라이언트 생성
-	minioClient, err := minio.NewClientWithConfig(minioConfig)
-	if err != nil {
-		return errors.NewInternalError("minio_client_creation", err)
-	}
+	// HandleResourceClient를 사용하여 일관성 유지
+	return h.HandleResourceClient(c, "put-object", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// 객체 업로드
+		uploadInfo, err := client.Minio().PutObject(ctx, bucketName, objectName, src, file.Size)
+		if err != nil {
+			return nil, errors.NewExternalError("minio", "PutObject", err)
+		}
 
-	// 객체 업로드
-	uploadInfo, err := minioClient.PutObject(c.Request().Context(), bucketName, objectName, src, file.Size)
-	if err != nil {
-		return errors.NewExternalError("minio", "PutObject", err)
-	}
-
-	uploadData := map[string]interface{}{
-		"bucket":     bucketName,
-		"object":     objectName,
-		"uploadInfo": uploadInfo,
-		"status":     "uploaded",
-	}
-	return response.RespondWithData(c, http.StatusOK, uploadData)
+		uploadData := map[string]interface{}{
+			"bucket":     bucketName,
+			"object":     objectName,
+			"uploadInfo": uploadInfo,
+			"status":     "uploaded",
+		}
+		return uploadData, nil
+	})
 }
 
 // DeleteObject : 객체 삭제

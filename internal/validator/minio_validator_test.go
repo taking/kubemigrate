@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/taking/kubemigrate/internal/config"
@@ -13,8 +14,8 @@ func TestNewMinioValidator(t *testing.T) {
 	if v == nil {
 		t.Fatal("NewMinioValidator() returned nil")
 	}
-	if v.endpointPattern == nil {
-		t.Error("endpointPattern is nil")
+	if v.hostPortPattern == nil {
+		t.Error("hostPortPattern is nil")
 	}
 	if v.accessKeyPattern == nil {
 		t.Error("accessKeyPattern is nil")
@@ -84,7 +85,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "minio endpoint is required",
+			errMsg:  "endpoint is required",
 		},
 		{
 			name: "잘못된 엔드포인트 형식",
@@ -95,7 +96,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "minio endpoint must be a valid hostname or IP with optional port",
+			errMsg:  "must be in format 'hostname:port' or 'hostname'",
 		},
 		{
 			name: "잘못된 엔드포인트 패턴",
@@ -106,7 +107,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "minio endpoint must be a valid hostname or IP with optional port",
+			errMsg:  "must be in format 'hostname:port' or 'hostname'",
 		},
 		{
 			name: "빈 액세스 키",
@@ -117,7 +118,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "invalid minio access key format",
+			errMsg:  "access key is required",
 		},
 		{
 			name: "너무 짧은 액세스 키",
@@ -128,7 +129,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "invalid minio access key format",
+			errMsg:  "access key must be at least 3 characters long",
 		},
 		{
 			name: "특수문자가 포함된 액세스 키",
@@ -139,7 +140,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "invalid minio access key format",
+			errMsg:  "access key must be at least 3 characters long and contain only letters and numbers",
 		},
 		{
 			name: "빈 시크릿 키",
@@ -150,7 +151,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "invalid minio secret key format (min 8 chars, no spaces)",
+			errMsg:  "secret key is required",
 		},
 		{
 			name: "너무 짧은 시크릿 키",
@@ -161,7 +162,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "invalid minio secret key format (min 8 chars, no spaces)",
+			errMsg:  "secret key must be at least 8 characters long",
 		},
 		{
 			name: "공백이 포함된 시크릿 키",
@@ -172,7 +173,7 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 				UseSSL:    false,
 			},
 			wantErr: true,
-			errMsg:  "invalid minio secret key format (min 8 chars, no spaces)",
+			errMsg:  "secret key must be at least 8 characters long and cannot contain spaces",
 		},
 		{
 			name: "숫자가 포함된 유효한 액세스 키",
@@ -255,5 +256,5 @@ func TestMinioValidator_ValidateMinioConfig(t *testing.T) {
 // contains - 문자열 포함 여부 확인 유틸리티 함수
 // s가 substr을 포함하는지 확인
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[:len(substr)] == substr
+	return strings.Contains(s, substr)
 }
