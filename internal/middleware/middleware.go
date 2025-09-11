@@ -7,7 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/taking/kubemigrate/internal/config"
-	"github.com/taking/kubemigrate/pkg/errors"
+	"github.com/taking/kubemigrate/internal/errors"
 )
 
 // SetupMiddleware : Echo 서버에 공통 미들웨어 설정

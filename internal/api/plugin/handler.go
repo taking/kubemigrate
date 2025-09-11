@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/internal/response"
-	"github.com/taking/kubemigrate/pkg/errors"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
 )
 

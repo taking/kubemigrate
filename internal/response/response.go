@@ -5,12 +5,20 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/logger"
-	responseTypes "github.com/taking/kubemigrate/pkg/response"
 )
+
+// SuccessResponse 표준 성공 응답 구조체
+type SuccessResponse struct {
+	Status    string      `json:"status"`               // 항상 "success"
+	Message   string      `json:"message,omitempty"`    // 성공 메시지 (선택적)
+	Data      interface{} `json:"data,omitempty"`       // 응답 데이터 (선택적)
+	Timestamp time.Time   `json:"timestamp"`            // 응답 생성 시각
+	RequestID string      `json:"request_id,omitempty"` // 요청 추적용 ID (선택적)
+}
 
 // RespondWithSuccessModel : 새로운 SuccessResponse 모델을 사용하여 성공 응답을 보냅니다
 func RespondWithSuccessModel(ctx echo.Context, statusCode int, message string, data interface{}) error {
-	response := &responseTypes.SuccessResponse{
+	response := &SuccessResponse{
 		Status:    "success",
 		Message:   message,
 		Data:      data,
@@ -34,7 +42,7 @@ func RespondWithSuccessModel(ctx echo.Context, statusCode int, message string, d
 
 // RespondWithData : 데이터만 포함하는 간단한 성공 응답 (중복 방지)
 func RespondWithData(ctx echo.Context, statusCode int, data interface{}) error {
-	response := &responseTypes.SuccessResponse{
+	response := &SuccessResponse{
 		Status:    "success",
 		Data:      data,
 		Timestamp: time.Now().UTC(),
@@ -56,7 +64,7 @@ func RespondWithData(ctx echo.Context, statusCode int, data interface{}) error {
 
 // RespondWithMessage : 메시지만 포함하는 간단한 성공 응답
 func RespondWithMessage(ctx echo.Context, statusCode int, message string) error {
-	response := &responseTypes.SuccessResponse{
+	response := &SuccessResponse{
 		Status:    "success",
 		Message:   message,
 		Timestamp: time.Now().UTC(),

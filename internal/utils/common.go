@@ -9,8 +9,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/validator"
-	"github.com/taking/kubemigrate/pkg/errors"
 )
 
 // StripManagedFields 리소스의 metadata.managedFields를 제거

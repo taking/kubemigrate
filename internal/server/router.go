@@ -9,9 +9,9 @@ import (
 	"github.com/taking/kubemigrate/internal/handler"
 	appMiddleware "github.com/taking/kubemigrate/internal/middleware"
 	"github.com/taking/kubemigrate/internal/response"
+	"github.com/taking/kubemigrate/internal/utils"
 	"github.com/taking/kubemigrate/pkg/cache"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
-	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // NewRouter 새로운 라우터를 생성합니다 (플러그인 아키텍처)

@@ -5,8 +5,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/logger"
-	"github.com/taking/kubemigrate/pkg/errors"
 )
 
 // ErrorHandlerMiddleware 에러 처리 미들웨어
