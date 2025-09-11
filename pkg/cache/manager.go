@@ -16,7 +16,7 @@ import (
 type CachedClient struct {
 	Client    client.Client
 	ApiType   string
-	Config    map[string]interface{} // 원본 설정 정보 저장
+	Config    any // 구체적인 타입으로 변경
 	CreatedAt time.Time
 	TTL       time.Duration
 }
@@ -93,29 +93,32 @@ func (m *Manager) generateSimpleCacheKey(apiType string, config map[string]inter
 }
 
 // generateReadableCacheKey 읽기 쉬운 캐시 키 생성 (디버깅용)
-func (m *Manager) generateReadableCacheKey(apiType string, config map[string]interface{}) string {
+func (m *Manager) generateReadableCacheKey(apiType string, config any) string {
 	// 주요 설정만 추출하여 읽기 쉬운 키 생성
 	keyParts := []string{apiType}
 
-	if kubeConfig, ok := config["kubeconfig"].(string); ok && kubeConfig != "" {
-		// kubeconfig의 마지막 8자리만 사용
-		if len(kubeConfig) > 8 {
-			keyParts = append(keyParts, "kube:"+kubeConfig[len(kubeConfig)-8:])
-		} else {
-			keyParts = append(keyParts, "kube:"+kubeConfig)
+	// config가 map[string]interface{}인 경우 처리
+	if configMap, ok := config.(map[string]interface{}); ok {
+		if kubeConfig, ok := configMap["kubeconfig"].(string); ok && kubeConfig != "" {
+			// kubeconfig의 마지막 8자리만 사용
+			if len(kubeConfig) > 8 {
+				keyParts = append(keyParts, "kube:"+kubeConfig[len(kubeConfig)-8:])
+			} else {
+				keyParts = append(keyParts, "kube:"+kubeConfig)
+			}
 		}
-	}
 
-	if endpoint, ok := config["minio_endpoint"].(string); ok && endpoint != "" {
-		keyParts = append(keyParts, "minio:"+endpoint)
-	}
+		if endpoint, ok := configMap["minio_endpoint"].(string); ok && endpoint != "" {
+			keyParts = append(keyParts, "minio:"+endpoint)
+		}
 
-	if accessKey, ok := config["minio_access_key"].(string); ok && accessKey != "" {
-		// access key의 첫 4자리만 사용
-		if len(accessKey) > 4 {
-			keyParts = append(keyParts, "key:"+accessKey[:4])
-		} else {
-			keyParts = append(keyParts, "key:"+accessKey)
+		if accessKey, ok := configMap["minio_access_key"].(string); ok && accessKey != "" {
+			// access key의 첫 4자리만 사용
+			if len(accessKey) > 4 {
+				keyParts = append(keyParts, "key:"+accessKey[:4])
+			} else {
+				keyParts = append(keyParts, "key:"+accessKey)
+			}
 		}
 	}
 
@@ -123,7 +126,7 @@ func (m *Manager) generateReadableCacheKey(apiType string, config map[string]int
 }
 
 // GetStats 캐시 통계 조회
-func (m *Manager) GetStats() map[string]interface{} {
+func (m *Manager) GetStats() CacheStats {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -144,7 +147,7 @@ func (m *Manager) GetStats() map[string]interface{} {
 	}
 
 	// 활성 클라이언트 상세 정보 수집
-	activeClients := make([]map[string]interface{}, 0)
+	activeClients := make([]ActiveClientInfo, 0)
 
 	for key, cachedClient := range m.clients {
 		// 만료된 클라이언트는 건너뛰기
@@ -155,71 +158,38 @@ func (m *Manager) GetStats() map[string]interface{} {
 		// 저장된 설정 정보를 사용하여 읽기 쉬운 키 생성
 		readableKey := m.generateReadableCacheKey(cachedClient.ApiType, cachedClient.Config)
 
-		clientInfo := map[string]interface{}{
-			"cache_key":         key,
-			"readable_key":      readableKey,
-			"api_type":          cachedClient.ApiType,
-			"config":            cachedClient.Config,
-			"created_at":        cachedClient.CreatedAt.Format("2006-01-02 15:04:05"),
-			"age_seconds":       int(time.Since(cachedClient.CreatedAt).Seconds()),
-			"ttl_seconds":       int(cachedClient.TTL.Seconds()),
-			"is_expired":        cachedClient.IsExpired(),
-			"expires_at":        cachedClient.CreatedAt.Add(cachedClient.TTL).Format("2006-01-02 15:04:05"),
-			"remaining_seconds": int(cachedClient.TTL.Seconds() - time.Since(cachedClient.CreatedAt).Seconds()),
+		clientInfo := ActiveClientInfo{
+			ApiType:          cachedClient.ApiType,
+			CacheKey:         key,
+			ReadableKey:      readableKey,
+			CreatedAt:        cachedClient.CreatedAt,
+			ExpiresAt:        cachedClient.CreatedAt.Add(cachedClient.TTL),
+			AgeSeconds:       int(time.Since(cachedClient.CreatedAt).Seconds()),
+			RemainingSeconds: int(cachedClient.TTL.Seconds() - time.Since(cachedClient.CreatedAt).Seconds()),
+			TTLSeconds:       int(cachedClient.TTL.Seconds()),
+			IsExpired:        cachedClient.IsExpired(),
+			Config:           maskSensitiveConfig(cachedClient.Config),
 		}
 
 		activeClients = append(activeClients, clientInfo)
 	}
 
-	// 활성 클라이언트만 간소화된 정보로 표시
-	simplifiedActiveClients := make([]map[string]interface{}, 0)
-	for _, client := range activeClients {
-		simplifiedClient := map[string]interface{}{
-			"api_type":          client["api_type"],
-			"readable_key":      client["readable_key"],
-			"age_seconds":       client["age_seconds"],
-			"remaining_seconds": client["remaining_seconds"],
-		}
-
-		// 설정 정보가 있으면 주요 설정만 표시
-		if config, ok := client["config"].(map[string]interface{}); ok && len(config) > 0 {
-			simplifiedConfig := make(map[string]interface{})
-			for key, value := range config {
-				// 민감한 정보는 마스킹
-				if key == "kubeconfig" || key == "minio_secret_key" {
-					if str, ok := value.(string); ok && len(str) > 8 {
-						simplifiedConfig[key] = "***" + str[len(str)-8:]
-					} else {
-						simplifiedConfig[key] = "***"
-					}
-				} else {
-					simplifiedConfig[key] = value
-				}
-			}
-			simplifiedClient["config"] = simplifiedConfig
-		}
-
-		simplifiedActiveClients = append(simplifiedActiveClients, simplifiedClient)
-	}
-
-	// 순서가 보장되는 map 생성 (Go 1.18+에서는 map 순서가 보장됨)
-	stats := make(map[string]interface{})
-
-	// 1. summary 먼저
-	stats["summary"] = map[string]interface{}{
-		"total_clients":   len(m.clients),
-		"active_clients":  len(m.clients) - expiredCount,
-		"expired_clients": expiredCount,
-	}
-
-	// 2. active_clients
-	stats["active_clients"] = simplifiedActiveClients
-
-	// 3. performance 마지막
-	stats["performance"] = map[string]interface{}{
-		"hit_rate":       fmt.Sprintf("%.2f%%", hitRate),
-		"miss_rate":      fmt.Sprintf("%.2f%%", missRate),
-		"total_requests": m.hitCount + m.missCount,
+	// 통계 정보 구성
+	stats := CacheStats{
+		Summary: CacheSummary{
+			TotalClients:   len(m.clients),
+			ActiveClients:  len(m.clients) - expiredCount,
+			ExpiredClients: expiredCount,
+		},
+		ActiveClients: activeClients,
+		Performance: PerformanceStats{
+			HitCount:      int(m.hitCount),
+			MissCount:     int(m.missCount),
+			CreateCount:   int(m.createCount),
+			HitRate:       fmt.Sprintf("%.2f%%", hitRate),
+			MissRate:      fmt.Sprintf("%.2f%%", missRate),
+			TotalRequests: int(totalRequests),
+		},
 	}
 
 	return stats
@@ -283,8 +253,66 @@ func (m *Manager) GetCacheInfo(apiType string, config map[string]interface{}) ma
 	return map[string]interface{}{
 		"api_type":  apiType,
 		"cache_key": cacheKey,
-		"config":    config,
+		"config":    maskSensitiveConfig(config),
 		"exists":    exists,
 		"status":    "cache_info_retrieved",
 	}
+}
+
+// maskSensitiveConfig 민감한 정보를 마스킹 처리
+func maskSensitiveConfig(config any) any {
+	if config == nil {
+		return nil
+	}
+
+	// map[string]interface{} 타입인 경우
+	if configMap, ok := config.(map[string]interface{}); ok {
+		maskedConfig := make(map[string]interface{})
+
+		for key, value := range configMap {
+			switch key {
+			case "kubeconfig":
+				if str, ok := value.(string); ok && str != "" {
+					// kubeconfig는 길이에 따라 마스킹
+					if len(str) > 20 {
+						maskedConfig[key] = str[:10] + "..." + str[len(str)-10:]
+					} else {
+						maskedConfig[key] = "***masked***"
+					}
+				} else {
+					maskedConfig[key] = value
+				}
+			case "minio_access_key", "accessKey":
+				if str, ok := value.(string); ok && str != "" {
+					// access key는 앞 4자리만 보여주고 나머지 마스킹
+					if len(str) > 4 {
+						maskedConfig[key] = str[:4] + "***masked***"
+					} else {
+						maskedConfig[key] = "***masked***"
+					}
+				} else {
+					maskedConfig[key] = value
+				}
+			case "minio_secret_key", "secretKey":
+				// secret key는 완전 마스킹
+				maskedConfig[key] = "***masked***"
+			case "minio_endpoint", "endpoint":
+				// endpoint는 그대로 유지 (민감하지 않음)
+				maskedConfig[key] = value
+			case "minio_use_ssl", "useSSL":
+				// useSSL은 그대로 유지 (민감하지 않음)
+				maskedConfig[key] = value
+			case "namespace":
+				// namespace는 그대로 유지 (민감하지 않음)
+				maskedConfig[key] = value
+			default:
+				// 기타 필드는 그대로 유지
+				maskedConfig[key] = value
+			}
+		}
+		return maskedConfig
+	}
+
+	// 기타 타입은 그대로 반환
+	return config
 }

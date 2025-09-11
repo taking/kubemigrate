@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/cache"
 	"github.com/taking/kubemigrate/pkg/client"
@@ -40,6 +42,21 @@ func (p *CachePlugin) Description() string {
 // Initialize 플러그인 초기화
 func (p *CachePlugin) Initialize(config map[string]interface{}) error {
 	p.config = config
+	return nil
+}
+
+// InitializeWithTypedConfig 타입 안전 설정으로 플러그인 초기화
+func (p *CachePlugin) InitializeWithTypedConfig(config *config.PluginConfigData) error {
+	if config == nil {
+		return errors.NewValidationError(errors.CodeInvalidRequest, "INVALID_CONFIG", "Cache configuration is required")
+	}
+
+	// 기존 map 기반 설정으로 변환 (호환성 유지)
+	p.config = map[string]interface{}{
+		"api_type": config.Cache.ApiType,
+		"data":     config.Cache.Data,
+	}
+
 	return nil
 }
 
@@ -80,10 +97,11 @@ func (p *CachePlugin) RegisterRoutes(router *echo.Group) error {
 // HealthCheck 헬스체크
 func (p *CachePlugin) HealthCheck(ctx context.Context) error {
 	// 캐시가 정상적으로 작동하는지 확인
-	stats := p.cacheManager.GetStats()
-	if stats == nil {
+	if p.cacheManager == nil {
 		return echo.NewHTTPError(500, "Cache not initialized")
 	}
+	stats := p.cacheManager.GetStats()
+	_ = stats // 사용하지 않지만 호환성을 위해 유지
 	return nil
 }
 

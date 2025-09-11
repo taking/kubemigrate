@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Load : 환경변수 기반으로 Config 구조체 생성
+// Load 환경변수 기반으로 Config 구조체 생성
 // 환경변수가 없으면 기본값 사용
 func Load() *Config {
 	return &Config{
@@ -27,7 +27,7 @@ func Load() *Config {
 	}
 }
 
-// getEnvOrDefault : 환경변수 key가 존재하면 반환, 없으면 defaultValue 반환
+// getEnvOrDefault 환경변수 key가 존재하면 반환, 없으면 defaultValue 반환
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -35,7 +35,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-// getDurationOrDefault : 환경변수 key가 존재하면 time.Duration로 변환하여 반환
+// getDurationOrDefault 환경변수 key가 존재하면 time.Duration로 변환하여 반환
 // 변환 실패 시 기본값(defaultValue) 사용
 func getDurationOrDefault(key string, defaultValue time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {

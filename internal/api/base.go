@@ -1,4 +1,4 @@
-package handler
+package api
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/taking/kubemigrate/pkg/client"
 )
 
-// BaseHandler : 모든 핸들러의 기본 구조
+// BaseHandler 모든 API 핸들러의 기본 구조
 type BaseHandler struct {
 	KubernetesValidator *validator.KubernetesValidator
 	MinioValidator      *validator.MinioValidator
@@ -25,7 +25,7 @@ type BaseHandler struct {
 	cacheManager        *cache.Manager
 }
 
-// NewBaseHandler : 기본 핸들러 생성
+// NewBaseHandler 기본 API 핸들러 생성
 func NewBaseHandler(workerPool *pkgutils.WorkerPool) *BaseHandler {
 	return &BaseHandler{
 		KubernetesValidator: validator.NewKubernetesValidator(),
@@ -35,9 +35,11 @@ func NewBaseHandler(workerPool *pkgutils.WorkerPool) *BaseHandler {
 	}
 }
 
-// HandleResourceClient : 통합 클라이언트를 사용한 리소스 처리
+// HandleResourceClient 통합 클라이언트를 사용한 리소스 처리
 func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 	getResource func(client.Client, context.Context) (interface{}, error)) error {
+
+	fmt.Println("#1")
 
 	// API 타입별 설정 파싱 및 검증
 	kubeConfig, veleroConfig, minioConfig, err := h.parseAndValidateConfig(c)
@@ -50,17 +52,18 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 
 	// 캐시에서 클라이언트 조회 또는 생성
 	configMap := map[string]interface{}{
-		"kubeconfig":       kubeConfig.Config,
-		"minio_endpoint":   minioConfig.Endpoint,
-		"minio_access_key": minioConfig.AccessKey,
-		"minio_secret_key": minioConfig.SecretKey,
-		"minio_use_ssl":    minioConfig.UseSSL,
+		"kubeconfig": kubeConfig.Config,
+		"endpoint":   minioConfig.Endpoint,
+		"accessKey":  minioConfig.AccessKey,
+		"secretKey":  minioConfig.SecretKey,
+		"useSSL":     minioConfig.UseSSL,
 	}
 
 	unifiedClient, err := h.cacheManager.GetCachedClient(apiType, configMap)
 	if err != nil {
 		// 캐시 오류 시 새 클라이언트 생성
 		if strings.Contains(c.Request().URL.Path, "/minio/") {
+			// MinIO API일 때는 minioConfig만 사용
 			unifiedClient = client.NewClientWithConfig(nil, nil, nil, minioConfig)
 		} else {
 			unifiedClient = client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
@@ -84,13 +87,16 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 	return response.RespondWithData(c, http.StatusOK, resource)
 }
 
-// parseAndValidateConfig : API 타입별 설정 파싱 및 검증
+// parseAndValidateConfig API 타입별 설정 파싱 및 검증
 func (h *BaseHandler) parseAndValidateConfig(c echo.Context) (
 	config.KubeConfig, config.VeleroConfig, config.MinioConfig, error) {
 
 	var kubeConfig config.KubeConfig
 	var veleroConfig config.VeleroConfig
 	var minioConfig config.MinioConfig
+
+	fmt.Println("#2")
+	fmt.Println("minioConfig", minioConfig)
 
 	// MinIO API인지 확인
 	isMinioAPI := strings.Contains(c.Request().URL.Path, "/minio/")
@@ -113,7 +119,7 @@ func (h *BaseHandler) parseAndValidateConfig(c echo.Context) (
 	return kubeConfig, veleroConfig, minioConfig, errors.NewValidationError(errors.CodeUnsupportedPath, "Unsupported API path", fmt.Sprintf("API path not supported: %s", c.Request().URL.Path))
 }
 
-// parseKubeConfig : Kubernetes 설정 파싱 및 검증
+// parseKubeConfig Kubernetes 설정 파싱 및 검증
 func (h *BaseHandler) parseKubeConfig(c echo.Context, kubeConfig *config.KubeConfig) error {
 	var req struct {
 		KubeConfig string `json:"kubeconfig"`
@@ -131,7 +137,7 @@ func (h *BaseHandler) parseKubeConfig(c echo.Context, kubeConfig *config.KubeCon
 	return nil
 }
 
-// parseMinioConfig : MinIO 설정 파싱 및 검증
+// parseMinioConfig MinIO 설정 파싱 및 검증
 func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.MinioConfig) error {
 	var req struct {
 		Endpoint  string `json:"endpoint"`
@@ -157,7 +163,7 @@ func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.Minio
 	return nil
 }
 
-// parseVeleroConfig : Velero 설정 파싱 및 검증
+// parseVeleroConfig Velero 설정 파싱 및 검증
 func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeConfig,
 	veleroConfig *config.VeleroConfig, minioConfig *config.MinioConfig) error {
 
@@ -190,34 +196,34 @@ func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeC
 	return nil
 }
 
-// GetCacheStats : 캐시 통계 정보 조회
-func (h *BaseHandler) GetCacheStats() map[string]interface{} {
+// GetCacheStats 캐시 통계 정보 조회
+func (h *BaseHandler) GetCacheStats() cache.CacheStats {
 	return h.cacheManager.GetStats()
 }
 
-// CleanupCache : 만료된 캐시 정리
+// CleanupCache 만료된 캐시 정리
 func (h *BaseHandler) CleanupCache() {
 	h.cacheManager.Cleanup()
 }
 
-// InvalidateCache : 특정 설정의 캐시 무효화
+// InvalidateCache 특정 설정의 캐시 무효화
 func (h *BaseHandler) InvalidateCache(apiType string, kubeConfig config.KubeConfig, helmConfig config.KubeConfig, veleroConfig config.VeleroConfig, minioConfig config.MinioConfig) {
 	configMap := map[string]interface{}{
-		"kubeconfig":       kubeConfig.Config,
-		"minio_endpoint":   minioConfig.Endpoint,
-		"minio_access_key": minioConfig.AccessKey,
-		"minio_secret_key": minioConfig.SecretKey,
-		"minio_use_ssl":    minioConfig.UseSSL,
+		"kubeconfig": kubeConfig.Config,
+		"endpoint":   minioConfig.Endpoint,
+		"accessKey":  minioConfig.AccessKey,
+		"secretKey":  minioConfig.SecretKey,
+		"useSSL":     minioConfig.UseSSL,
 	}
 	h.cacheManager.Invalidate(apiType, configMap)
 }
 
-// InvalidateAllCache : 모든 캐시 무효화
+// InvalidateAllCache 모든 캐시 무효화
 func (h *BaseHandler) InvalidateAllCache() {
 	h.cacheManager.InvalidateAll()
 }
 
-// detectApiType : API 타입 감지
+// detectApiType API 타입 감지
 func (h *BaseHandler) detectApiType(path string) string {
 	if strings.Contains(path, "/minio/") {
 		return "minio"

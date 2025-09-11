@@ -1866,7 +1866,6 @@ const docTemplate = `{
             ],
             "properties": {
                 "kubeconfig": {
-                    "description": "[필수] Base64 인코딩된 KubeConfig 값",
                     "type": "string",
                     "example": "base64 인코딩된 KubeConfig 값"
                 }
@@ -1881,22 +1880,18 @@ const docTemplate = `{
             ],
             "properties": {
                 "accessKey": {
-                    "description": "[필수] minio accessKey",
                     "type": "string",
                     "example": "your_minio_accessKey"
                 },
                 "endpoint": {
-                    "description": "[필수] minio endpoint 주소",
                     "type": "string",
                     "example": "127.0.0.1:9000"
                 },
                 "secretKey": {
-                    "description": "[필수] minio secretKey",
                     "type": "string",
                     "example": "your_minio_secretKey"
                 },
                 "useSSL": {
-                    "description": "[필수] minio useSSL 여부 (false: http / true: https)",
                     "type": "boolean",
                     "example": false
                 }

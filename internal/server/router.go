@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/api"
 	"github.com/taking/kubemigrate/internal/api/plugin"
 	"github.com/taking/kubemigrate/internal/config"
-	"github.com/taking/kubemigrate/internal/handler"
 	appMiddleware "github.com/taking/kubemigrate/internal/middleware"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/utils"
@@ -25,7 +25,7 @@ func NewRouter(cfg *config.Config, pluginManager *pluginpkg.Manager) *echo.Echo 
 	workerPool := utils.NewWorkerPool(10) // 10개 워커
 
 	// BaseHandler 생성
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := api.NewBaseHandler(workerPool)
 
 	// 백그라운드 캐시 정리 작업 시작 (1분마다)
 	go func() {

@@ -8,9 +8,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	minioSDK "github.com/minio/minio-go/v7"
+	"github.com/taking/kubemigrate/internal/api"
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/errors"
-	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/minio"
@@ -18,11 +18,11 @@ import (
 
 // Handler : MinIO 관련 HTTP 핸들러
 type Handler struct {
-	*handler.BaseHandler
+	*api.BaseHandler
 }
 
 // NewHandler : 새로운 MinIO 핸들러 생성
-func NewHandler(base *handler.BaseHandler) *Handler {
+func NewHandler(base *api.BaseHandler) *Handler {
 	return &Handler{
 		BaseHandler: base,
 	}

@@ -51,6 +51,26 @@ func (p *MinioPlugin) Initialize(config map[string]interface{}) error {
 	return nil
 }
 
+// InitializeWithTypedConfig 타입 안전 설정으로 플러그인 초기화
+func (p *MinioPlugin) InitializeWithTypedConfig(config *config.PluginConfigData) error {
+	if config == nil || config.Minio == nil {
+		return errors.NewValidationError(errors.CodeInvalidRequest, "INVALID_CONFIG", "MinIO configuration is required")
+	}
+
+	// 기존 map 기반 설정으로 변환 (호환성 유지)
+	p.config = map[string]interface{}{
+		"endpoint":  config.Minio.Endpoint,
+		"accessKey": config.Minio.AccessKey,
+		"secretKey": config.Minio.SecretKey,
+		"useSSL":    config.Minio.UseSSL,
+	}
+
+	// MinIO 클라이언트 초기화
+	p.client = minio.NewClient()
+
+	return nil
+}
+
 // Shutdown 플러그인 종료
 func (p *MinioPlugin) Shutdown() error {
 	// 정리 작업이 필요한 경우 여기에 구현

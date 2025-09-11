@@ -1,17 +1,16 @@
-package middleware
+package errors
 
 import (
 	"fmt"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/config"
-	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/logger"
 )
 
 // ErrorHandlerMiddleware 에러 처리 미들웨어
 func ErrorHandlerMiddleware(cfg *config.Config) echo.MiddlewareFunc {
-	errorHandler := errors.NewErrorHandler(logger.GetLogger(), cfg.Logging.Level == "debug")
+	errorHandler := NewErrorHandler(logger.GetLogger(), cfg.Logging.Level == "debug")
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -36,11 +35,11 @@ func RecoveryMiddleware() echo.MiddlewareFunc {
 			defer func() {
 				if r := recover(); r != nil {
 					// 패닉을 에러로 변환
-					err := errors.NewInternalError("panic_recovery",
-						errors.NewInternalError("panic", fmt.Errorf("%v", r)))
+					err := NewInternalError("panic_recovery",
+						NewInternalError("panic", fmt.Errorf("%v", r)))
 
 					// 에러 처리
-					errorHandler := errors.NewErrorHandler(logger.GetLogger(), true)
+					errorHandler := NewErrorHandler(logger.GetLogger(), true)
 					_ = errorHandler.HandleError(c, err, "PANIC_RECOVERY")
 				}
 			}()

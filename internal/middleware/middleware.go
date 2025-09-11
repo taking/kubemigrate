@@ -25,10 +25,10 @@ func SetupMiddleware(e *echo.Echo, cfg *config.Config) {
 	}))
 
 	// 에러 처리 미들웨어 (Recover 전에 배치)
-	e.Use(ErrorHandlerMiddleware(cfg))
+	e.Use(errors.ErrorHandlerMiddleware(cfg))
 
 	// Recover 미들웨어: Panic 발생 시 서버 종료 방지 및 500 응답 반환
-	e.Use(RecoveryMiddleware())
+	e.Use(errors.RecoveryMiddleware())
 
 	// CORS 설정: 모든 도메인 허용, GET/POST/PUT/DELETE/OPTIONS 메서드 허용
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{

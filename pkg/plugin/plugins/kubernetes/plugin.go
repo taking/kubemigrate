@@ -53,6 +53,24 @@ func (p *KubernetesPlugin) Initialize(config map[string]interface{}) error {
 	return nil
 }
 
+// InitializeWithTypedConfig 타입 안전 설정으로 플러그인 초기화
+func (p *KubernetesPlugin) InitializeWithTypedConfig(config *config.PluginConfigData) error {
+	if config == nil || config.Kubernetes == nil {
+		return errors.NewValidationError(errors.CodeInvalidRequest, "INVALID_CONFIG", "Kubernetes configuration is required")
+	}
+
+	// 기존 map 기반 설정으로 변환 (호환성 유지)
+	p.config = map[string]interface{}{
+		"kubeconfig": config.Kubernetes.Config,
+		"namespace":  config.Kubernetes.Namespace,
+	}
+
+	// 기본 클라이언트 초기화
+	p.client = kubernetes.NewClient()
+
+	return nil
+}
+
 // Shutdown 플러그인 종료
 func (p *KubernetesPlugin) Shutdown() error {
 	// 정리 작업이 필요한 경우 여기에 구현

@@ -53,6 +53,29 @@ func (p *VeleroPlugin) Initialize(config map[string]interface{}) error {
 	return nil
 }
 
+// InitializeWithTypedConfig 타입 안전 설정으로 플러그인 초기화
+func (p *VeleroPlugin) InitializeWithTypedConfig(config *config.PluginConfigData) error {
+	if config == nil || config.Velero == nil {
+		return errors.NewValidationError(errors.CodeInvalidRequest, "INVALID_CONFIG", "Velero configuration is required")
+	}
+
+	// 기존 map 기반 설정으로 변환 (호환성 유지)
+	p.config = map[string]interface{}{
+		"kubeconfig": config.Velero.KubeConfig,
+		"minio": map[string]interface{}{
+			"endpoint":  config.Velero.MinioConfig.Endpoint,
+			"accessKey": config.Velero.MinioConfig.AccessKey,
+			"secretKey": config.Velero.MinioConfig.SecretKey,
+			"useSSL":    config.Velero.MinioConfig.UseSSL,
+		},
+	}
+
+	// Velero 클라이언트 초기화
+	p.client = velero.NewClient()
+
+	return nil
+}
+
 // Shutdown 플러그인 종료
 func (p *VeleroPlugin) Shutdown() error {
 	// 정리 작업이 필요한 경우 여기에 구현

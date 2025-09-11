@@ -4,20 +4,20 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/api"
 	"github.com/taking/kubemigrate/internal/errors"
-	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/internal/response"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
 )
 
 // Handler 플러그인 관리 핸들러
 type Handler struct {
-	*handler.BaseHandler
+	*api.BaseHandler
 	pluginManager *pluginpkg.Manager
 }
 
 // NewHandler 새로운 플러그인 핸들러 생성
-func NewHandler(base *handler.BaseHandler, pluginManager *pluginpkg.Manager) *Handler {
+func NewHandler(base *api.BaseHandler, pluginManager *pluginpkg.Manager) *Handler {
 	return &Handler{
 		BaseHandler:   base,
 		pluginManager: pluginManager,
