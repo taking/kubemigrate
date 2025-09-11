@@ -6,11 +6,11 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/api"
 	"github.com/taking/kubemigrate/internal/api/plugin"
+	"github.com/taking/kubemigrate/internal/cache"
 	"github.com/taking/kubemigrate/internal/config"
 	appMiddleware "github.com/taking/kubemigrate/internal/middleware"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/utils"
-	"github.com/taking/kubemigrate/pkg/cache"
 	pluginpkg "github.com/taking/kubemigrate/pkg/plugin"
 )
 

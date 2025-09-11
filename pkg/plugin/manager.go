@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/taking/kubemigrate/pkg/cache"
+	"github.com/taking/kubemigrate/internal/cache"
 	cacheplugin "github.com/taking/kubemigrate/pkg/plugin/plugins/cache"
 )
 

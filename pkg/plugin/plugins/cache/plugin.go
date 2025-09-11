@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/cache"
 	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/errors"
 	"github.com/taking/kubemigrate/internal/response"
-	"github.com/taking/kubemigrate/pkg/cache"
 	"github.com/taking/kubemigrate/pkg/client"
 )
 
