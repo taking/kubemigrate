@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/pkg/config"
 )
 
 // MinioValidator : MinioValidator 구조체

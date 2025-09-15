@@ -1,14 +1,14 @@
 package client
 
 import (
-	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/pkg/client/helm"
 	"github.com/taking/kubemigrate/pkg/client/kubernetes"
 	"github.com/taking/kubemigrate/pkg/client/minio"
 	"github.com/taking/kubemigrate/pkg/client/velero"
+	"github.com/taking/kubemigrate/pkg/config"
 )
 
-// Client 통합 클라이언트 인터페이스
+// Client : 통합 클라이언트 인터페이스
 type Client interface {
 	Kubernetes() kubernetes.Client
 	Helm() helm.Client
@@ -24,7 +24,7 @@ type client struct {
 	minio      minio.Client
 }
 
-// NewClient 새로운 통합 클라이언트를 생성합니다
+// NewClient : 새로운 통합 클라이언트를 생성합니다
 func NewClient() Client {
 	return &client{
 		kubernetes: kubernetes.NewClient(),
@@ -34,22 +34,22 @@ func NewClient() Client {
 	}
 }
 
-// Kubernetes Kubernetes 클라이언트를 반환합니다
+// Kubernetes : Kubernetes 클라이언트를 반환합니다
 func (c *client) Kubernetes() kubernetes.Client {
 	return c.kubernetes
 }
 
-// Helm Helm 클라이언트를 반환합니다
+// Helm : Helm 클라이언트를 반환합니다
 func (c *client) Helm() helm.Client {
 	return c.helm
 }
 
-// Velero Velero 클라이언트를 반환합니다
+// Velero : Velero 클라이언트를 반환합니다
 func (c *client) Velero() velero.Client {
 	return c.velero
 }
 
-// Minio MinIO 클라이언트를 반환합니다
+// Minio : MinIO 클라이언트를 반환합니다
 func (c *client) Minio() minio.Client {
 	return c.minio
 }
@@ -73,7 +73,7 @@ func createClientWithFallback[T any, R any](
 	return fallback
 }
 
-// NewClientWithConfig 설정을 사용하여 새로운 통합 클라이언트를 생성합니다
+// NewClientWithConfig : 설정을 사용하여 새로운 통합 클라이언트를 생성합니다
 func NewClientWithConfig(kubeConfig, helmConfig, veleroConfig, minioConfig interface{}) Client {
 	return &client{
 		kubernetes: createClientWithFallback[config.KubeConfig, kubernetes.Client]( //nolint:typecheck

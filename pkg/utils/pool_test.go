@@ -5,9 +5,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/taking/kubemigrate/pkg/constants"
 )
 
-// TestNewWorkerPool - WorkerPool 생성자 테스트
+// TestNewWorkerPool : WorkerPool 생성자 테스트
 // 새로 생성된 워커 풀이 올바르게 초기화되었는지 확인
 func TestNewWorkerPool(t *testing.T) {
 	workers := 3
@@ -55,7 +57,7 @@ func TestWorkerPool_Submit(t *testing.T) {
 	})
 
 	// 실행 대기
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(constants.TestWaitTimeLong)
 
 	mu.Lock()
 	if !executed {
@@ -73,7 +75,7 @@ func TestWorkerPool_Submit_NonBlocking(t *testing.T) {
 	// 채널 가득 채움
 	for i := 0; i < 3; i++ {
 		pool.Submit(func() {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(constants.TestWaitTimeLong)
 		})
 	}
 
@@ -84,7 +86,7 @@ func TestWorkerPool_Submit_NonBlocking(t *testing.T) {
 	})
 	duration := time.Since(start)
 
-	if duration > 50*time.Millisecond {
+	if duration > constants.TestWaitTimeShort {
 		t.Error("Submit() should be non-blocking when channel is full")
 	}
 }
@@ -169,7 +171,7 @@ func TestWorkerPool_ContextCancellation(t *testing.T) {
 	}
 }
 
-// TestWithTimeout - 타임아웃 함수 테스트
+// TestWithTimeout : 타임아웃 함수 테스트
 // 타임아웃이 있는 함수 실행과 에러 처리 확인
 func TestWithTimeout(t *testing.T) {
 	tests := []struct {
@@ -261,7 +263,7 @@ func TestWorkerPool_WorkerGoroutines(t *testing.T) {
 	defer pool.Close()
 
 	// 워커 시작 대기
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(constants.TestWaitTimeShort)
 
 	// 작업 실행 확인
 	var executedJobs int
@@ -311,5 +313,5 @@ func TestWorkerPool_SubmitAfterClose(t *testing.T) {
 	})
 
 	// 패닉 확인
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(constants.TestWaitTimeShort)
 }

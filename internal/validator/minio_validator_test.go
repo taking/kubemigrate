@@ -3,10 +3,10 @@ package validator
 import (
 	"testing"
 
-	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/pkg/config"
 )
 
-// TestNewMinioValidator - MinioValidator 생성자 테스트
+// TestNewMinioValidator : MinioValidator 생성자 테스트
 // 새로 생성된 validator가 올바르게 초기화되었는지 확인
 func TestNewMinioValidator(t *testing.T) {
 	v := NewMinioValidator()

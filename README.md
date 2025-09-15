@@ -3,15 +3,39 @@
 KubeMigrate는 Kubernetes 클러스터 간 백업 및 복구 검증을 위한 종합적인 API 서버입니다.  
 멀티 클러스터 환경에서 Velero 기반 백업/복원 관리, Helm 및 MinIO 연동을 지원하며, 스토리지 클래스 비교 검증, 백업 무결성 확인, 복구 검증 등의 기능을 제공합니다.
 
+[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
+
 ## ✨ 주요 기능
 
-- **Kubernetes 관리**: 클러스터 리소스 조회 및 관리
-- **Velero 통합**: 백업/복원 작업 모니터링 및 관리
-- **Helm 지원**: URL 기반 차트 설치, 업그레이드, 관리
-- **MinIO 연동**: 객체 스토리지 버킷 및 파일 관리
-- **RESTful API**: 일관된 API 디자인으로 쉬운 통합
-- **Swagger 문서**: 자동 생성된 API 문서
-- **Bruno 컬렉션**: 포함된 API 테스트 도구
+- **🔧 Kubernetes 관리**: 클러스터 리소스 조회 및 관리
+- **💾 Velero 통합**: 백업/복원 작업 모니터링 및 관리
+- **📦 Helm 지원**: URL 기반 차트 설치, 업그레이드, 관리
+- **🗄️ MinIO 연동**: 객체 스토리지 버킷 및 파일 관리
+- **🚀 RESTful API**: 일관된 API 디자인으로 쉬운 통합
+- **📚 Swagger 문서**: 자동 생성된 API 문서
+- **🧪 Bruno 컬렉션**: 포함된 API 테스트 도구
+- **⚡ 고성능**: LRU 캐시 및 워커 풀을 통한 최적화
+- **📊 모니터링**: 메모리 사용량 및 성능 모니터링
+
+---
+
+## 📖 문서
+
+- [🚀 빠른 시작 가이드](docs/QUICKSTART.md) - 설치부터 첫 API 호출까지
+- [📚 API 문서](docs/API.md) - 모든 엔드포인트 상세 설명
+- [🛠️ 개발 가이드](docs/DEVELOPMENT.md) - 개발 환경 설정 및 기여 방법
+- [📋 코드 리뷰 체크리스트](docs/CODE_REVIEW_CHECKLIST.md) - 코드 품질 관리 가이드
+
+## 🎯 클라이언트 라이브러리
+
+### Go SDK
+- [Kubernetes 클라이언트](pkg/client/kubernetes/README.md) - Kubernetes 리소스 관리
+- [Helm 클라이언트](pkg/client/helm/README.md) - Helm 차트 관리
+- [MinIO 클라이언트](pkg/client/minio/README.md) - 객체 스토리지 관리
+- [Velero 클라이언트](pkg/client/velero/README.md) - 백업/복원 관리
+- [예제 코드](example/README.md) - 실제 사용 예제들
 
 ---
 

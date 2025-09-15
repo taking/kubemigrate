@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/config"
+	"github.com/taking/kubemigrate/pkg/constants"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -22,7 +23,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// Client Helm 클라이언트 인터페이스
+// Client : Helm 클라이언트 인터페이스
 type Client interface {
 	// Chart 관련
 	GetCharts(ctx context.Context, namespace string) ([]*release.Release, error)
@@ -41,7 +42,7 @@ type helmClient struct {
 	namespace string
 }
 
-// NewClient 새로운 Helm 클라이언트를 생성합니다 (기본 설정)
+// NewClient : 새로운 Helm 클라이언트를 생성합니다 (기본 설정)
 func NewClient() Client {
 	// 기본 설정으로 클라이언트 생성
 	actionConfig := new(action.Configuration)
@@ -73,7 +74,7 @@ func NewClient() Client {
 	}
 }
 
-// NewClientWithConfig 설정을 받아서 Helm 클라이언트를 생성합니다
+// NewClientWithConfig : 설정을 받아서 Helm 클라이언트를 생성합니다
 func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 	var restCfg *rest.Config
 	var err error
@@ -211,7 +212,7 @@ func (h *helmClient) InstallChart(releaseName, chartURL, version string, values 
 	}
 
 	// 설치 후 잠시 대기
-	time.Sleep(2 * time.Second)
+	time.Sleep(constants.DefaultRequestTimeout)
 
 	// 설치 확인
 	ok, _, err := h.IsChartInstalled(releaseName)
@@ -338,7 +339,7 @@ func (h *helmClient) UninstallChart(releaseName, namespace string, dryRun bool) 
 			if !installed {
 				break
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(constants.DefaultRequestTimeout)
 		}
 	}
 

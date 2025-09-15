@@ -30,13 +30,13 @@ type LoggingConfig struct {
 	Format string // 로그 포맷 (예: json, text)
 }
 
-// KubeConfig Kubernetes 설정 구조체
+// KubeConfig : Kubernetes 설정 구조체
 type KubeConfig struct {
 	KubeConfig string `json:"kubeconfig" binding:"required" example:"base64 인코딩된 KubeConfig 값"` // [필수] Base64 인코딩된 KubeConfig 값
 	Namespace  string `json:"namespace,omitempty" example:"all" swaggerignore:"true"`           // [옵션] 네임스페이스 명 (기본 값 : 'default', 전체 조회  : 'all')
 }
 
-// MinioConfig MinIO 설정 구조체
+// MinioConfig : MinIO 설정 구조체
 type MinioConfig struct {
 	Endpoint  string `json:"endpoint" binding:"required" example:"127.0.0.1:9000"`        // [필수] minio endpoint 주소
 	AccessKey string `json:"accessKey" binding:"required" example:"your_minio_accessKey"` // [필수] minio accessKey
@@ -44,7 +44,7 @@ type MinioConfig struct {
 	UseSSL    bool   `json:"useSSL" example:"false"`                                      // [필수] minio useSSL 여부 (false: http / true: https)
 }
 
-// VeleroConfig Velero 설정 구조체
+// VeleroConfig : Velero 설정 구조체
 type VeleroConfig struct {
 	KubeConfig  KubeConfig  `json:"kubeconfig" binding:"required"`
 	MinioConfig MinioConfig `json:"minio" binding:"required"`

@@ -9,17 +9,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/labstack/echo/v4"
-	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/config"
 )
 
-// StripManagedFields 리소스의 metadata.managedFields를 제거
+// StripManagedFields : 리소스의 metadata.managedFields 제거
 func StripManagedFields(obj metav1.Object) {
 	obj.SetManagedFields(nil)
 }
 
-// GetStringOrDefault : value가 비어있지 않으면 value를 반환, 비어있으면 def를 반환
+// GetStringOrDefault : value가 비어있지 않으면 value 반환, 비어있으면 def 반환
 func GetStringOrDefault(value, def string) string {
 	if value == "" {
 		return def
@@ -27,12 +27,12 @@ func GetStringOrDefault(value, def string) string {
 	return value
 }
 
-// GetBoolOrDefault : value를 반환 (bool은 항상 값이 있으므로 단순히 value 반환)
+// GetBoolOrDefault : value 반환 (bool은 항상 값이 있으므로 단순히 value 반환)
 func GetBoolOrDefault(value bool, def bool) bool {
 	return value
 }
 
-// 간단한 파일 복사 함수
+// CopyFile : 간단한 파일 복사 함수
 func CopyFile(src, dst string) error {
 	input, err := os.ReadFile(src)
 	if err != nil {

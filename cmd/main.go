@@ -7,15 +7,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	openapidocs "github.com/kohkimakimoto/echo-openapidocs"
 	"github.com/labstack/echo/v4"
 
 	"github.com/taking/kubemigrate/docs/swagger"
-	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/logger"
 	"github.com/taking/kubemigrate/internal/server"
+	"github.com/taking/kubemigrate/pkg/config"
+	"github.com/taking/kubemigrate/pkg/constants"
 )
 
 // @title KubeMigrate API Server
@@ -116,7 +116,7 @@ func startServer(server *http.Server, cfg *config.Config) {
 
 	logger.Info("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {

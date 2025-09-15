@@ -8,11 +8,11 @@ import (
 
 	"github.com/labstack/echo/v4"
 	minioSDK "github.com/minio/minio-go/v7"
-	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/minio"
+	"github.com/taking/kubemigrate/pkg/config"
 )
 
 // Handler : MinIO 관련 HTTP 핸들러
@@ -321,25 +321,37 @@ func (h *Handler) PutObject(c echo.Context) error {
 	bucketName := c.Param("bucket")
 	objectName := c.Param("*")
 	if bucketName == "" || objectName == "" {
-		return echo.NewHTTPError(400, "bucket and object parameters are required")
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"MISSING_PARAMETERS",
+			"Bucket and object parameters are required",
+			"Both bucket and object parameters must be provided")
 	}
 
 	// multipart/form-data에서 설정과 파일 처리
 	form, err := c.MultipartForm()
 	if err != nil {
-		return echo.NewHTTPError(400, "multipart form is required")
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"INVALID_FORM_DATA",
+			"Multipart form is required",
+			err.Error())
 	}
 
 	// MinIO 설정 가져오기
 	configValue := form.Value["config"]
 	if len(configValue) == 0 {
-		return echo.NewHTTPError(400, "config is required")
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"MISSING_CONFIG",
+			"Config is required",
+			"MinIO configuration must be provided in the form data")
 	}
 
 	// JSON 설정 파싱
 	var minioConfig config.MinioConfig
 	if err := json.Unmarshal([]byte(configValue[0]), &minioConfig); err != nil {
-		return echo.NewHTTPError(400, "invalid config format")
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"INVALID_CONFIG_FORMAT",
+			"Invalid config format",
+			err.Error())
 	}
 
 	// MinIO 설정 검증
@@ -353,7 +365,10 @@ func (h *Handler) PutObject(c echo.Context) error {
 	// 파일 가져오기
 	files := form.File["file"]
 	if len(files) == 0 {
-		return echo.NewHTTPError(400, "file is required")
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"MISSING_FILE",
+			"File is required",
+			"At least one file must be provided for upload")
 	}
 	file := files[0]
 

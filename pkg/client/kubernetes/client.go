@@ -38,8 +38,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/config"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -47,7 +47,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// Client Kubernetes 클라이언트 인터페이스
+// Client : Kubernetes 클라이언트 인터페이스
 type Client interface {
 	// 통합 조회 메서드들
 	// GetPods returns:
@@ -80,7 +80,7 @@ type client struct {
 	clientset *kubernetes.Clientset
 }
 
-// NewClient 새로운 Kubernetes 클라이언트를 생성합니다 (기본 설정)
+// NewClient : 새로운 Kubernetes 클라이언트를 생성합니다 (기본 설정)
 func NewClient() Client {
 	// 기본적으로 in-cluster config를 사용
 	restConfig, err := rest.InClusterConfig()
@@ -100,7 +100,7 @@ func NewClient() Client {
 	return &client{clientset: clientset}
 }
 
-// NewClientWithConfig 설정을 받아서 Kubernetes 클라이언트를 생성합니다
+// NewClientWithConfig : 설정을 받아서 Kubernetes 클라이언트를 생성합니다
 func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 	var restConfig *rest.Config
 	var err error
@@ -132,7 +132,7 @@ func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 	return &client{clientset: clientset}, nil
 }
 
-// GetPods Pod를 조회합니다
+// GetPods : Pod를 조회합니다
 // name이 빈 문자열("")이면 목록을 조회하고, 있으면 단일 Pod를 조회합니다
 // namespace가 빈 문자열("")이면 모든 네임스페이스의 Pod를 조회합니다
 // Returns:
@@ -157,7 +157,7 @@ func (c *client) GetPods(ctx context.Context, namespace, name string) (interface
 	}
 }
 
-// GetStorageClasses StorageClass를 조회합니다
+// GetStorageClasses : StorageClass를 조회합니다
 // name이 빈 문자열("")이면 목록을 조회하고, 있으면 단일 StorageClass를 조회합니다
 // Returns:
 // - (*storagev1.StorageClassList, error) when name is empty (list all storage classes)
@@ -179,17 +179,17 @@ func (c *client) GetStorageClasses(ctx context.Context, name string) (interface{
 	}
 }
 
-// GetNamespaces Namespace 목록을 조회합니다
+// GetNamespaces : Namespace 목록을 조회합니다
 func (c *client) GetNamespaces(ctx context.Context) (*v1.NamespaceList, error) {
 	return c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 }
 
-// GetNamespace 특정 Namespace를 조회합니다
+// GetNamespace : 특정 Namespace를 조회합니다
 func (c *client) GetNamespace(ctx context.Context, name string) (*v1.Namespace, error) {
 	return c.clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 }
 
-// GetConfigMaps ConfigMap을 조회합니다
+// GetConfigMaps : ConfigMap을 조회합니다
 // name이 빈 문자열("")이면 목록을 조회하고, 있으면 단일 ConfigMap을 조회합니다
 // namespace가 빈 문자열("")이면 모든 네임스페이스의 ConfigMap을 조회합니다
 // Returns:
@@ -212,7 +212,7 @@ func (c *client) GetConfigMaps(ctx context.Context, namespace, name string) (int
 	}
 }
 
-// GetSecrets Secret을 조회합니다
+// GetSecrets : Secret을 조회합니다
 // name이 빈 문자열("")이면 목록을 조회하고, 있으면 단일 Secret을 조회합니다
 // namespace가 빈 문자열("")이면 모든 네임스페이스의 Secret을 조회합니다
 // Returns:

@@ -16,7 +16,7 @@ func main() {
 	client := helm.NewClient()
 	ctx := context.Background()
 
-	if err := client.HealthCheck(ctx); err != nil {
+	if _, err := client.GetCharts(ctx, "default"); err != nil {
 		log.Printf("Helm client health check failed: %v", err)
 		fmt.Println("Cannot connect to Kubernetes cluster. Please check your kubeconfig.")
 		return
@@ -97,7 +97,7 @@ func main() {
 
 	// 6. 헬스 체크
 	fmt.Println("\n6. Final health check...")
-	if err := client.HealthCheck(ctx); err != nil {
+	if _, err := client.GetCharts(ctx, "default"); err != nil {
 		log.Printf("Health check failed: %v", err)
 	} else {
 		fmt.Println("✅ Helm client is working properly.")
