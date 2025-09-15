@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/cache"
 	"github.com/taking/kubemigrate/internal/logger"
+	"github.com/taking/kubemigrate/internal/mocks"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/validator"
 	"github.com/taking/kubemigrate/pkg/client"
@@ -24,6 +25,7 @@ type BaseHandler struct {
 	MinioValidator      *validator.MinioValidator
 	workerPool          *pkgutils.WorkerPool
 	clientCache         *cache.LRUCache
+	useMockClient       bool // 테스트용 Mock 클라이언트 사용 여부
 }
 
 // NewBaseHandler : 기본 핸들러 생성
@@ -33,6 +35,18 @@ func NewBaseHandler(workerPool *pkgutils.WorkerPool) *BaseHandler {
 		MinioValidator:      validator.NewMinioValidator(),
 		workerPool:          workerPool,
 		clientCache:         cache.NewLRUCache(100), // 최대 100개 항목
+		useMockClient:       false,
+	}
+}
+
+// NewBaseHandlerWithMock : Mock 클라이언트를 사용하는 핸들러 생성 (테스트용)
+func NewBaseHandlerWithMock(workerPool *pkgutils.WorkerPool) *BaseHandler {
+	return &BaseHandler{
+		KubernetesValidator: validator.NewKubernetesValidator(),
+		MinioValidator:      validator.NewMinioValidator(),
+		workerPool:          workerPool,
+		clientCache:         cache.NewLRUCache(100), // 최대 100개 항목
+		useMockClient:       true,
 	}
 }
 
@@ -50,28 +64,34 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 	apiType := h.determineApiTypeFromPath(c.Request().URL.Path)
 
 	// 캐시에서 클라이언트 조회 또는 생성
-	unifiedClient := h.clientCache.GetOrCreateWithApiType(
-		kubeConfig,
-		kubeConfig,
-		veleroConfig,
-		minioConfig,
-		apiType,
-		func() client.Client {
-			// MinIO API인 경우 minioConfig만 유효하므로 명시적으로 처리
-			if strings.Contains(c.Request().URL.Path, "/minio/") {
-				return client.NewClientWithConfig(nil, nil, nil, minioConfig)
-			}
+	var unifiedClient client.Client
+	if h.useMockClient {
+		// 테스트용 Mock 클라이언트 사용
+		unifiedClient = mocks.NewMockClient()
+	} else {
+		unifiedClient = h.clientCache.GetOrCreateWithApiType(
+			kubeConfig,
+			kubeConfig,
+			veleroConfig,
+			minioConfig,
+			apiType,
+			func() client.Client {
+				// MinIO API인 경우 minioConfig만 유효하므로 명시적으로 처리
+				if strings.Contains(c.Request().URL.Path, "/minio/") {
+					return client.NewClientWithConfig(nil, nil, nil, minioConfig)
+				}
 
-			// Velero API인 경우 Kubernetes + MinIO 조합 클라이언트 생성
-			if strings.Contains(c.Request().URL.Path, "/velero/") {
-				// Velero는 Kubernetes 클라이언트를 사용하지만, MinIO 설정도 함께 전달
+				// Velero API인 경우 Kubernetes + MinIO 조합 클라이언트 생성
+				if strings.Contains(c.Request().URL.Path, "/velero/") {
+					// Velero는 Kubernetes 클라이언트를 사용하지만, MinIO 설정도 함께 전달
+					return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+				}
+
+				// 기본 Kubernetes/Helm API
 				return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
-			}
-
-			// 기본 Kubernetes/Helm API
-			return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
-		},
-	)
+			},
+		)
+	}
 
 	// 리소스 조회 (타임아웃 설정)
 	ctx, cancel := context.WithTimeout(c.Request().Context(), constants.DefaultRequestTimeout)

@@ -14,10 +14,10 @@ import (
 
 // TestVeleroHandler_HealthCheck 헬스체크 API 테스트
 func TestVeleroHandler_HealthCheck(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	veleroHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -55,10 +55,10 @@ func TestVeleroHandler_HealthCheck(t *testing.T) {
 
 // TestVeleroHandler_GetBackups 백업 목록 조회 API 테스트
 func TestVeleroHandler_GetBackups(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	veleroHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -95,10 +95,10 @@ func TestVeleroHandler_GetBackups(t *testing.T) {
 
 // TestVeleroHandler_GetRestores 복원 목록 조회 API 테스트
 func TestVeleroHandler_GetRestores(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	veleroHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -135,10 +135,10 @@ func TestVeleroHandler_GetRestores(t *testing.T) {
 
 // TestVeleroHandler_InvalidRequest 잘못된 요청 테스트
 func TestVeleroHandler_InvalidRequest(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	veleroHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성

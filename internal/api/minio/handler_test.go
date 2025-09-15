@@ -14,10 +14,10 @@ import (
 
 // TestMinioHandler_HealthCheck 헬스체크 API 테스트
 func TestMinioHandler_HealthCheck(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -49,10 +49,10 @@ func TestMinioHandler_HealthCheck(t *testing.T) {
 
 // TestMinioHandler_ListBuckets 버킷 목록 조회 API 테스트
 func TestMinioHandler_ListBuckets(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -84,10 +84,10 @@ func TestMinioHandler_ListBuckets(t *testing.T) {
 
 // TestMinioHandler_CheckBucketExists 버킷 존재 확인 API 테스트
 func TestMinioHandler_CheckBucketExists(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -122,10 +122,10 @@ func TestMinioHandler_CheckBucketExists(t *testing.T) {
 
 // TestMinioHandler_CreateBucket 버킷 생성 API 테스트
 func TestMinioHandler_CreateBucket(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -160,10 +160,10 @@ func TestMinioHandler_CreateBucket(t *testing.T) {
 
 // TestMinioHandler_DeleteBucket 버킷 삭제 API 테스트
 func TestMinioHandler_DeleteBucket(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -198,10 +198,10 @@ func TestMinioHandler_DeleteBucket(t *testing.T) {
 
 // TestMinioHandler_ListObjects 객체 목록 조회 API 테스트
 func TestMinioHandler_ListObjects(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -236,10 +236,10 @@ func TestMinioHandler_ListObjects(t *testing.T) {
 
 // TestMinioHandler_InvalidRequest 잘못된 요청 테스트
 func TestMinioHandler_InvalidRequest(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성

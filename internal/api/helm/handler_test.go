@@ -14,10 +14,10 @@ import (
 
 // TestHelmHandler_HealthCheck 헬스체크 API 테스트
 func TestHelmHandler_HealthCheck(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	helmHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -46,10 +46,10 @@ func TestHelmHandler_HealthCheck(t *testing.T) {
 
 // TestHelmHandler_InstallChart 차트 설치 API 테스트
 func TestHelmHandler_InstallChart(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	helmHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -78,10 +78,10 @@ func TestHelmHandler_InstallChart(t *testing.T) {
 
 // TestHelmHandler_GetCharts 차트 목록 조회 API 테스트
 func TestHelmHandler_GetCharts(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	helmHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -110,10 +110,10 @@ func TestHelmHandler_GetCharts(t *testing.T) {
 
 // TestHelmHandler_GetChart 특정 차트 조회 API 테스트
 func TestHelmHandler_GetChart(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	helmHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -145,10 +145,10 @@ func TestHelmHandler_GetChart(t *testing.T) {
 
 // TestHelmHandler_UpgradeChart 차트 업그레이드 API 테스트
 func TestHelmHandler_UpgradeChart(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	helmHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -180,10 +180,10 @@ func TestHelmHandler_UpgradeChart(t *testing.T) {
 
 // TestHelmHandler_UninstallChart 차트 제거 API 테스트
 func TestHelmHandler_UninstallChart(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	helmHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -215,10 +215,10 @@ func TestHelmHandler_UninstallChart(t *testing.T) {
 
 // TestHelmHandler_InvalidRequest 잘못된 요청 테스트
 func TestHelmHandler_InvalidRequest(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	helmHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성

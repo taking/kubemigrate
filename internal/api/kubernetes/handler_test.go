@@ -14,10 +14,10 @@ import (
 
 // TestKubernetesHandler_HealthCheck 헬스체크 API 테스트
 func TestKubernetesHandler_HealthCheck(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -47,10 +47,10 @@ func TestKubernetesHandler_HealthCheck(t *testing.T) {
 
 // TestKubernetesHandler_GetResources 리소스 조회 API 테스트
 func TestKubernetesHandler_GetResources(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -107,10 +107,10 @@ func TestKubernetesHandler_GetResources(t *testing.T) {
 
 // TestKubernetesHandler_GetResources_WithName 이름이 있는 리소스 조회 테스트
 func TestKubernetesHandler_GetResources_WithName(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
@@ -137,10 +137,10 @@ func TestKubernetesHandler_GetResources_WithName(t *testing.T) {
 
 // TestKubernetesHandler_GetResources_QueryParams 쿼리 파라미터 테스트
 func TestKubernetesHandler_GetResources_QueryParams(t *testing.T) {
-	// 테스트용 BaseHandler 생성
+	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
 	workerPool := utils.NewWorkerPool(2)
 	defer workerPool.Close()
-	baseHandler := handler.NewBaseHandler(workerPool)
+	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)
 
 	// Echo 인스턴스 생성
