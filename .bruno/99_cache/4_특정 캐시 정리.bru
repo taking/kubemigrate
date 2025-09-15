@@ -1,0 +1,15 @@
+meta {
+  name: 3_특정 캐시 정리
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{host_ip}}:{{host_port}}/api/v1/cache/clean/df3ae1c8efc18f498a57714e96e282e053c52b21e30e664bc50b680433176b47
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

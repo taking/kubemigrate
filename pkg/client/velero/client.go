@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/taking/kubemigrate/internal/config"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/config"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"

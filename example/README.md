@@ -9,6 +9,8 @@
 - [예제 파일들](#예제-파일들)
 - [API 문서](#api-문서)
 - [문제 해결](#문제-해결)
+- [고급 사용법](#고급-사용법)
+- [성능 최적화](#성능-최적화)
 
 ## 🚀 설치
 
@@ -378,6 +380,308 @@ func handleError(err error) {
         log.Printf("Error: %v", err)
         // 적절한 에러 처리 로직
     }
+}
+```
+
+## 🚀 고급 사용법
+
+### 통합 클라이언트 사용
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/taking/kubemigrate/pkg/client"
+    "github.com/taking/kubemigrate/internal/config"
+)
+
+func main() {
+    // 통합 클라이언트 생성
+    unifiedClient := client.NewClient()
+    
+    // Kubernetes 리소스 조회
+    pods, err := unifiedClient.Kubernetes().GetPods(context.Background(), "default", "")
+    if err != nil {
+        log.Printf("Kubernetes error: %v", err)
+    }
+    
+    // Helm 차트 조회
+    charts, err := unifiedClient.Helm().GetCharts(context.Background(), "default")
+    if err != nil {
+        log.Printf("Helm error: %v", err)
+    }
+    
+    // MinIO 버킷 조회
+    buckets, err := unifiedClient.Minio().ListBuckets(context.Background())
+    if err != nil {
+        log.Printf("MinIO error: %v", err)
+    }
+    
+    // Velero 백업 조회
+    backups, err := unifiedClient.Velero().GetBackups(context.Background(), "velero")
+    if err != nil {
+        log.Printf("Velero error: %v", err)
+    }
+    
+    fmt.Printf("Found %d pods, %d charts, %d buckets, %d backups\n", 
+        len(pods), len(charts), len(buckets), len(backups))
+}
+```
+
+### 설정을 통한 클라이언트 생성
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/taking/kubemigrate/pkg/client"
+    "github.com/taking/kubemigrate/internal/config"
+)
+
+func main() {
+    // 설정 생성
+    kubeConfig := config.KubeConfig{
+        KubeConfig: "base64-encoded-kubeconfig",
+        Namespace:  "default",
+    }
+    
+    minioConfig := config.MinioConfig{
+        Endpoint:  "localhost:9000",
+        AccessKey: "minioadmin",
+        SecretKey: "minioadmin",
+        UseSSL:    false,
+    }
+    
+    veleroConfig := config.VeleroConfig{
+        KubeConfig:  kubeConfig,
+        MinioConfig: minioConfig,
+    }
+    
+    // 설정을 통한 클라이언트 생성
+    unifiedClient := client.NewClientWithConfig(
+        kubeConfig,  // Kubernetes 설정
+        kubeConfig,  // Helm 설정 (Kubernetes와 동일)
+        veleroConfig, // Velero 설정
+        minioConfig,  // MinIO 설정
+    )
+    
+    // 클라이언트 사용...
+}
+```
+
+### 에러 처리 및 재시도
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    
+    "github.com/taking/kubemigrate/pkg/client"
+    "github.com/taking/kubemigrate/pkg/utils"
+)
+
+func main() {
+    client := client.NewClient()
+    ctx := context.Background()
+    
+    // 재시도 로직이 포함된 함수
+    retryFunc := func() error {
+        _, err := client.Kubernetes().GetPods(ctx, "default", "")
+        return err
+    }
+    
+    // 3번 재시도, 1초 간격
+    err := utils.RunWithTimeout(30*time.Second, retryFunc)
+    if err != nil {
+        log.Fatalf("Failed after retries: %v", err)
+    }
+    
+    fmt.Println("Success!")
+}
+```
+
+## ⚡ 성능 최적화
+
+### 캐싱 활용
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    
+    "github.com/taking/kubemigrate/pkg/client"
+    "github.com/taking/kubemigrate/internal/cache"
+)
+
+func main() {
+    // LRU 캐시 생성 (용량: 100)
+    cache := cache.NewLRUCache(100)
+    
+    // 캐시를 사용한 클라이언트 생성
+    client := client.NewClient()
+    
+    // 동일한 요청을 여러 번 수행 (캐시에서 빠르게 조회)
+    for i := 0; i < 5; i++ {
+        start := time.Now()
+        
+        _, err := client.Kubernetes().GetPods(context.Background(), "default", "")
+        if err != nil {
+            log.Printf("Error: %v", err)
+            continue
+        }
+        
+        duration := time.Since(start)
+        fmt.Printf("Request %d took: %v\n", i+1, duration)
+    }
+}
+```
+
+### 동시성 처리
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "sync"
+    "time"
+    
+    "github.com/taking/kubemigrate/pkg/client"
+    "github.com/taking/kubemigrate/pkg/utils"
+)
+
+func main() {
+    client := client.NewClient()
+    ctx := context.Background()
+    
+    // 워커 풀 생성 (5개 워커)
+    pool := utils.NewWorkerPool(5)
+    defer pool.Close()
+    
+    var wg sync.WaitGroup
+    
+    // 10개의 동시 작업
+    for i := 0; i < 10; i++ {
+        wg.Add(1)
+        
+        pool.Submit(func() {
+            defer wg.Done()
+            
+            start := time.Now()
+            
+            // Kubernetes 리소스 조회
+            _, err := client.Kubernetes().GetPods(ctx, "default", "")
+            if err != nil {
+                log.Printf("Error: %v", err)
+                return
+            }
+            
+            duration := time.Since(start)
+            fmt.Printf("Worker completed in: %v\n", duration)
+        })
+    }
+    
+    wg.Wait()
+    fmt.Println("All workers completed!")
+}
+```
+
+### 메모리 모니터링
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    
+    "github.com/taking/kubemigrate/pkg/client"
+    "github.com/taking/kubemigrate/pkg/utils"
+)
+
+func main() {
+    client := client.NewClient()
+    ctx := context.Background()
+    
+    // 메모리 모니터링 시작
+    go func() {
+        utils.StartMemoryMonitor(5*time.Second, 80.0, func(stats utils.MemoryStats) {
+            fmt.Printf("Memory usage: %.2f%% (Alloc: %d bytes)\n", 
+                utils.GetMemoryUsagePercent(), stats.Alloc)
+            
+            // 메모리 사용량이 높으면 최적화
+            if utils.IsMemoryHigh(80.0) {
+                fmt.Println("High memory usage detected, optimizing...")
+                utils.OptimizeMemory()
+            }
+        })
+    }()
+    
+    // 실제 작업 수행
+    for i := 0; i < 100; i++ {
+        _, err := client.Kubernetes().GetPods(ctx, "default", "")
+        if err != nil {
+            log.Printf("Error: %v", err)
+        }
+        
+        time.Sleep(100 * time.Millisecond)
+    }
+}
+```
+
+### 타임아웃 설정
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    
+    "github.com/taking/kubemigrate/pkg/client"
+    "github.com/taking/kubemigrate/pkg/utils"
+)
+
+func main() {
+    client := client.NewClient()
+    
+    // 타임아웃이 있는 컨텍스트 생성
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+    
+    // 타임아웃과 함께 함수 실행
+    err := utils.RunWithTimeout(5*time.Second, func() error {
+        _, err := client.Kubernetes().GetPods(ctx, "default", "")
+        return err
+    })
+    
+    if err != nil {
+        log.Fatalf("Operation failed: %v", err)
+    }
+    
+    fmt.Println("Operation completed successfully!")
 }
 ```
 

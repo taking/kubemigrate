@@ -53,7 +53,7 @@ func (p *WorkerPool) worker() {
 	}
 }
 
-// Submit 작업을 워커 풀에 제출합니다
+// Submit : 작업을 워커 풀에 제출합니다
 func (p *WorkerPool) Submit(job func()) {
 	// 컨텍스트가 이미 취소된 경우 무시
 	select {
@@ -72,7 +72,7 @@ func (p *WorkerPool) Submit(job func()) {
 	}
 }
 
-// Close 워커 풀을 종료합니다
+// Close : 워커 풀을 종료합니다
 func (p *WorkerPool) Close() {
 	p.cancel()
 
@@ -95,7 +95,7 @@ func (p *WorkerPool) Close() {
 	}
 }
 
-// WithTimeout 타임아웃과 함께 작업을 실행합니다
+// WithTimeout : 타임아웃과 함께 작업을 실행합니다
 func WithTimeout(timeout time.Duration, fn func() error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

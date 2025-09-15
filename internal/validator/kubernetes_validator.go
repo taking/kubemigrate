@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/pkg/config"
 )
 
 // KubernetesValidator : KubernetesValidator 구조체
@@ -33,7 +33,7 @@ func (v *KubernetesValidator) ValidateKubernetesConfig(req *config.KubeConfig) (
 		return "", fmt.Errorf("kubeconfig too large (max 100KB)")
 	}
 
-	decodeSourceKubeConfig, _ := decodeIfBase64(req.KubeConfig)
+	decodeSourceKubeConfig, _ := DecodeIfBase64(req.KubeConfig)
 
 	if !strings.Contains(decodeSourceKubeConfig, "apiVersion") {
 		return "", fmt.Errorf("kubeconfig appears to be invalid (missing apiVersion)")
@@ -56,11 +56,6 @@ func DecodeIfBase64(s string) (string, error) {
 		return s, nil
 	}
 	return string(decoded), nil
-}
-
-// decodeIfBase64 : 내부 헬퍼 함수 (DecodeIfBase64와 동일)
-func decodeIfBase64(s string) (string, error) {
-	return DecodeIfBase64(s)
 }
 
 // isValidNamespace : 네임스페이스 검증

@@ -1,0 +1,15 @@
+meta {
+  name: 4_전체 캐시 정리
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/cache/cleanup
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

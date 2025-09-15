@@ -181,6 +181,12 @@ clean: ## 빌드 아티팩트 정리
 	@echo "$(YELLOW)Cleaning build artifacts...$(RESET)"
 	@rm -rf $(BUILD_DIR)
 	@rm -f coverage.out coverage.html
+	@rm -f example/complete/complete-example
+	@rm -f example/helm/helm-example
+	@rm -f example/kubernetes/kubernetes-example
+	@rm -f example/minio/minio-example
+	@rm -f example/velero/velero-example
+	@rm -f example/utils/utils-example
 	@echo "$(GREEN)✓ Clean completed$(RESET)"
 
 clean-docker: ## Docker 이미지 및 컨테이너 정리

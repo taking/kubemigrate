@@ -1,0 +1,15 @@
+meta {
+  name: 1_캐시 상태 확인
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/cache/stats
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

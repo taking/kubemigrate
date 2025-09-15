@@ -11,6 +11,7 @@ import (
 	"github.com/taking/kubemigrate/pkg/client/minio"
 	"github.com/taking/kubemigrate/pkg/client/velero"
 	"github.com/taking/kubemigrate/pkg/utils"
+	v1 "k8s.io/api/core/v1"
 )
 
 func main() {
@@ -102,7 +103,7 @@ func initializeClients() *Clients {
 	}
 
 	fmt.Println("  Testing Helm client health...")
-	if err := clients.Helm.HealthCheck(ctx); err != nil {
+	if _, err := clients.Helm.GetCharts(ctx, "default"); err != nil {
 		log.Printf("    ❌ Helm client: %v", err)
 	} else {
 		fmt.Println("    ✅ Helm client healthy")
@@ -135,20 +136,24 @@ func checkClusterStatus(clients *Clients) *ClusterStatus {
 		status.KubernetesHealthy = true
 
 		// Pod 수 조회
-		pods, err := clients.Kubernetes.GetPods(ctx, "default")
+		pods, err := clients.Kubernetes.GetPods(ctx, "default", "")
 		if err == nil {
-			status.PodCount = len(pods.Items)
+			if podList, ok := pods.(*v1.PodList); ok {
+				status.PodCount = len(podList.Items)
+			}
 		}
 
 		// ConfigMap 수 조회
-		configMaps, err := clients.Kubernetes.GetConfigMaps(ctx, "default")
+		configMaps, err := clients.Kubernetes.GetConfigMaps(ctx, "default", "")
 		if err == nil {
-			status.ConfigMapCount = len(configMaps.Items)
+			if cmList, ok := configMaps.(*v1.ConfigMapList); ok {
+				status.ConfigMapCount = len(cmList.Items)
+			}
 		}
 	}
 
 	// Helm 상태 확인
-	if err := clients.Helm.HealthCheck(ctx); err == nil {
+	if _, err := clients.Helm.GetCharts(ctx, "default"); err == nil {
 		status.HelmHealthy = true
 
 		// 차트 수 조회
@@ -281,15 +286,19 @@ func performMigrationSimulation(clients *Clients) error {
 		ctx := context.Background()
 
 		// Pod 정보 수집
-		pods, err := clients.Kubernetes.GetPods(ctx, "default")
+		pods, err := clients.Kubernetes.GetPods(ctx, "default", "")
 		if err == nil {
-			fmt.Printf("    Collected Pods: %d\n", len(pods.Items))
+			if podList, ok := pods.(*v1.PodList); ok {
+				fmt.Printf("    Collected Pods: %d\n", len(podList.Items))
+			}
 		}
 
 		// ConfigMap 정보 수집
-		configMaps, err := clients.Kubernetes.GetConfigMaps(ctx, "default")
+		configMaps, err := clients.Kubernetes.GetConfigMaps(ctx, "default", "")
 		if err == nil {
-			fmt.Printf("    Collected ConfigMaps: %d\n", len(configMaps.Items))
+			if cmList, ok := configMaps.(*v1.ConfigMapList); ok {
+				fmt.Printf("    Collected ConfigMaps: %d\n", len(cmList.Items))
+			}
 		}
 
 		fmt.Println("    ✅ Resource information collection completed")
@@ -358,7 +367,7 @@ func performMonitoring(clients *Clients) error {
 	// 각 클라이언트의 상태 확인
 	statuses := map[string]bool{
 		"Kubernetes": func() bool { _, err := clients.Kubernetes.GetNamespaces(ctx); return err == nil }(),
-		"Helm":       clients.Helm.HealthCheck(ctx) == nil,
+		"Helm":       func() bool { _, err := clients.Helm.GetCharts(ctx, "default"); return err == nil }(),
 		"MinIO":      func() bool { _, err := clients.MinIO.ListBuckets(ctx); return err == nil }(),
 		"Velero":     func() bool { _, err := clients.Velero.GetBackups(ctx, "velero"); return err == nil }(),
 	}

@@ -83,9 +83,7 @@ func (h *Handler) GetResources(c echo.Context) error {
 		case "storage-classes":
 			return client.Kubernetes().GetStorageClasses(ctx, name)
 		default:
-			supportedResources := []string{"pods", "configmaps", "secrets", "storage-classes"}
-			errorMsg := fmt.Sprintf("Unsupported resource kind: %s. Supported resources: %v", kind, supportedResources)
-			return nil, echo.NewHTTPError(400, errorMsg)
+			return nil, fmt.Errorf("unsupported resource kind: %s", kind)
 		}
 	})
 }

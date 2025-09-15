@@ -1,12 +1,13 @@
+// Package middleware HTTP 미들웨어를 관리합니다.
 package middleware
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/pkg/config"
+	"github.com/taking/kubemigrate/pkg/constants"
 )
 
 // SetupMiddleware : Echo 서버에 공통 미들웨어 설정
@@ -54,9 +55,9 @@ func SetupMiddleware(e *echo.Echo, cfg *config.Config) {
 		Skipper: middleware.DefaultSkipper, // 조건에 따라 스킵 가능
 		Store: middleware.NewRateLimiterMemoryStoreWithConfig(
 			middleware.RateLimiterMemoryStoreConfig{
-				Rate:      100,         // 초당 허용 요청 수
-				Burst:     50,          // 최대 버스트 수
-				ExpiresIn: time.Minute, // 카운터 만료 시간
+				Rate:      constants.DefaultRateLimitRate,    // 초당 허용 요청 수
+				Burst:     constants.DefaultRateLimitBurst,   // 최대 버스트 수
+				ExpiresIn: constants.DefaultRateLimitExpires, // 카운터 만료 시간
 			},
 		),
 		// 요청자 식별자 추출 (IP 기준)

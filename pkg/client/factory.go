@@ -3,7 +3,7 @@ package client
 import (
 	"fmt"
 
-	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/pkg/config"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )

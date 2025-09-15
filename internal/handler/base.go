@@ -1,3 +1,4 @@
+// Package handler HTTP 요청을 처리하는 핸들러들을 관리합니다.
 package handler
 
 import (
@@ -5,14 +6,16 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/cache"
-	"github.com/taking/kubemigrate/internal/config"
+	"github.com/taking/kubemigrate/internal/logger"
+	"github.com/taking/kubemigrate/internal/mocks"
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/internal/validator"
 	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/config"
+	"github.com/taking/kubemigrate/pkg/constants"
 	pkgutils "github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -21,7 +24,8 @@ type BaseHandler struct {
 	KubernetesValidator *validator.KubernetesValidator
 	MinioValidator      *validator.MinioValidator
 	workerPool          *pkgutils.WorkerPool
-	clientCache         *cache.ClientCache
+	clientCache         *cache.LRUCache
+	useMockClient       bool // 테스트용 Mock 클라이언트 사용 여부
 }
 
 // NewBaseHandler : 기본 핸들러 생성
@@ -30,7 +34,19 @@ func NewBaseHandler(workerPool *pkgutils.WorkerPool) *BaseHandler {
 		KubernetesValidator: validator.NewKubernetesValidator(),
 		MinioValidator:      validator.NewMinioValidator(),
 		workerPool:          workerPool,
-		clientCache:         cache.NewClientCache(5 * time.Minute), // 5분 TTL
+		clientCache:         cache.NewLRUCache(100), // 최대 100개 항목
+		useMockClient:       false,
+	}
+}
+
+// NewBaseHandlerWithMock : Mock 클라이언트를 사용하는 핸들러 생성 (테스트용)
+func NewBaseHandlerWithMock(workerPool *pkgutils.WorkerPool) *BaseHandler {
+	return &BaseHandler{
+		KubernetesValidator: validator.NewKubernetesValidator(),
+		MinioValidator:      validator.NewMinioValidator(),
+		workerPool:          workerPool,
+		clientCache:         cache.NewLRUCache(100), // 최대 100개 항목
+		useMockClient:       true,
 	}
 }
 
@@ -44,28 +60,65 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 		return err
 	}
 
-	// 캐시에서 클라이언트 조회 또는 생성
-	unifiedClient := h.clientCache.GetOrCreate(
-		kubeConfig,
-		kubeConfig,
-		veleroConfig,
-		minioConfig,
-		func() client.Client {
-			// MinIO API인 경우 minioConfig만 유효하므로 명시적으로 처리
-			if strings.Contains(c.Request().URL.Path, "/minio/") {
-				return client.NewClientWithConfig(nil, nil, nil, minioConfig)
-			}
-			return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
-		},
-	)
+	// API 경로를 기반으로 정확한 API 타입 결정
+	apiType := h.determineApiTypeFromPath(c.Request().URL.Path)
 
-	// 리소스 조회
-	resource, err := getResource(unifiedClient, c.Request().Context())
+	// 캐시에서 클라이언트 조회 또는 생성
+	var unifiedClient client.Client
+	if h.useMockClient {
+		// 테스트용 Mock 클라이언트 사용
+		unifiedClient = mocks.NewMockClient()
+	} else {
+		unifiedClient = h.clientCache.GetOrCreateWithApiType(
+			kubeConfig,
+			kubeConfig,
+			veleroConfig,
+			minioConfig,
+			apiType,
+			func() client.Client {
+				// MinIO API인 경우 minioConfig만 유효하므로 명시적으로 처리
+				if strings.Contains(c.Request().URL.Path, "/minio/") {
+					return client.NewClientWithConfig(nil, nil, nil, minioConfig)
+				}
+
+				// Velero API인 경우 Kubernetes + MinIO 조합 클라이언트 생성
+				if strings.Contains(c.Request().URL.Path, "/velero/") {
+					// Velero는 Kubernetes 클라이언트를 사용하지만, MinIO 설정도 함께 전달
+					return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+				}
+
+				// 기본 Kubernetes/Helm API
+				return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+			},
+		)
+	}
+
+	// 리소스 조회 (타임아웃 설정)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	resource, err := getResource(unifiedClient, ctx)
 	if err != nil {
-		return response.RespondWithErrorModel(c, http.StatusInternalServerError,
-			"RESOURCE_FETCH_FAILED",
-			fmt.Sprintf("Failed to get %s", cacheKey),
-			err.Error())
+		// 에러 타입에 따른 상태 코드 결정
+		statusCode := http.StatusInternalServerError
+		errorCode := "RESOURCE_FETCH_FAILED"
+		message := fmt.Sprintf("Failed to get %s", cacheKey)
+
+		// 에러 메시지에 따른 상태 코드 조정
+		if strings.Contains(err.Error(), "unsupported resource kind") {
+			statusCode = http.StatusBadRequest
+			errorCode = "UNSUPPORTED_RESOURCE"
+			message = "Unsupported resource kind"
+		}
+
+		// 구조화된 로깅 사용
+		logger.Error("Resource fetch failed",
+			logger.String("cache_key", cacheKey),
+			logger.String("error", err.Error()),
+			logger.Int("status_code", statusCode),
+		)
+
+		return response.RespondWithErrorModel(c, statusCode, errorCode, message, err.Error())
 	}
 
 	return response.RespondWithData(c, http.StatusOK, resource)
@@ -206,7 +259,38 @@ func (h *BaseHandler) GetCacheStats() map[string]interface{} {
 	return h.clientCache.Stats()
 }
 
-// CleanupCache : 만료된 캐시 정리
+// GetDetailedCacheStats : 상세한 캐시 통계 정보 조회
+func (h *BaseHandler) GetDetailedCacheStats() interface{} {
+	return h.clientCache.GetDetailedStats()
+}
+
+// CleanupCache : 전체 캐시 정리
 func (h *BaseHandler) CleanupCache() {
 	h.clientCache.Cleanup()
+}
+
+// CleanCacheByKey : 특정 키의 캐시 정리
+func (h *BaseHandler) CleanCacheByKey(key string) bool {
+	return h.clientCache.CleanByKey(key)
+}
+
+// CleanCacheByPattern : 패턴에 맞는 캐시 정리
+func (h *BaseHandler) CleanCacheByPattern(pattern string) int {
+	return h.clientCache.CleanByPattern(pattern)
+}
+
+// determineApiTypeFromPath API 경로를 기반으로 정확한 API 타입을 결정합니다.
+func (h *BaseHandler) determineApiTypeFromPath(path string) string {
+	if strings.Contains(path, "/minio/") {
+		return "minio"
+	} else if strings.Contains(path, "/velero/") {
+		return "velero"
+	} else if strings.Contains(path, "/helm/") {
+		return "helm"
+	} else if strings.Contains(path, "/kubernetes/") {
+		return "kubernetes"
+	}
+
+	// 기본값 (대부분의 경우 Kubernetes)
+	return "kubernetes"
 }

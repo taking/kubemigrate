@@ -11,11 +11,12 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/taking/kubemigrate/internal/validator"
+	"github.com/taking/kubemigrate/pkg/constants"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// TestGetStringOrDefault - 문자열 기본값 처리 함수 테스트
+// TestGetStringOrDefault : 문자열 기본값 처리 함수 테스트
 // 빈 문자열일 때 기본값을 반환하는지 확인
 func TestGetStringOrDefault(t *testing.T) {
 	tests := []struct {
@@ -54,7 +55,7 @@ func TestGetStringOrDefault(t *testing.T) {
 	}
 }
 
-// TestGetBoolOrDefault - 불린 기본값 처리 함수 테스트
+// TestGetBoolOrDefault : 불린 기본값 처리 함수 테스트
 // 불린 값의 기본값 처리 로직 확인
 func TestGetBoolOrDefault(t *testing.T) {
 	tests := []struct {
@@ -87,7 +88,7 @@ func TestGetBoolOrDefault(t *testing.T) {
 	}
 }
 
-// TestStringToIntOrDefault - 문자열을 정수로 변환하는 함수 테스트
+// TestStringToIntOrDefault : 문자열을 정수로 변환하는 함수 테스트
 // 유효하지 않은 문자열일 때 기본값을 반환하는지 확인
 func TestStringToIntOrDefault(t *testing.T) {
 	tests := []struct {
@@ -115,7 +116,7 @@ func TestStringToIntOrDefault(t *testing.T) {
 			expected: 10,
 		},
 		{
-			name:     "음수",
+			name:     "negative number",
 			s:        "-5",
 			def:      0,
 			expected: -5,
@@ -138,7 +139,7 @@ func TestStringToIntOrDefault(t *testing.T) {
 	}
 }
 
-// TestStringToBoolOrDefault - 문자열을 불린으로 변환하는 함수 테스트
+// TestStringToBoolOrDefault : 문자열을 불린으로 변환하는 함수 테스트
 // 다양한 문자열 형식에 대한 불린 변환 로직 확인
 func TestStringToBoolOrDefault(t *testing.T) {
 	tests := []struct {
@@ -195,7 +196,7 @@ func TestStringToBoolOrDefault(t *testing.T) {
 	}
 }
 
-// TestResolveNamespace - 네임스페이스 해석 함수 테스트
+// TestResolveNamespace : 네임스페이스 해석 함수 테스트
 // 쿼리 파라미터와 기본값에 따른 네임스페이스 해석 로직 확인
 func TestResolveNamespace(t *testing.T) {
 	e := echo.New()
@@ -254,7 +255,7 @@ func TestResolveNamespace(t *testing.T) {
 	}
 }
 
-// TestRunWithTimeout - 타임아웃이 있는 함수 실행 테스트
+// TestRunWithTimeout : 타임아웃이 있는 함수 실행 테스트
 // 함수 실행 시간 제한과 에러 처리 로직 확인
 func TestRunWithTimeout(t *testing.T) {
 	tests := []struct {
@@ -267,7 +268,7 @@ func TestRunWithTimeout(t *testing.T) {
 			name:    "함수가 타임아웃 전에 완료",
 			timeout: 100 * time.Millisecond,
 			fn: func() error {
-				time.Sleep(50 * time.Millisecond)
+				time.Sleep(constants.TestWaitTimeShort)
 				return nil
 			},
 			expectError: false,
@@ -276,7 +277,7 @@ func TestRunWithTimeout(t *testing.T) {
 			name:    "함수가 타임아웃됨",
 			timeout: 50 * time.Millisecond,
 			fn: func() error {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(constants.TestWaitTimeLong)
 				return nil
 			},
 			expectError: true,
@@ -304,7 +305,7 @@ func TestRunWithTimeout(t *testing.T) {
 	}
 }
 
-// TestStripManagedFields - 관리 필드 제거 함수 테스트
+// TestStripManagedFields : 관리 필드 제거 함수 테스트
 // Kubernetes 객체에서 관리 필드를 올바르게 제거하는지 확인
 func TestStripManagedFields(t *testing.T) {
 	// 모의 객체 생성
@@ -331,7 +332,7 @@ func TestStripManagedFields(t *testing.T) {
 	}
 }
 
-// TestCopyFile - 파일 복사 함수 테스트
+// TestCopyFile : 파일 복사 함수 테스트
 // 파일 복사 기능이 올바르게 작동하는지 확인
 func TestCopyFile(t *testing.T) {
 	// 소스 파일 생성
@@ -383,7 +384,7 @@ func TestCopyFile_NonExistentSource(t *testing.T) {
 	}
 }
 
-// TestBindAndValidateKubeConfig - Kubernetes 설정 바인딩 및 검증 테스트
+// TestBindAndValidateKubeConfig : Kubernetes 설정 바인딩 및 검증 테스트
 // HTTP 요청에서 Kubernetes 설정을 바인딩하고 검증하는 로직 확인
 func TestBindAndValidateKubeConfig(t *testing.T) {
 	e := echo.New()
@@ -432,7 +433,7 @@ func TestBindAndValidateKubeConfig(t *testing.T) {
 	}
 }
 
-// TestBindAndValidateMinioConfig - MinIO 설정 바인딩 및 검증 테스트
+// TestBindAndValidateMinioConfig : MinIO 설정 바인딩 및 검증 테스트
 // HTTP 요청에서 MinIO 설정을 바인딩하고 검증하는 로직 확인
 func TestBindAndValidateMinioConfig(t *testing.T) {
 	e := echo.New()
@@ -476,7 +477,7 @@ func TestBindAndValidateMinioConfig(t *testing.T) {
 	}
 }
 
-// TestBindAndValidateVeleroConfig - Velero 설정 바인딩 및 검증 테스트
+// TestBindAndValidateVeleroConfig : Velero 설정 바인딩 및 검증 테스트
 // HTTP 요청에서 Velero 설정을 바인딩하고 검증하는 로직 확인
 func TestBindAndValidateVeleroConfig(t *testing.T) {
 	e := echo.New()
