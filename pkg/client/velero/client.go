@@ -35,6 +35,7 @@ type Client interface {
 	// BackupStorageLocation 관련
 	GetBackupStorageLocations(ctx context.Context, namespace string) ([]velerov1.BackupStorageLocation, error)
 	GetBackupStorageLocation(ctx context.Context, namespace, name string) (*velerov1.BackupStorageLocation, error)
+	CreateBackupStorageLocation(ctx context.Context, namespace string, bsl *velerov1.BackupStorageLocation) error
 
 	// VolumeSnapshotLocation 관련
 	GetVolumeSnapshotLocations(ctx context.Context, namespace string) ([]velerov1.VolumeSnapshotLocation, error)
@@ -51,37 +52,37 @@ type client struct {
 	clientset *kubernetes.Clientset
 }
 
-// NewClient 새로운 Velero 클라이언트를 생성합니다 (기본 설정)
-func NewClient() Client {
+// NewClient : 새로운 Velero 클라이언트를 생성합니다 (기본 설정)
+func NewClient() (Client, error) {
 	// 기본적으로 in-cluster config를 사용
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		// in-cluster config가 없으면 kubeconfig 파일을 사용
 		restConfig, err = clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("failed to load kubernetes config: %w", err)
 		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
 	// Velero 스키마 등록
 	if err := velerov1.AddToScheme(scheme.Scheme); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to add velero scheme: %w", err)
 	}
 
 	k8sClient, err := ctrlclient.New(restConfig, ctrlclient.Options{Scheme: scheme.Scheme})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create controller client: %w", err)
 	}
 
 	return &client{
 		k8sClient: k8sClient,
 		clientset: clientset,
-	}
+	}, nil
 }
 
 // NewClientWithConfig 설정을 받아서 Velero 클라이언트를 생성합니다
@@ -275,4 +276,9 @@ func (c *client) GetPodVolumeRestore(ctx context.Context, namespace, name string
 		return nil, err
 	}
 	return &restore, nil
+}
+
+// CreateBackupStorageLocation BackupStorageLocation을 생성합니다
+func (c *client) CreateBackupStorageLocation(ctx context.Context, namespace string, bsl *velerov1.BackupStorageLocation) error {
+	return c.k8sClient.Create(ctx, bsl)
 }

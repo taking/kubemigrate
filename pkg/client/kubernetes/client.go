@@ -73,6 +73,9 @@ type Client interface {
 	// Namespace 관련 (기존 유지)
 	GetNamespaces(ctx context.Context) (*v1.NamespaceList, error)
 	GetNamespace(ctx context.Context, name string) (*v1.Namespace, error)
+
+	// Secret 생성
+	CreateSecret(ctx context.Context, namespace, name string, data map[string]string) (*v1.Secret, error)
 }
 
 // client Kubernetes 클라이언트 구현체
@@ -81,23 +84,23 @@ type client struct {
 }
 
 // NewClient : 새로운 Kubernetes 클라이언트를 생성합니다 (기본 설정)
-func NewClient() Client {
+func NewClient() (Client, error) {
 	// 기본적으로 in-cluster config를 사용
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		// in-cluster config가 없으면 kubeconfig 파일을 사용
 		restConfig, err = clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("failed to load kubernetes config: %w", err)
 		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	return &client{clientset: clientset}
+	return &client{clientset: clientset}, nil
 }
 
 // NewClientWithConfig : 설정을 받아서 Kubernetes 클라이언트를 생성합니다
@@ -233,4 +236,23 @@ func (c *client) GetSecrets(ctx context.Context, namespace, name string) (interf
 		// 단일 조회
 		return c.clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	}
+}
+
+// CreateSecret : Secret 생성
+func (c *client) CreateSecret(ctx context.Context, namespace, name string, data map[string]string) (*v1.Secret, error) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Type: v1.SecretTypeOpaque,
+		Data: make(map[string][]byte),
+	}
+
+	// string 데이터를 []byte로 변환
+	for key, value := range data {
+		secret.Data[key] = []byte(value)
+	}
+
+	return c.clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 }

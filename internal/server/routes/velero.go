@@ -14,6 +14,9 @@ func SetupVeleroRoutes(e *echo.Echo, veleroHandler *velero.Handler) {
 	// 헬스체크
 	veleroGroup.POST("/health", veleroHandler.HealthCheck)
 
+	// 설치 및 설정 라우트
+	veleroGroup.POST("/install", veleroHandler.InstallVeleroWithMinIO)
+
 	// 백업 관련 라우트
 	veleroGroup.POST("/backups", veleroHandler.GetBackups)
 	veleroGroup.GET("/repositories", veleroHandler.GetBackupRepositories)

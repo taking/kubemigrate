@@ -361,17 +361,21 @@ func TestLRUCache_Concurrent(t *testing.T) {
 type MockClient struct{}
 
 func (m *MockClient) Kubernetes() kubernetes.Client {
-	return kubernetes.NewClient()
+	client, _ := kubernetes.NewClient()
+	return client
 }
 
 func (m *MockClient) Helm() helm.Client {
-	return helm.NewClient()
+	client, _ := helm.NewClient()
+	return client
 }
 
 func (m *MockClient) Velero() velero.Client {
-	return velero.NewClient()
+	client, _ := velero.NewClient()
+	return client
 }
 
 func (m *MockClient) Minio() minio.Client {
-	return minio.NewClient()
+	client, _ := minio.NewClient()
+	return client
 }

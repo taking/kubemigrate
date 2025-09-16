@@ -43,7 +43,7 @@ type helmClient struct {
 }
 
 // NewClient : 새로운 Helm 클라이언트를 생성합니다 (기본 설정)
-func NewClient() Client {
+func NewClient() (Client, error) {
 	// 기본 설정으로 클라이언트 생성
 	actionConfig := new(action.Configuration)
 
@@ -65,13 +65,13 @@ func NewClient() Client {
 
 	// Helm action.Configuration 초기화
 	if err := actionConfig.Init(flags, namespace, "secret", log.Printf); err != nil {
-		panic(fmt.Errorf("failed to initialize helm client: %w", err))
+		return nil, fmt.Errorf("failed to initialize helm client: %w", err)
 	}
 
 	return &helmClient{
 		cfg:       actionConfig,
 		namespace: namespace,
-	}
+	}, nil
 }
 
 // NewClientWithConfig : 설정을 받아서 Helm 클라이언트를 생성합니다

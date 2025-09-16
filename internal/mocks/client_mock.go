@@ -96,6 +96,17 @@ func (m *MockKubernetesClient) GetSecrets(ctx context.Context, namespace, labelS
 	}, nil
 }
 
+func (m *MockKubernetesClient) CreateSecret(ctx context.Context, namespace, name string, data map[string]string) (*v1.Secret, error) {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Type: v1.SecretTypeOpaque,
+		Data: make(map[string][]byte),
+	}, nil
+}
+
 func (m *MockKubernetesClient) GetServices(ctx context.Context, namespace, labelSelector string) (interface{}, error) {
 	return map[string]interface{}{
 		"items": []map[string]interface{}{
@@ -360,6 +371,10 @@ func (m *MockVeleroClient) GetBackupStorageLocation(ctx context.Context, namespa
 	return &velerov1.BackupStorageLocation{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}, nil
+}
+
+func (m *MockVeleroClient) CreateBackupStorageLocation(ctx context.Context, namespace string, bsl *velerov1.BackupStorageLocation) error {
+	return nil
 }
 
 func (m *MockVeleroClient) GetVolumeSnapshotLocations(ctx context.Context, namespace string) ([]velerov1.VolumeSnapshotLocation, error) {

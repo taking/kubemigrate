@@ -39,13 +39,6 @@ func SetupHealthRoutes(e *echo.Echo, baseHandler *handler.BaseHandler) {
 			"data":   detailedStats,
 		})
 	})
-	cacheGroup.POST("/cleanup", func(c echo.Context) error {
-		baseHandler.CleanupCache()
-		return c.JSON(200, map[string]interface{}{
-			"status":  "success",
-			"message": "Cache cleanup completed",
-		})
-	})
 	cacheGroup.GET("/cleanup", func(c echo.Context) error {
 		baseHandler.CleanupCache()
 		return c.JSON(200, map[string]interface{}{

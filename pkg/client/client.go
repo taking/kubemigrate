@@ -1,6 +1,8 @@
 package client
 
 import (
+	"fmt"
+
 	"github.com/taking/kubemigrate/pkg/client/helm"
 	"github.com/taking/kubemigrate/pkg/client/kubernetes"
 	"github.com/taking/kubemigrate/pkg/client/minio"
@@ -25,13 +27,33 @@ type client struct {
 }
 
 // NewClient : 새로운 통합 클라이언트를 생성합니다
-func NewClient() Client {
-	return &client{
-		kubernetes: kubernetes.NewClient(),
-		helm:       helm.NewClient(),
-		velero:     velero.NewClient(),
-		minio:      minio.NewClient(),
+func NewClient() (Client, error) {
+	kubeClient, err := kubernetes.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
+
+	helmClient, err := helm.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create helm client: %w", err)
+	}
+
+	minioClient, err := minio.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create minio client: %w", err)
+	}
+
+	veleroClient, err := velero.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create velero client: %w", err)
+	}
+
+	return &client{
+		kubernetes: kubeClient,
+		helm:       helmClient,
+		minio:      minioClient,
+		velero:     veleroClient,
+	}, nil
 }
 
 // Kubernetes : Kubernetes 클라이언트를 반환합니다
@@ -79,25 +101,25 @@ func NewClientWithConfig(kubeConfig, helmConfig, veleroConfig, minioConfig inter
 		kubernetes: createClientWithFallback[config.KubeConfig, kubernetes.Client]( //nolint:typecheck
 			kubeConfig,
 			kubernetes.NewClientWithConfig,
-			kubernetes.NewClient(),
+			func() kubernetes.Client { client, _ := kubernetes.NewClient(); return client }(),
 		),
 
 		helm: createClientWithFallback[config.KubeConfig, helm.Client]( //nolint:typecheck
 			helmConfig,
 			helm.NewClientWithConfig,
-			helm.NewClient(),
+			func() helm.Client { client, _ := helm.NewClient(); return client }(),
 		),
 
 		velero: createClientWithFallback[config.VeleroConfig, velero.Client]( //nolint:typecheck
 			veleroConfig,
 			velero.NewClientWithConfig,
-			velero.NewClient(),
+			func() velero.Client { client, _ := velero.NewClient(); return client }(),
 		),
 
 		minio: createClientWithFallback[config.MinioConfig, minio.Client]( //nolint:typecheck
 			minioConfig,
 			minio.NewClientWithConfig,
-			minio.NewClient(),
+			func() minio.Client { client, _ := minio.NewClient(); return client }(),
 		),
 	}
 }
