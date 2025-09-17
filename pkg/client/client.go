@@ -86,7 +86,12 @@ func createClientWithFallback[T any, R any](
 		return fallback
 	}
 
-	if typedConfig, ok := config.(T); ok {
+	// 포인터 타입 처리
+	if ptr, ok := config.(*T); ok {
+		if client, err := creator(*ptr); err == nil {
+			return client
+		}
+	} else if typedConfig, ok := config.(T); ok {
 		if client, err := creator(typedConfig); err == nil {
 			return client
 		}

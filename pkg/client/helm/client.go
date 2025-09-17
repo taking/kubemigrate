@@ -28,6 +28,7 @@ type Client interface {
 	// Chart 관련
 	GetCharts(ctx context.Context, namespace string) ([]*release.Release, error)
 	GetChart(ctx context.Context, releaseName, namespace string, releaseVersion int) (*release.Release, error)
+	GetValues(ctx context.Context, releaseName, namespace string) (map[string]interface{}, error)
 	IsChartInstalled(releaseName string) (bool, *release.Release, error)
 
 	// Chart 설치/제거
@@ -154,6 +155,21 @@ func (h *helmClient) GetChart(ctx context.Context, releaseName, namespace string
 		return nil, err
 	}
 	return rel, nil
+}
+
+// GetValues : Helm 차트의 현재 values 조회
+func (h *helmClient) GetValues(ctx context.Context, releaseName, namespace string) (map[string]interface{}, error) {
+	h.namespace = namespace
+
+	getValues := action.NewGetValues(h.cfg)
+	getValues.AllValues = true // 모든 values 포함 (기본값 + 사용자 설정값)
+
+	values, err := getValues.Run(releaseName)
+	if err != nil {
+		return nil, err
+	}
+
+	return values, nil
 }
 
 // IsChartInstalled : 특정 릴리스 설치 여부 확인 (모든 네임스페이스 검사)

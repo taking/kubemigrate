@@ -70,6 +70,12 @@ type Client interface {
 	// - (*storagev1.StorageClass, error) when name is provided (single storage class)
 	GetStorageClasses(ctx context.Context, name string) (interface{}, error)
 
+	// CreateNamespace creates a new namespace
+	CreateNamespace(ctx context.Context, namespace *v1.Namespace) (interface{}, error)
+
+	// DeleteSecret deletes a secret
+	DeleteSecret(ctx context.Context, namespace, name string) error
+
 	// Namespace 관련 (기존 유지)
 	GetNamespaces(ctx context.Context) (*v1.NamespaceList, error)
 	GetNamespace(ctx context.Context, name string) (*v1.Namespace, error)
@@ -255,4 +261,14 @@ func (c *client) CreateSecret(ctx context.Context, namespace, name string, data 
 	}
 
 	return c.clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+}
+
+// CreateNamespace : Namespace 생성
+func (c *client) CreateNamespace(ctx context.Context, namespace *v1.Namespace) (interface{}, error) {
+	return c.clientset.CoreV1().Namespaces().Create(ctx, namespace, metav1.CreateOptions{})
+}
+
+// DeleteSecret : Secret 삭제
+func (c *client) DeleteSecret(ctx context.Context, namespace, name string) error {
+	return c.clientset.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }

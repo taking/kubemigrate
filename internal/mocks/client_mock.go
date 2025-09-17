@@ -107,6 +107,14 @@ func (m *MockKubernetesClient) CreateSecret(ctx context.Context, namespace, name
 	}, nil
 }
 
+func (m *MockKubernetesClient) CreateNamespace(ctx context.Context, namespace *v1.Namespace) (interface{}, error) {
+	return namespace, nil
+}
+
+func (m *MockKubernetesClient) DeleteSecret(ctx context.Context, namespace, name string) error {
+	return nil
+}
+
 func (m *MockKubernetesClient) GetServices(ctx context.Context, namespace, labelSelector string) (interface{}, error) {
 	return map[string]interface{}{
 		"items": []map[string]interface{}{
@@ -208,6 +216,20 @@ func (m *MockHelmClient) GetChart(ctx context.Context, releaseName, namespace st
 		Namespace: namespace,
 		Version:   releaseVersion,
 		Info:      &release.Info{Status: "deployed"},
+	}, nil
+}
+
+func (m *MockHelmClient) GetValues(ctx context.Context, releaseName, namespace string) (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"image": map[string]interface{}{
+			"repository": "nginx",
+			"tag":        "1.21.0",
+		},
+		"service": map[string]interface{}{
+			"type": "ClusterIP",
+			"port": 80,
+		},
+		"replicaCount": 1,
 	}, nil
 }
 
@@ -374,6 +396,10 @@ func (m *MockVeleroClient) GetBackupStorageLocation(ctx context.Context, namespa
 }
 
 func (m *MockVeleroClient) CreateBackupStorageLocation(ctx context.Context, namespace string, bsl *velerov1.BackupStorageLocation) error {
+	return nil
+}
+
+func (m *MockVeleroClient) DeleteBackupStorageLocation(ctx context.Context, namespace, name string) error {
 	return nil
 }
 

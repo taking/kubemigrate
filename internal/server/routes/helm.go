@@ -18,7 +18,7 @@ func SetupHelmRoutes(e *echo.Echo, helmHandler *helm.Handler) {
 	helmGroup.POST("/charts", helmHandler.InstallChart)                 // 차트 설치
 	helmGroup.GET("/charts", helmHandler.GetCharts)                     // 차트 목록 조회
 	helmGroup.GET("/charts/:name", helmHandler.GetChart)                // 차트 상세 조회
-	helmGroup.GET("/charts/:name/status", helmHandler.IsChartInstalled) // 차트 설치 상태
+	helmGroup.GET("/charts/:name/status", helmHandler.GetChartStatus)   // 차트 상태 조회
 	helmGroup.PUT("/charts/:name", helmHandler.UpgradeChart)            // 차트 업그레이드
 	helmGroup.GET("/charts/:name/history", helmHandler.GetChartHistory) // 차트 히스토리 조회
 	helmGroup.GET("/charts/:name/values", helmHandler.GetChartValues)   // 차트 값 조회

@@ -49,3 +49,20 @@ type VeleroConfig struct {
 	KubeConfig  KubeConfig  `json:"kubeconfig" binding:"required"`
 	MinioConfig MinioConfig `json:"minio" binding:"required"`
 }
+
+// InstallChartConfig : Helm 차트 설치 설정
+type InstallChartConfig struct {
+	ReleaseName string                 `json:"release_name"`
+	ChartURL    string                 `json:"chart_url"`
+	Version     string                 `json:"version"`
+	Namespace   string                 `json:"namespace"`
+	Values      map[string]interface{} `json:"values,omitempty"`
+}
+
+// UpgradeChartConfig : Helm 차트 업그레이드 설정
+type UpgradeChartConfig struct {
+	ReleaseName string                 `json:"release_name"`
+	ChartPath   string                 `json:"chart_path"`
+	Namespace   string                 `json:"namespace"`
+	Values      map[string]interface{} `json:"values,omitempty"`
+}

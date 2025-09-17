@@ -36,6 +36,7 @@ type Client interface {
 	GetBackupStorageLocations(ctx context.Context, namespace string) ([]velerov1.BackupStorageLocation, error)
 	GetBackupStorageLocation(ctx context.Context, namespace, name string) (*velerov1.BackupStorageLocation, error)
 	CreateBackupStorageLocation(ctx context.Context, namespace string, bsl *velerov1.BackupStorageLocation) error
+	DeleteBackupStorageLocation(ctx context.Context, namespace, name string) error
 
 	// VolumeSnapshotLocation 관련
 	GetVolumeSnapshotLocations(ctx context.Context, namespace string) ([]velerov1.VolumeSnapshotLocation, error)
@@ -281,4 +282,12 @@ func (c *client) GetPodVolumeRestore(ctx context.Context, namespace, name string
 // CreateBackupStorageLocation BackupStorageLocation을 생성합니다
 func (c *client) CreateBackupStorageLocation(ctx context.Context, namespace string, bsl *velerov1.BackupStorageLocation) error {
 	return c.k8sClient.Create(ctx, bsl)
+}
+
+// DeleteBackupStorageLocation BackupStorageLocation을 삭제합니다
+func (c *client) DeleteBackupStorageLocation(ctx context.Context, namespace, name string) error {
+	bsl := &velerov1.BackupStorageLocation{}
+	bsl.Name = name
+	bsl.Namespace = namespace
+	return c.k8sClient.Delete(ctx, bsl)
 }

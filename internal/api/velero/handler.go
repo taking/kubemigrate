@@ -2,40 +2,27 @@ package velero
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
+	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
-	"github.com/taking/kubemigrate/pkg/config"
+	"github.com/taking/kubemigrate/pkg/client/minio"
+	"github.com/taking/kubemigrate/pkg/utils"
 )
-
-// VeleroInstallConfig : Velero 설치 설정
-type VeleroInstallConfig struct {
-	MinioConfig config.MinioConfig `json:"minio_config"`
-}
-
-// InstallResult : 설치 결과
-type InstallResult struct {
-	Status           string                 `json:"status"`
-	Message          string                 `json:"message"`
-	VeleroNamespace  string                 `json:"velero_namespace"`
-	MinioConnected   bool                   `json:"minio_connected"`
-	BackupLocation   string                 `json:"backup_location"`
-	InstallationTime time.Duration          `json:"installation_time"`
-	Details          map[string]interface{} `json:"details,omitempty"`
-}
 
 // Handler : Velero 관련 HTTP 핸들러
 type Handler struct {
 	*handler.BaseHandler
+	service *Service
 }
 
 // NewHandler : 새로운 Velero 핸들러 생성
 func NewHandler(base *handler.BaseHandler) *Handler {
 	return &Handler{
 		BaseHandler: base,
+		service:     NewService(base),
 	}
 }
 
@@ -70,89 +57,89 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 // @Tags velero
 // @Accept json
 // @Produce json
-// @Param request body velero.VeleroInstallConfig true "Velero installation configuration (minio_config only)"
+// @Param request body config.VeleroConfig true "Velero configuration"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Param force query boolean false "Force recreate BSL and MinIO Secret (default: false)"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/velero/install [post]
 func (h *Handler) InstallVeleroWithMinIO(c echo.Context) error {
-	// HandleResourceClient 패턴 사용
-	return h.InstallVeleroWithMinIOHandler(c)
+	// 기존 utils 함수 재사용
+	config, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 400, "INVALID_CONFIG", "Invalid configuration", err.Error())
+	}
+
+	// Query 파라미터 처리
+	namespace := utils.ResolveNamespace(c, "velero")
+	force := utils.ResolveBool(c, "force", false)
+
+	// 컨텍스트 생성 (타임아웃 설정)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Minute)
+	defer cancel()
+
+	// MinIO 클라이언트 직접 생성 및 테스트
+	minioClient, err := minio.NewClientWithConfig(config.MinioConfig)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "MINIO_CLIENT_FAILED", "MinIO client creation failed", err.Error())
+	}
+
+	// MinIO 연결 테스트
+	_, err = minioClient.ListBuckets(ctx)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "MINIO_CONNECTION_FAILED", "MinIO connection failed", err.Error())
+	}
+
+	// 통합 클라이언트 생성 (MinIO 클라이언트는 이미 검증됨)
+	unifiedClient := client.NewClientWithConfig(
+		&config.KubeConfig,
+		&config.KubeConfig,
+		&config,
+		&config.MinioConfig,
+	)
+
+	// Velero 설치 및 MinIO 연동 실행
+	result, err := h.service.InstallVeleroWithMinIOInternal(unifiedClient, ctx, config, namespace, force)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "INSTALLATION_FAILED", "Velero installation failed", err.Error())
+	}
+
+	return response.RespondWithData(c, 200, result)
 }
 
-// InstallVeleroWithMinIOHandler : HandleResourceClient 패턴으로 Velero 설치 및 MinIO 연동
-func (h *Handler) InstallVeleroWithMinIOHandler(c echo.Context) error {
-	return h.HandleResourceClient(c, "velero-install", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// 요청 바인딩
-		var config VeleroInstallConfig
-		if err := c.Bind(&config); err != nil {
-			return nil, fmt.Errorf("invalid request: %w", err)
-		}
-
-		// Velero 설치 및 MinIO 연동 실행
-		return h.InstallVeleroWithMinIOInternal(client, ctx, config)
+// GetBackups : Velero 백업 목록 조회
+// @Summary Get Velero Backups
+// @Description Get list of Velero backups
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/backups [get]
+func (h *Handler) GetBackups(c echo.Context) error {
+	return h.HandleResourceClient(c, "velero-backups", func(client client.Client, ctx context.Context) (interface{}, error) {
+		namespace := utils.ResolveNamespace(c, "velero")
+		return h.service.GetBackupsInternal(client, ctx, namespace)
 	})
 }
 
-// InstallVeleroWithMinIOInternal : Velero 설치 및 MinIO 연동 설정 (내부 로직)
-func (h *Handler) InstallVeleroWithMinIOInternal(client client.Client, ctx context.Context, config VeleroInstallConfig) (*InstallResult, error) {
-	startTime := time.Now()
-
-	// 고정값 설정
-	namespace := "velero"
-
-	result := &InstallResult{
-		Status:          "in_progress",
-		VeleroNamespace: namespace,
-		Details:         make(map[string]interface{}),
-	}
-
-	// 1. Velero 설치 여부 확인
-	if err := h.checkVeleroInstallation(client, ctx, namespace); err != nil {
-		return nil, fmt.Errorf("velero installation check failed: %w", err)
-	}
-
-	// 2. Velero가 없으면 Helm으로 설치
-	if !h.isVeleroInstalled(client, ctx, namespace) {
-		if err := h.installVeleroViaHelm(client, ctx, config); err != nil {
-			return nil, fmt.Errorf("velero installation failed: %w", err)
-		}
-		result.Details["installation"] = "completed"
-	} else {
-		result.Details["installation"] = "already_installed"
-	}
-
-	// 3. Velero readiness 재확인
-	if err := h.waitForVeleroReady(client, ctx, namespace); err != nil {
-		return nil, fmt.Errorf("velero readiness check failed: %w", err)
-	}
-	result.Details["readiness"] = "ready"
-
-	// 4. MinIO Secret 생성
-	if err := h.createMinIOSecret(client, ctx, config, namespace); err != nil {
-		return nil, fmt.Errorf("minio secret creation failed: %w", err)
-	}
-	result.Details["minio_secret"] = "created"
-
-	// 5. BackupStorageLocation 생성
-	_, err := h.createBackupStorageLocation(client, ctx, config, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("backup storage location creation failed: %w", err)
-	}
-	result.Details["backup_location"] = "created"
-	result.BackupLocation = fmt.Sprintf("minio://%s", config.MinioConfig.Endpoint)
-
-	// 6. BSL 상태 조회 및 MinIO 연결 검증
-	minioConnected, err := h.validateMinIOConnection(client, ctx, config, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("minio connection validation failed: %w", err)
-	}
-	result.Details["minio_validation"] = "completed"
-	result.MinioConnected = minioConnected
-
-	result.Status = "success"
-	result.Message = "Velero installed and configured successfully"
-	result.InstallationTime = time.Since(startTime)
-
-	return result, nil
+// GetRestores : Velero 복원 목록 조회
+// @Summary Get Velero Restores
+// @Description Get list of Velero restores
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/restores [get]
+func (h *Handler) GetRestores(c echo.Context) error {
+	return h.HandleResourceClient(c, "velero-restores", func(client client.Client, ctx context.Context) (interface{}, error) {
+		namespace := utils.ResolveNamespace(c, "velero")
+		return h.service.GetRestoresInternal(client, ctx, namespace)
+	})
 }

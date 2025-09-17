@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -139,4 +140,51 @@ func BindAndValidateVeleroConfig(ctx echo.Context, minioValidator *validator.Min
 
 	req.KubeConfig.KubeConfig = decodeKubeConfig
 	return req, nil
+}
+
+// ResolveSetValues : --set 옵션들을 파싱
+func ResolveSetValues(c echo.Context) map[string]interface{} {
+	setValues := make(map[string]interface{})
+
+	// ?set=key1=value1&set=key2=value2 형태로 받기
+	for _, setParam := range c.QueryParams()["set"] {
+		if setParam != "" {
+			parts := strings.SplitN(setParam, "=", 2)
+			if len(parts) == 2 {
+				key := parts[0]
+				value := parts[1]
+
+				// 값 타입 추론
+				if parsedValue, err := strconv.ParseBool(value); err == nil {
+					setValues[key] = parsedValue
+				} else if parsedValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+					setValues[key] = parsedValue
+				} else if parsedValue, err := strconv.ParseFloat(value, 64); err == nil {
+					setValues[key] = parsedValue
+				} else {
+					setValues[key] = value
+				}
+			}
+		}
+	}
+
+	return setValues
+}
+
+// ResolveBool : boolean 쿼리 파라미터 결정
+func ResolveBool(c echo.Context, param string, defaultValue bool) bool {
+	value := c.QueryParam(param)
+	if value == "" {
+		return defaultValue
+	}
+	return StringToBoolOrDefault(value, defaultValue)
+}
+
+// ResolveInt : integer 쿼리 파라미터 결정
+func ResolveInt(c echo.Context, param string, defaultValue int) int {
+	value := c.QueryParam(param)
+	if value == "" {
+		return defaultValue
+	}
+	return StringToIntOrDefault(value, defaultValue)
 }
