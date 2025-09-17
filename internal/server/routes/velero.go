@@ -22,4 +22,10 @@ func SetupVeleroRoutes(e *echo.Echo, veleroHandler *velero.Handler) {
 
 	// 복구 관련 라우트
 	veleroGroup.POST("/restores", veleroHandler.GetRestores)
+
+	// Velero 리소스 조회 라우트
+	veleroGroup.GET("/repositories", veleroHandler.GetBackupRepositories)
+	veleroGroup.GET("/storage-locations", veleroHandler.GetBackupStorageLocations)
+	veleroGroup.GET("/volume-snapshot-locations", veleroHandler.GetVolumeSnapshotLocations)
+	veleroGroup.GET("/pod-volume-restores", veleroHandler.GetPodVolumeRestores)
 }

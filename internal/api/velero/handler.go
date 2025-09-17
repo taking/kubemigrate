@@ -143,3 +143,75 @@ func (h *Handler) GetRestores(c echo.Context) error {
 		return h.service.GetRestoresInternal(client, ctx, namespace)
 	})
 }
+
+// GetBackupRepositories : 백업 저장소 조회
+// @Summary Get Backup Repositories
+// @Description Get list of backup repositories
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.VeleroConfig true "Velero configuration"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/repositories [get]
+func (h *Handler) GetBackupRepositories(c echo.Context) error {
+	return h.HandleResourceClient(c, "velero-repositories", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// Velero 백업 저장소 조회
+		namespace := utils.ResolveNamespace(c, "velero")
+		return h.service.GetBackupRepositoriesInternal(client, ctx, namespace)
+	})
+}
+
+// GetBackupStorageLocations : 백업 스토리지 위치 조회
+// @Summary Get Backup Storage Locations
+// @Description Get list of backup storage locations
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.VeleroConfig true "Velero configuration"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/storage-locations [get]
+func (h *Handler) GetBackupStorageLocations(c echo.Context) error {
+	return h.HandleResourceClient(c, "velero-storage-locations", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// Velero 백업 스토리지 위치 조회
+		namespace := utils.ResolveNamespace(c, "velero")
+		return h.service.GetBackupStorageLocationsInternal(client, ctx, namespace)
+	})
+}
+
+// GetVolumeSnapshotLocations : 볼륨 스냅샷 위치 조회
+// @Summary Get Volume Snapshot Locations
+// @Description Get list of volume snapshot locations
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.VeleroConfig true "Velero configuration"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/volume-snapshot-locations [get]
+func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
+	return h.HandleResourceClient(c, "velero-volume-snapshot-locations", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// Velero 볼륨 스냅샷 위치 조회
+		namespace := utils.ResolveNamespace(c, "velero")
+		return h.service.GetVolumeSnapshotLocationsInternal(client, ctx, namespace)
+	})
+}
+
+// GetPodVolumeRestores : Pod 볼륨 복원 조회
+// @Summary Get Pod Volume Restores
+// @Description Get list of pod volume restores
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.VeleroConfig true "Velero configuration"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/pod-volume-restores [get]
+func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
+	return h.HandleResourceClient(c, "velero-pod-volume-restores", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// Velero Pod 볼륨 복원 조회
+		namespace := utils.ResolveNamespace(c, "velero")
+		return h.service.GetPodVolumeRestoresInternal(client, ctx, namespace)
+	})
+}

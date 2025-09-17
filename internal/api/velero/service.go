@@ -955,3 +955,47 @@ func (s *Service) GetRestoresInternal(client client.Client, ctx context.Context,
 
 	return restores, nil
 }
+
+// GetBackupRepositoriesInternal : 백업 저장소 조회 (내부 로직)
+func (s *Service) GetBackupRepositoriesInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
+	// Velero 백업 저장소 목록 조회
+	repositories, err := client.Velero().GetBackupRepositories(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get backup repositories: %w", err)
+	}
+
+	return repositories, nil
+}
+
+// GetBackupStorageLocationsInternal : 백업 스토리지 위치 조회 (내부 로직)
+func (s *Service) GetBackupStorageLocationsInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
+	// Velero 백업 스토리지 위치 목록 조회
+	locations, err := client.Velero().GetBackupStorageLocations(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get backup storage locations: %w", err)
+	}
+
+	return locations, nil
+}
+
+// GetVolumeSnapshotLocationsInternal : 볼륨 스냅샷 위치 조회 (내부 로직)
+func (s *Service) GetVolumeSnapshotLocationsInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
+	// Velero 볼륨 스냅샷 위치 목록 조회
+	locations, err := client.Velero().GetVolumeSnapshotLocations(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get volume snapshot locations: %w", err)
+	}
+
+	return locations, nil
+}
+
+// GetPodVolumeRestoresInternal : Pod 볼륨 복원 조회 (내부 로직)
+func (s *Service) GetPodVolumeRestoresInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
+	// Velero Pod 볼륨 복원 목록 조회
+	restores, err := client.Velero().GetPodVolumeRestores(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pod volume restores: %w", err)
+	}
+
+	return restores, nil
+}
