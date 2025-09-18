@@ -1,4 +1,3 @@
-// Package minio MinIO 관련 비즈니스 로직을 관리합니다.
 package minio
 
 import (

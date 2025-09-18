@@ -65,7 +65,7 @@ func NewClient() (Client, error) {
 	}
 
 	// Helm action.Configuration 초기화
-	if err := actionConfig.Init(flags, namespace, "secret", log.Printf); err != nil {
+	if err := actionConfig.Init(flags, namespace, "memory", log.Printf); err != nil {
 		return nil, fmt.Errorf("failed to initialize helm client: %w", err)
 	}
 

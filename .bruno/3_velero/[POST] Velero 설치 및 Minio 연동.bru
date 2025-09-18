@@ -30,7 +30,7 @@ body:json {
 }
 
 script:post-response {
-  bru.setEnvVar("jobId", res.body.uuid);
+  bru.setEnvVar("jobId", res.body.data.job.jobId);
 }
 
 settings {
