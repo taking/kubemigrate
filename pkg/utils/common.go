@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -187,4 +188,13 @@ func ResolveInt(c echo.Context, param string, defaultValue int) int {
 		return defaultValue
 	}
 	return StringToIntOrDefault(value, defaultValue)
+}
+
+// ParseJSON : JSON 문자열을 파싱하여 지정된 타입으로 변환
+func ParseJSON(jsonStr string, target interface{}) error {
+	if jsonStr == "" {
+		return nil
+	}
+
+	return json.Unmarshal([]byte(jsonStr), target)
 }

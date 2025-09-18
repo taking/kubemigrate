@@ -5,20 +5,25 @@ meta {
 }
 
 put {
-  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/nginx?chartPath=bitnami/nginx&namespace=default
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/nginx?namespace=default&chartURL=https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz&values={"replicaCount":3}
   body: json
   auth: inherit
 }
 
 params:query {
-  chartPath: bitnami/nginx
   namespace: default
+  chartURL: https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz
+  values: {"replicaCount":3}
 }
 
 body:json {
   {
     "kubeconfig": "{{base64_local_kubeconfig}}"
   }
+}
+
+script:post-response {
+  bru.setEnvVar("jobId", res.body.data.job.jobId);
 }
 
 settings {

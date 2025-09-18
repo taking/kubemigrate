@@ -18,14 +18,19 @@ func SetupVeleroRoutes(e *echo.Echo, veleroHandler *velero.Handler) {
 	veleroGroup.POST("/install", veleroHandler.InstallVeleroWithMinIO)
 
 	// 백업 관련 라우트
-	veleroGroup.POST("/backups", veleroHandler.GetBackups)
+	veleroGroup.GET("/backups", veleroHandler.GetBackups)
 
 	// 복구 관련 라우트
-	veleroGroup.POST("/restores", veleroHandler.GetRestores)
+	veleroGroup.GET("/restores", veleroHandler.GetRestores)
 
 	// Velero 리소스 조회 라우트
 	veleroGroup.GET("/repositories", veleroHandler.GetBackupRepositories)
 	veleroGroup.GET("/storage-locations", veleroHandler.GetBackupStorageLocations)
 	veleroGroup.GET("/volume-snapshot-locations", veleroHandler.GetVolumeSnapshotLocations)
 	veleroGroup.GET("/pod-volume-restores", veleroHandler.GetPodVolumeRestores)
+
+	// 비동기 작업 관리 라우트
+	veleroGroup.GET("/status/:jobId", veleroHandler.GetJobStatus) // 작업 상태 조회
+	veleroGroup.GET("/logs/:jobId", veleroHandler.GetJobLogs)     // 작업 로그 조회
+	veleroGroup.GET("/jobs", veleroHandler.GetAllJobs)            // 모든 작업 조회
 }

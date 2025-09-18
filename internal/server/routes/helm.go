@@ -23,4 +23,9 @@ func SetupHelmRoutes(e *echo.Echo, helmHandler *helm.Handler) {
 	helmGroup.GET("/charts/:name/history", helmHandler.GetChartHistory) // 차트 히스토리 조회
 	helmGroup.GET("/charts/:name/values", helmHandler.GetChartValues)   // 차트 값 조회
 	helmGroup.DELETE("/charts/:name", helmHandler.UninstallChart)       // 차트 제거
+
+	// 비동기 작업 관리 라우트
+	helmGroup.GET("/charts/status/:jobId", helmHandler.GetJobStatus) // 작업 상태 조회
+	helmGroup.GET("/charts/logs/:jobId", helmHandler.GetJobLogs)     // 작업 로그 조회
+	helmGroup.GET("/charts/jobs", helmHandler.GetAllJobs)            // 모든 작업 조회
 }

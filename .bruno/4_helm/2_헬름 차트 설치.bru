@@ -5,22 +5,26 @@ meta {
 }
 
 post {
-  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts?releaseName=nginx&chartURL=https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz&version=15.4.2&namespace=default
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts?namespace=default&releaseName=nginx&chartURL=https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz&version=15.4.2
   body: json
   auth: inherit
 }
 
 params:query {
+  namespace: default
   releaseName: nginx
   chartURL: https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz
   version: 15.4.2
-  namespace: default
 }
 
 body:json {
   {
     "kubeconfig": "{{base64_local_kubeconfig}}"
   }
+}
+
+script:post-response {
+  bru.setEnvVar("jobId", res.body.data.job.jobId);
 }
 
 settings {

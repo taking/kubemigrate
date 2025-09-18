@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/taking/kubemigrate/internal/handler"
+	"github.com/taking/kubemigrate/internal/job"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/config"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -16,139 +17,203 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// InstallResult : 설치 결과
-type InstallResult struct {
-	Status           string                 `json:"status"`
-	Message          string                 `json:"message"`
-	VeleroNamespace  string                 `json:"velero_namespace"`
-	MinioConnected   bool                   `json:"minio_connected"`
-	BackupLocation   string                 `json:"backup_location"`
-	InstallationTime time.Duration          `json:"installation_time"`
-	Details          map[string]interface{} `json:"details,omitempty"`
-}
-
-// VeleroStatus : Velero 상태 정보
-type VeleroStatus struct {
-	PodsInstalled    bool   `json:"pods_installed"`
-	HelmRelease      bool   `json:"helm_release"`
-	ReleaseNamespace string `json:"release_namespace"`
-	IsHealthy        bool   `json:"is_healthy"`
-	ErrorMessage     string `json:"error_message,omitempty"`
-}
-
-// InstallationError : 설치 에러 정보
-type InstallationError struct {
-	Type        string   `json:"type"` // "helm_conflict", "pod_failed", "timeout"
-	Message     string   `json:"message"`
-	Details     string   `json:"details"`
-	Suggestions []string `json:"suggestions"`
-	Commands    []string `json:"commands"` // 해결을 위한 명령어
-}
-
-// Error : error 인터페이스 구현
-func (e *InstallationError) Error() string {
-	return fmt.Sprintf("[%s] %s: %s", e.Type, e.Message, e.Details)
-}
-
-// InstallationProgress : 설치 진행 상황
-type InstallationProgress struct {
-	Step      string `json:"step"`
-	Progress  int    `json:"progress"` // 0-100
-	Message   string `json:"message"`
-	Estimated string `json:"estimated"` // 남은 시간
-	CanCancel bool   `json:"can_cancel"`
-}
-
-// BSLStatusInfo : BSL 상태 정보
-type BSLStatusInfo struct {
-	Phase              string   `json:"phase"`
-	Message            string   `json:"message"`
-	LastValidationTime string   `json:"last_validation_time"`
-	MinioEndpoint      string   `json:"minio_endpoint"`
-	Bucket             string   `json:"bucket"`
-	Region             string   `json:"region"`
-	SuggestedActions   []string `json:"suggested_actions"`
-}
-
 // Service : Velero 관련 비즈니스 로직
 type Service struct {
 	*handler.BaseHandler
+	jobManager job.JobManager
 }
 
 // NewService : 새로운 Velero 서비스 생성
 func NewService(base *handler.BaseHandler) *Service {
 	return &Service{
 		BaseHandler: base,
+		jobManager:  job.NewMemoryJobManager(),
 	}
 }
 
-// InstallVeleroWithMinIOInternal : Velero 설치 및 MinIO 연동 설정 (내부 로직)
-func (s *Service) InstallVeleroWithMinIOInternal(client client.Client, ctx context.Context, config config.VeleroConfig, namespace string, force bool) (*InstallResult, error) {
-	startTime := time.Now()
+// InstallVeleroWithMinIOInternal : Velero 설치 및 MinIO 연동 설정 (비동기)
+// 상위 흐름만 담당하고 세부 로직은 헬퍼로 분리합니다.
+func (s *Service) InstallVeleroWithMinIOInternal(
+	client client.Client,
+	ctx context.Context,
+	cfg config.VeleroConfig,
+	namespace string,
+	force bool,
+) (interface{}, error) {
+	// Job ID 생성
+	jobID := fmt.Sprintf("velero-install-%d", time.Now().UnixNano())
+
+	// Job 생성 (민감한 정보 제외)
+	metadata := map[string]interface{}{
+		"namespace":       namespace,
+		"force":           force,
+		"minioEndpoint":   cfg.MinioConfig.Endpoint,
+		"veleroNamespace": namespace,
+	}
+
+	jobInfo := s.jobManager.CreateJob(jobID, metadata)
+
+	// 백그라운드에서 설치 시작
+	go s.installVeleroWithMinIOBackground(client, ctx, jobID, cfg, namespace, force)
+
+	// 즉시 응답 반환
+	return map[string]interface{}{
+		"status":    "processing",
+		"jobId":     jobID,
+		"message":   "Velero installation started",
+		"statusUrl": fmt.Sprintf("/api/v1/velero/status/%s", jobID),
+		"logsUrl":   fmt.Sprintf("/api/v1/velero/logs/%s", jobID),
+		"job":       jobInfo,
+	}, nil
+}
+
+// installVeleroWithMinIOBackground : 백그라운드에서 Velero 설치
+func (s *Service) installVeleroWithMinIOBackground(
+	client client.Client,
+	ctx context.Context,
+	jobID string,
+	cfg config.VeleroConfig,
+	namespace string,
+	force bool,
+) {
+	start := time.Now()
+
+	// 백그라운드 작업을 위한 새로운 context 생성 (30분 timeout)
+	bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+
+	// 1. 상태 확인 (재시도 로직 포함)
+	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 10, "Checking Velero status...")
+	s.jobManager.AddJobLog(jobID, "Starting Velero installation process")
+
+	var status *VeleroStatus
+	err := s.jobManager.RetryOperation(jobID, "Velero status check", 3, func() error {
+		var statusErr error
+		status, statusErr = s.checkVeleroStatus(client, bgCtx, namespace)
+		return statusErr
+	})
+	if err != nil {
+		s.jobManager.FailJob(jobID, err)
+		return
+	}
+	s.jobManager.AddJobLog(jobID, "Velero status check completed successfully")
+
+	// 2. 설치 전략 결정 및 실행 (재시도 로직 포함)
+	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 30, "Applying installation strategy...")
+	s.jobManager.AddJobLog(jobID, "Determining installation strategy")
 
 	result := &InstallResult{
 		Status:          "in_progress",
 		VeleroNamespace: namespace,
+		Force:           force,
 		Details:         make(map[string]interface{}),
 	}
 
-	// 1. Velero 상태 종합 확인
-	status, err := s.checkVeleroStatus(client, ctx, namespace)
+	err = s.jobManager.RetryOperation(jobID, "Installation strategy", 3, func() error {
+		return s.applyInstallStrategy(client, bgCtx, namespace, status, result)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("velero status check failed: %w", err)
+		s.jobManager.FailJob(jobID, err)
+		return
 	}
+	s.jobManager.AddJobLog(jobID, "Installation strategy applied successfully")
 
-	// 2. 스마트 설치 전략 적용
-	if err := s.smartInstallVelero(client, ctx, namespace, status, result); err != nil {
-		return nil, fmt.Errorf("smart velero installation failed: %w", err)
-	}
+	// 3. MinIO Secret 생성/재생성 (재시도 로직 포함)
+	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 50, "Creating MinIO secret...")
+	s.jobManager.AddJobLog(jobID, "Ensuring MinIO secret")
 
-	// 4. MinIO Secret 생성
-	if err := s.createMinIOSecret(client, ctx, config.MinioConfig, namespace, force); err != nil {
-		return nil, fmt.Errorf("minio secret creation failed: %w", err)
-	}
-	if force {
-		result.Details["minio_secret"] = "recreated"
-	} else {
-		result.Details["minio_secret"] = "created"
-	}
-
-	// 5. BackupStorageLocation 확인 및 생성
-	if err := s.checkAndCreateBackupStorageLocation(client, ctx, config.MinioConfig, namespace, force); err != nil {
-		return nil, fmt.Errorf("backup storage location check/creation failed: %w", err)
-	}
-	if force {
-		result.Details["backup_location"] = "recreated"
-	} else {
-		result.Details["backup_location"] = "created"
-	}
-	result.BackupLocation = fmt.Sprintf("minio://%s", config.MinioConfig.Endpoint)
-
-	// 6. BSL 상태 조회 및 MinIO 연결 검증
-	minioConnected, err := s.validateMinIOConnection(client, ctx, config.MinioConfig, namespace)
+	err = s.jobManager.RetryOperation(jobID, "MinIO secret creation", 3, func() error {
+		return s.ensureMinIOSecret(client, bgCtx, cfg.MinioConfig, namespace, force, result)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("minio connection validation failed: %w", err)
+		s.jobManager.FailJob(jobID, err)
+		return
 	}
+	s.jobManager.AddJobLog(jobID, "MinIO secret created successfully")
+
+	// 4. BackupStorageLocation 생성/검증 (재시도 로직 포함)
+	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 70, "Creating backup storage location...")
+	s.jobManager.AddJobLog(jobID, "Ensuring backup storage location")
+
+	err = s.jobManager.RetryOperation(jobID, "Backup storage location creation", 3, func() error {
+		return s.ensureBackupStorageLocation(client, bgCtx, cfg.MinioConfig, namespace, force, result)
+	})
+	if err != nil {
+		s.jobManager.FailJob(jobID, err)
+		return
+	}
+	s.jobManager.AddJobLog(jobID, "Backup storage location created successfully")
+
+	// 5. MinIO 연결 및 BSL 상태 검증 (재시도 로직 포함)
+	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 90, "Validating MinIO connection...")
+	s.jobManager.AddJobLog(jobID, "Validating MinIO connection and BSL status")
+
+	var ok bool
+	err = s.jobManager.RetryOperation(jobID, "MinIO validation", 3, func() error {
+		var validationErr error
+		ok, validationErr = s.validateMinIOConnection(client, bgCtx, cfg.MinioConfig, namespace)
+		return validationErr
+	})
+	if err != nil {
+		s.jobManager.FailJob(jobID, err)
+		return
+	}
+	result.MinioConnected = ok
 	result.Details["minio_validation"] = "completed"
-	result.MinioConnected = minioConnected
+	s.jobManager.AddJobLog(jobID, "MinIO connection validated successfully")
 
+	// 6. 완료
 	result.Status = "success"
 	result.Message = "Velero installed and configured successfully"
-	result.InstallationTime = time.Since(startTime)
+	result.BackupLocation = fmt.Sprintf("minio://%s", cfg.MinioConfig.Endpoint)
+	result.InstallationTime = time.Since(start)
 
-	return result, nil
+	s.jobManager.CompleteJob(jobID, result)
+	s.jobManager.AddJobLog(jobID, "Velero installation completed successfully")
 }
+
+// GetJobStatusInternal : 작업 상태 조회 (내부 로직)
+func (s *Service) GetJobStatusInternal(jobID string) (interface{}, error) {
+	job, exists := s.jobManager.GetJob(jobID)
+	if !exists {
+		return nil, fmt.Errorf("job not found: %s", jobID)
+	}
+
+	return job, nil
+}
+
+// GetJobLogsInternal : 작업 로그 조회 (내부 로직)
+func (s *Service) GetJobLogsInternal(jobID string) (interface{}, error) {
+	job, exists := s.jobManager.GetJob(jobID)
+	if !exists {
+		return nil, fmt.Errorf("job not found: %s", jobID)
+	}
+
+	return map[string]interface{}{
+		"jobId":   job.JobID,
+		"logs":    job.Logs,
+		"status":  job.Status,
+		"message": job.Message,
+	}, nil
+}
+
+// GetAllJobsInternal : 모든 작업 조회 (내부 로직)
+func (s *Service) GetAllJobsInternal() (interface{}, error) {
+	jobs := s.jobManager.GetAllJobs()
+	return map[string]interface{}{
+		"jobs":  jobs,
+		"count": len(jobs),
+	}, nil
+}
+
+//
+// ─── 상태 확인 로직 ───────────────────────────────────────────────────────────────
+//
 
 // checkVeleroStatus : Velero 상태 종합 확인
 func (s *Service) checkVeleroStatus(client client.Client, ctx context.Context, namespace string) (*VeleroStatus, error) {
-	status := &VeleroStatus{
-		PodsInstalled:    false,
-		HelmRelease:      false,
-		ReleaseNamespace: "",
-		IsHealthy:        false,
-	}
+	status := &VeleroStatus{}
 
-	// 1. Pod 상태 확인
 	podsInstalled, err := s.checkPodsInstalled(client, ctx, namespace)
 	if err != nil {
 		status.ErrorMessage = fmt.Sprintf("pod check failed: %v", err)
@@ -156,34 +221,33 @@ func (s *Service) checkVeleroStatus(client client.Client, ctx context.Context, n
 	}
 	status.PodsInstalled = podsInstalled
 
-	// 2. Helm Release 상태 확인
 	helmRelease, releaseNamespace, err := s.checkHelmRelease(client, ctx, "velero")
 	if err != nil {
 		status.ErrorMessage = fmt.Sprintf("helm release check failed: %v", err)
-		return status, err
+		// release 조회 실패는 에러지만 진행 가능하도록 false로 표시
 	}
 	status.HelmRelease = helmRelease
 	status.ReleaseNamespace = releaseNamespace
 
-	// 3. 전체 건강 상태 확인
 	status.IsHealthy = status.PodsInstalled && status.HelmRelease
-
 	return status, nil
 }
 
 // checkPodsInstalled : Velero Pod 설치 여부 확인
 func (s *Service) checkPodsInstalled(client client.Client, ctx context.Context, namespace string) (bool, error) {
-	pods, err := client.Kubernetes().GetPods(ctx, namespace, "")
+	raw, err := client.Kubernetes().GetPods(ctx, namespace, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to get pods: %w", err)
 	}
 
-	for _, pod := range pods.(*v1.PodList).Items {
-		if pod.Labels["component"] == "velero" && pod.Labels["deploy"] == "velero" {
-			return true, nil
+	// client.Kubernetes().GetPods 는 v1.PodList 타입을 반환한다고 가정
+	if podList, ok := raw.(*v1.PodList); ok {
+		for _, pod := range podList.Items {
+			if pod.Labels["component"] == "velero" && pod.Labels["deploy"] == "velero" {
+				return true, nil
+			}
 		}
 	}
-
 	return false, nil
 }
 
@@ -191,61 +255,68 @@ func (s *Service) checkPodsInstalled(client client.Client, ctx context.Context, 
 func (s *Service) checkHelmRelease(client client.Client, ctx context.Context, releaseName string) (bool, string, error) {
 	releases, err := client.Helm().GetCharts(ctx, "")
 	if err != nil {
-		return false, "", nil // release 조회 실패는 release가 없다고 간주
+		// Helm 조회 실패는 에러지만 "없음"으로 취급해 상위에서 결정하도록 함
+		return false, "", nil
 	}
-
-	for _, release := range releases {
-		if release.Name == releaseName {
-			return true, release.Namespace, nil
+	for _, r := range releases {
+		if r.Name == releaseName {
+			return true, r.Namespace, nil
 		}
 	}
-
 	return false, "", nil
 }
 
-// checkVeleroInstallation : Velero 설치 여부 확인 (기존 호환성 유지)
-func (s *Service) checkVeleroInstallation(client client.Client, ctx context.Context, namespace string) (bool, error) {
-	status, err := s.checkVeleroStatus(client, ctx, namespace)
-	if err != nil {
-		return false, err
-	}
-	return status.IsHealthy, nil
-}
+//
+// ─── 설치 전략 관련 ──────────────────────────────────────────────────────────────
+//
 
-// smartInstallVelero : 스마트 Velero 설치 전략
-func (s *Service) smartInstallVelero(client client.Client, ctx context.Context, namespace string, status *VeleroStatus, result *InstallResult) error {
+func (s *Service) applyInstallStrategy(
+	client client.Client,
+	ctx context.Context,
+	namespace string,
+	status *VeleroStatus,
+	result *InstallResult,
+) error {
 	switch {
 	case status.IsHealthy:
-		// 이미 정상 작동 중
 		result.Details["velero_installation"] = "already healthy"
 		return nil
 
+	case !status.PodsInstalled && !status.HelmRelease:
+		result.Details["velero_installation"] = "fresh installation"
+		return s.freshInstall(client, ctx, namespace, result)
+
 	case status.PodsInstalled && !status.HelmRelease:
-		// Pod는 있지만 Helm Release가 없는 경우 (수동 설치된 경우)
-		result.Details["velero_installation"] = "pods exist but no helm release - recreating helm release"
+		result.Details["velero_installation"] = "pods exist but helm release missing"
 		return s.recreateHelmRelease(client, ctx, namespace, result)
 
 	case !status.PodsInstalled && status.HelmRelease:
-		// Helm Release는 있지만 Pod가 없는 경우 (실패한 설치)
-		result.Details["velero_installation"] = "helm release exists but no pods - cleaning up and reinstalling"
+		result.Details["velero_installation"] = "helm release exists but pods missing"
 		return s.cleanupAndReinstall(client, ctx, namespace, result)
 
-	case status.HelmRelease && status.PodsInstalled:
-		// 둘 다 있지만 건강하지 않은 경우
-		result.Details["velero_installation"] = "both exist but unhealthy - force reinstalling"
-		return s.forceReinstall(client, ctx, namespace, result)
-
 	default:
-		// 둘 다 없는 경우 - 새로 설치
-		result.Details["velero_installation"] = "fresh installation"
-		return s.freshInstall(client, ctx, namespace, result)
+		result.Details["velero_installation"] = "unhealthy - force reinstall"
+		return s.forceReinstall(client, ctx, namespace, result)
 	}
 }
 
-// recreateHelmRelease : Helm Release 재생성
+// freshInstall : 새로 설치
+func (s *Service) freshInstall(client client.Client, ctx context.Context, namespace string, result *InstallResult) error {
+	// 1. Helm으로 설치 (--create-namespace 옵션으로 네임스페이스 자동 생성)
+	if err := s.installVeleroViaHelm(client, ctx, namespace); err != nil {
+		return fmt.Errorf("failed to install via helm: %w", err)
+	}
+	// 2. 준비 대기
+	if err := s.waitForVeleroReady(client, ctx, namespace); err != nil {
+		return fmt.Errorf("velero readiness check failed: %w", err)
+	}
+	result.Details["velero_installation"] = "fresh installation completed"
+	return nil
+}
+
+// recreateHelmRelease : Pod는 두고 Helm Release만 재생성
 func (s *Service) recreateHelmRelease(client client.Client, ctx context.Context, namespace string, result *InstallResult) error {
-	// 기존 Pod는 그대로 두고 Helm Release만 생성
-	if err := s.installVeleroViaHelm(client, ctx); err != nil {
+	if err := s.installVeleroViaHelm(client, ctx, namespace); err != nil {
 		return fmt.Errorf("failed to recreate helm release: %w", err)
 	}
 	result.Details["velero_installation"] = "helm release recreated"
@@ -254,185 +325,140 @@ func (s *Service) recreateHelmRelease(client client.Client, ctx context.Context,
 
 // cleanupAndReinstall : 정리 후 재설치
 func (s *Service) cleanupAndReinstall(client client.Client, ctx context.Context, namespace string, result *InstallResult) error {
-	// 1. 기존 Helm Release 삭제
+	// safe cleanup
 	if err := s.safeCleanupRelease(client, ctx, "velero"); err != nil {
 		return fmt.Errorf("failed to cleanup existing release: %w", err)
 	}
-
-	// 2. 새로 설치
-	if err := s.installVeleroViaHelm(client, ctx); err != nil {
+	if err := s.installVeleroViaHelm(client, ctx, namespace); err != nil {
 		return fmt.Errorf("failed to reinstall: %w", err)
 	}
-
-	// 3. Velero 준비 대기
 	if err := s.waitForVeleroReady(client, ctx, namespace); err != nil {
 		return fmt.Errorf("velero readiness check failed: %w", err)
 	}
-
 	result.Details["velero_installation"] = "cleaned up and reinstalled"
 	return nil
 }
 
 // forceReinstall : 강제 재설치
 func (s *Service) forceReinstall(client client.Client, ctx context.Context, namespace string, result *InstallResult) error {
-	// 1. 강제 정리
-	if err := s.forceCleanupRelease(client, ctx, "velero"); err != nil {
+	// force cleanup across namespaces
+	if err := s.forceCleanupRelease(client, ctx, "velero", namespace); err != nil {
 		return fmt.Errorf("failed to force cleanup: %w", err)
 	}
-
-	// 2. 새로 설치
-	if err := s.installVeleroViaHelm(client, ctx); err != nil {
+	if err := s.installVeleroViaHelm(client, ctx, namespace); err != nil {
 		return fmt.Errorf("failed to force reinstall: %w", err)
 	}
-
-	// 3. Velero 준비 대기
 	if err := s.waitForVeleroReady(client, ctx, namespace); err != nil {
 		return fmt.Errorf("velero readiness check failed: %w", err)
 	}
-
 	result.Details["velero_installation"] = "force reinstalled"
 	return nil
 }
 
-// freshInstall : 새로 설치
-func (s *Service) freshInstall(client client.Client, ctx context.Context, namespace string, result *InstallResult) error {
-	// 1. Namespace 생성
-	if err := s.createNamespace(client, ctx, namespace); err != nil {
-		return fmt.Errorf("failed to create namespace: %w", err)
-	}
+//
+// ─── Helm install / cleanup / wait helpers ────────────────────────────────────────
+//
 
-	// 2. Helm으로 설치
-	if err := s.installVeleroViaHelm(client, ctx); err != nil {
-		return fmt.Errorf("failed to install via helm: %w", err)
-	}
-
-	// 3. Velero 준비 대기
-	if err := s.waitForVeleroReady(client, ctx, namespace); err != nil {
-		return fmt.Errorf("velero readiness check failed: %w", err)
-	}
-
-	result.Details["velero_installation"] = "fresh installation completed"
-	return nil
-}
-
-// isVeleroInstalled : Velero 설치 여부 확인 (boolean 반환)
-func (s *Service) isVeleroInstalled(client client.Client, ctx context.Context, namespace string) bool {
-	installed, _ := s.checkVeleroInstallation(client, ctx, namespace)
-	return installed
-}
-
-// installVeleroViaHelm : Helm으로 Velero 설치
-func (s *Service) installVeleroViaHelm(client client.Client, ctx context.Context) error {
-	// Velero Helm chart URL 설정 (고정값)
+func (s *Service) installVeleroViaHelm(client client.Client, ctx context.Context, namespace string) error {
 	chartURL := "https://github.com/vmware-tanzu/helm-charts/releases/download/velero-10.1.2/velero-10.1.2.tgz"
 	releaseName := "velero"
 	version := "10.1.2"
 
-	// 기존 release가 있는지 확인하고 삭제
-	if err := s.cleanupExistingRelease(client, ctx, releaseName); err != nil {
-		return fmt.Errorf("failed to cleanup existing release: %w", err)
-	}
-
-	// Velero 설치를 위한 values 설정 (최신 Velero Helm chart 구조)
+	// 간단한 values 설정 (최소한의 설정만)
 	values := map[string]interface{}{
-		"backupStorageLocation": map[string]interface{}{
-			"name":     "default",
-			"provider": "aws",
-			"bucket":   "velero",
-			"config": map[string]interface{}{
-				"region": "us-west-2",
-			},
-		},
-		"volumeSnapshotLocation": map[string]interface{}{
-			"name":     "default",
-			"provider": "aws",
-			"config": map[string]interface{}{
-				"region": "us-west-2",
-			},
-		},
-		"initContainers": []interface{}{
-			map[string]interface{}{
-				"name":  "velero-plugin-for-aws",
-				"image": "velero/velero-plugin-for-aws:v1.8.0",
-				"volumeMounts": []interface{}{
-					map[string]interface{}{
-						"mountPath": "/target",
-						"name":      "plugins",
-					},
-				},
-			},
-		},
 		"credentials": map[string]interface{}{
 			"useSecret":  true,
 			"secretName": "cloud-credentials",
 		},
 	}
 
-	// Helm 설치 실행 (자동 복구 포함)
-	err := client.Helm().InstallChart(releaseName, chartURL, version, values)
-	if err != nil {
-		// 자동 복구 시도
-		if recoveryErr := s.autoRecovery(client, ctx, err); recoveryErr != nil {
-			return fmt.Errorf("failed to install velero chart: %w (recovery failed: %v)", err, recoveryErr)
+	// 1. 먼저 install 시도
+	if err := client.Helm().InstallChart(releaseName, chartURL, version, namespace, values); err != nil {
+		// 2. install 실패 시 upgrade 시도 (기존 release가 있는 경우)
+		if strings.Contains(err.Error(), "cannot re-use a name") {
+			if upgradeErr := client.Helm().UpgradeChart(releaseName, chartURL, version, namespace, values); upgradeErr != nil {
+				return fmt.Errorf("failed to upgrade velero chart: %w", upgradeErr)
+			}
+		} else {
+			return fmt.Errorf("failed to install velero chart: %w", err)
 		}
 	}
-
 	return nil
 }
 
-// safeCleanupRelease : 안전한 Helm release 정리
-func (s *Service) safeCleanupRelease(client client.Client, ctx context.Context, releaseName string) error {
-	// 1. Release 존재 확인
+// forceUninstallExistingRelease : 기존 Helm release 강제 삭제
+func (s *Service) forceUninstallExistingRelease(client client.Client, ctx context.Context, releaseName, namespace string) error {
+	// 1. 모든 네임스페이스에서 release 조회
 	releases, err := client.Helm().GetCharts(ctx, "")
 	if err != nil {
-		return nil // release 조회 실패는 release가 없다고 간주
+		// 조회 실패는 release가 없다고 간주
+		return nil
 	}
 
+	// 2. 해당 release가 있는지 확인
 	var targetRelease *release.Release
-	for _, release := range releases {
-		if release.Name == releaseName {
-			targetRelease = release
+	for _, r := range releases {
+		if r.Name == releaseName {
+			targetRelease = r
 			break
 		}
 	}
 
+	// 3. release가 없으면 그냥 진행
 	if targetRelease == nil {
-		return nil // release가 없으면 정리할 것도 없음
+		return nil
 	}
 
-	// 2. Release 상태 확인
-	if targetRelease.Info.Status == "failed" || targetRelease.Info.Status == "pending-upgrade" {
-		// 실패하거나 업그레이드 대기 중인 release는 강제 삭제
-		return s.forceCleanupRelease(client, ctx, releaseName)
+	// 4. release 삭제 시도 (여러 네임스페이스에서 시도)
+	uninstallNamespaces := []string{namespace, "velero", "default"}
+
+	for _, ns := range uninstallNamespaces {
+		if err := client.Helm().UninstallChart(releaseName, ns, false); err == nil {
+			// 삭제 성공
+			return nil
+		}
+		// 삭제 실패해도 다음 네임스페이스 시도
 	}
 
-	// 3. 정상 삭제 시도
-	if err := client.Helm().UninstallChart(releaseName, targetRelease.Namespace, false); err != nil {
-		// 정상 삭제 실패 시 강제 삭제
-		return s.forceCleanupRelease(client, ctx, releaseName)
-	}
+	// 5. 모든 시도 실패 시 에러 반환
+	return fmt.Errorf("failed to uninstall existing release '%s' from any namespace", releaseName)
+}
 
-	// 4. 삭제 완료 대기
+func (s *Service) safeCleanupRelease(client client.Client, ctx context.Context, releaseName string) error {
+	releases, err := client.Helm().GetCharts(ctx, "")
+	if err != nil {
+		return nil
+	}
+	var target *release.Release
+	for _, r := range releases {
+		if r.Name == releaseName {
+			target = r
+			break
+		}
+	}
+	if target == nil {
+		return nil
+	}
+	if target.Info.Status == "failed" || target.Info.Status == "pending-upgrade" {
+		return s.forceCleanupRelease(client, ctx, releaseName, target.Namespace)
+	}
+	if err := client.Helm().UninstallChart(releaseName, target.Namespace, false); err != nil {
+		return s.forceCleanupRelease(client, ctx, releaseName, target.Namespace)
+	}
 	return s.waitForReleaseDeletion(client, ctx, releaseName)
 }
 
-// forceCleanupRelease : 강제 Release 정리
-func (s *Service) forceCleanupRelease(client client.Client, ctx context.Context, releaseName string) error {
-	// 강제 삭제 시도
-	if err := client.Helm().UninstallChart(releaseName, "", false); err != nil {
-		return fmt.Errorf("failed to force uninstall release '%s': %w", releaseName, err)
+func (s *Service) forceCleanupRelease(client client.Client, ctx context.Context, releaseName, namespace string) error {
+	if err := client.Helm().UninstallChart(releaseName, namespace, false); err != nil {
+		return fmt.Errorf("failed to force uninstall release '%s' in namespace '%s': %w", releaseName, namespace, err)
 	}
-
-	// 삭제 완료 대기
 	return s.waitForReleaseDeletion(client, ctx, releaseName)
 }
 
-// waitForReleaseDeletion : Release 삭제 완료 대기
 func (s *Service) waitForReleaseDeletion(client client.Client, ctx context.Context, releaseName string) error {
 	timeout := time.After(30 * time.Second)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -442,91 +468,99 @@ func (s *Service) waitForReleaseDeletion(client client.Client, ctx context.Conte
 		case <-ticker.C:
 			releases, err := client.Helm().GetCharts(ctx, "")
 			if err != nil {
-				continue // 조회 실패 시 다음 시도
+				continue
 			}
-
-			// release가 삭제되었는지 확인
 			found := false
-			for _, release := range releases {
-				if release.Name == releaseName {
+			for _, r := range releases {
+				if r.Name == releaseName {
 					found = true
 					break
 				}
 			}
-
 			if !found {
-				return nil // 삭제 완료
+				return nil
 			}
 		}
 	}
 }
 
-// cleanupExistingRelease : 기존 Helm release 정리 (기존 호환성 유지)
-func (s *Service) cleanupExistingRelease(client client.Client, ctx context.Context, releaseName string) error {
-	return s.safeCleanupRelease(client, ctx, releaseName)
+func (s *Service) enhancedCleanupRelease(client client.Client, ctx context.Context, releaseName string) error {
+	releases, err := client.Helm().GetCharts(ctx, "")
+	if err != nil {
+		return nil
+	}
+	var target *release.Release
+	for _, r := range releases {
+		if r.Name == releaseName {
+			target = r
+			break
+		}
+	}
+	if target == nil {
+		return nil
+	}
+	switch target.Info.Status {
+	case "failed", "pending-upgrade", "pending-install":
+		if err := s.forceCleanupRelease(client, ctx, releaseName, target.Namespace); err != nil {
+			return fmt.Errorf("failed to force cleanup release '%s' in namespace '%s': %w", releaseName, target.Namespace, err)
+		}
+	case "deployed", "superseded":
+		if err := client.Helm().UninstallChart(releaseName, target.Namespace, false); err != nil {
+			if err := s.forceCleanupRelease(client, ctx, releaseName, target.Namespace); err != nil {
+				return fmt.Errorf("failed to cleanup release '%s' in namespace '%s': %w", releaseName, target.Namespace, err)
+			}
+		}
+	default:
+		if err := s.forceCleanupRelease(client, ctx, releaseName, target.Namespace); err != nil {
+			return fmt.Errorf("failed to force cleanup release '%s' in namespace '%s': %w", releaseName, target.Namespace, err)
+		}
+	}
+	return s.waitForReleaseDeletion(client, ctx, releaseName)
 }
 
-// autoRecovery : 자동 복구 시도
-func (s *Service) autoRecovery(client client.Client, ctx context.Context, err error) error {
-	errorStr := err.Error()
-
-	if strings.Contains(errorStr, "cannot re-use a name") {
-		// Helm release 이름 충돌
-		return s.handleHelmConflict(client, ctx, err)
+func (s *Service) autoRecovery(client client.Client, ctx context.Context, err error, namespace string) error {
+	errStr := err.Error()
+	if strings.Contains(errStr, "cannot re-use a name") {
+		return s.handleHelmConflict(client, ctx, err, namespace)
 	}
-
-	if strings.Contains(errorStr, "timeout") {
-		// 타임아웃 에러
-		return s.handleTimeout(client, ctx, err)
+	if strings.Contains(errStr, "timeout") {
+		return s.handleTimeout(client, ctx, err, namespace)
 	}
-
-	if strings.Contains(errorStr, "failed to install") {
-		// 설치 실패
-		return s.handleInstallFailure(client, ctx, err)
+	if strings.Contains(errStr, "failed to install") {
+		return s.handleInstallFailure(client, ctx, err, namespace)
 	}
-
-	return err // 복구할 수 없는 에러
+	return err
 }
 
-// handleHelmConflict : Helm 충돌 처리
-func (s *Service) handleHelmConflict(client client.Client, ctx context.Context, originalErr error) error {
-	// 강제 정리 후 재시도
-	if err := s.forceCleanupRelease(client, ctx, "velero"); err != nil {
+func (s *Service) handleHelmConflict(client client.Client, ctx context.Context, originalErr error, namespace string) error {
+	// try force cleanup in specified namespace
+	if err := s.forceCleanupRelease(client, ctx, "velero", namespace); err != nil {
 		return s.buildInstallationError("helm_conflict",
 			"Helm release name conflict",
 			originalErr.Error(),
 			[]string{"Try running with force=true", "Manually delete existing release"},
-			[]string{"helm uninstall velero", "kubectl delete namespace velero"})
+			[]string{fmt.Sprintf("helm uninstall velero -n %s", namespace), fmt.Sprintf("kubectl delete namespace %s", namespace)})
 	}
-
-	// 재시도
-	return s.installVeleroViaHelm(client, ctx)
+	return s.installVeleroViaHelm(client, ctx, namespace)
 }
 
-// handleTimeout : 타임아웃 처리
-func (s *Service) handleTimeout(client client.Client, ctx context.Context, originalErr error) error {
-	// 더 긴 타임아웃으로 재시도
+func (s *Service) handleTimeout(client client.Client, ctx context.Context, originalErr error, namespace string) error {
 	extendedCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-
-	return s.installVeleroViaHelm(client, extendedCtx)
+	return s.installVeleroViaHelm(client, extendedCtx, namespace)
 }
 
-// handleInstallFailure : 설치 실패 처리
-func (s *Service) handleInstallFailure(client client.Client, ctx context.Context, originalErr error) error {
-	// 정리 후 재시도
+func (s *Service) handleInstallFailure(client client.Client, ctx context.Context, originalErr error, namespace string) error {
 	if err := s.safeCleanupRelease(client, ctx, "velero"); err != nil {
 		return s.buildInstallationError("install_failure",
 			"Velero installation failed",
 			originalErr.Error(),
 			[]string{"Check cluster resources", "Verify Helm chart compatibility"},
-			[]string{"kubectl get pods -n velero", "helm list"})
+			[]string{fmt.Sprintf("kubectl get pods -n %s", namespace), "helm list"})
 	}
-
-	return s.installVeleroViaHelm(client, ctx)
+	return s.installVeleroViaHelm(client, ctx, namespace)
 }
 
-// buildInstallationError : 설치 에러 정보 생성
 func (s *Service) buildInstallationError(errorType, message, details string, suggestions, commands []string) error {
 	return &InstallationError{
 		Type:        errorType,
@@ -537,62 +571,127 @@ func (s *Service) buildInstallationError(errorType, message, details string, sug
 	}
 }
 
-// reportProgress : 설치 진행 상황 보고
-func (s *Service) reportProgress(step string, progress int, message string, estimated string) *InstallationProgress {
-	return &InstallationProgress{
-		Step:      step,
-		Progress:  progress,
-		Message:   message,
-		Estimated: estimated,
-		CanCancel: progress < 90, // 90% 이하에서만 취소 가능
-	}
-}
+//
+// ─── Namespace / Resource 검사 및 정리 ──────────────────────────────────────────
+//
 
-// logInstallationStep : 설치 단계 로깅
-func (s *Service) logInstallationStep(step string, message string, details map[string]interface{}) {
-	// 실제 구현에서는 로거를 사용
-	fmt.Printf("[%s] %s\n", step, message)
-	if details != nil {
-		for key, value := range details {
-			fmt.Printf("  %s: %v\n", key, value)
-		}
-	}
-}
-
-// createNamespace : Kubernetes namespace 생성
-func (s *Service) createNamespace(client client.Client, ctx context.Context, namespace string) error {
-	// Namespace가 이미 존재하는지 확인
-	_, err := client.Kubernetes().GetNamespace(ctx, namespace)
+func (s *Service) createNamespaceWithForce(client client.Client, ctx context.Context, namespace string, force bool) error {
+	existingNs, err := client.Kubernetes().GetNamespace(ctx, namespace)
 	if err == nil {
-		return nil // 이미 존재함
+		return s.handleExistingNamespaceWithForce(client, ctx, namespace, existingNs, force)
 	}
-
-	// Namespace 생성
 	ns := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	}
-
-	// Kubernetes client의 CreateNamespace 메서드 사용
 	_, err = client.Kubernetes().CreateNamespace(ctx, ns)
 	if err != nil {
-		// 이미 존재하는 경우는 성공으로 처리
 		if strings.Contains(err.Error(), "already exists") {
 			return nil
 		}
 		return fmt.Errorf("failed to create namespace '%s': %w", namespace, err)
 	}
-
 	return nil
 }
 
-// waitForVeleroReady : Velero가 준비될 때까지 대기
+func (s *Service) handleExistingNamespaceWithForce(client client.Client, ctx context.Context, namespace string, existingNs *v1.Namespace, force bool) error {
+	if existingNs.Status.Phase != v1.NamespaceActive {
+		return fmt.Errorf("namespace '%s' is not active (phase: %s)", namespace, existingNs.Status.Phase)
+	}
+	veleroResources, err := s.checkVeleroResourcesInNamespace(client, ctx, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to check existing resources in namespace '%s': %w", namespace, err)
+	}
+	if veleroResources.HasResources {
+		if force {
+			// 안전을 위해 실제 삭제 로직은 사용자 확인 필요 -> 여기서는 에러로 남김
+			return s.cleanupExistingResources(client, ctx, namespace, veleroResources)
+		}
+		return s.handleExistingVeleroResources(client, ctx, namespace, veleroResources)
+	}
+	return nil
+}
+
+func (s *Service) checkVeleroResourcesInNamespace(client client.Client, ctx context.Context, namespace string) (*VeleroResources, error) {
+	resources := &VeleroResources{ResourceTypes: []string{}}
+
+	// Pods
+	if rawPods, err := client.Kubernetes().GetPods(ctx, namespace, ""); err == nil {
+		if podList, ok := rawPods.(*v1.PodList); ok && len(podList.Items) > 0 {
+			resources.HasPods = true
+			resources.ResourceCount += len(podList.Items)
+			resources.ResourceTypes = append(resources.ResourceTypes, "pods")
+		}
+	}
+	// Secrets
+	if rawSecrets, err := client.Kubernetes().GetSecrets(ctx, namespace, ""); err == nil {
+		if secretsList, ok := rawSecrets.([]v1.Secret); ok && len(secretsList) > 0 {
+			resources.HasSecrets = true
+			resources.ResourceCount += len(secretsList)
+			resources.ResourceTypes = append(resources.ResourceTypes, "secrets")
+		}
+	}
+	// ConfigMaps
+	if rawCM, err := client.Kubernetes().GetConfigMaps(ctx, namespace, ""); err == nil {
+		if cmList, ok := rawCM.([]v1.ConfigMap); ok && len(cmList) > 0 {
+			resources.HasConfigMaps = true
+			resources.ResourceCount += len(cmList)
+			resources.ResourceTypes = append(resources.ResourceTypes, "configmaps")
+		}
+	}
+	if resources.HasPods {
+		resources.HasDeployments = true
+		resources.ResourceTypes = append(resources.ResourceTypes, "deployments")
+	}
+	resources.HasResources = resources.ResourceCount > 0
+	return resources, nil
+}
+
+func (s *Service) handleExistingVeleroResources(client client.Client, ctx context.Context, namespace string, resources *VeleroResources) error {
+	veleroInstalled, err := s.checkVeleroInstallation(client, ctx, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to check velero installation: %w", err)
+	}
+	if veleroInstalled {
+		return fmt.Errorf("velero is already installed in namespace '%s' with %d resources (%v)",
+			namespace, resources.ResourceCount, resources.ResourceTypes)
+	}
+	return fmt.Errorf("namespace '%s' contains %d existing resources (%v) but velero is not installed. Please clean up the namespace first",
+		namespace, resources.ResourceCount, resources.ResourceTypes)
+}
+
+func (s *Service) cleanupExistingResources(client client.Client, ctx context.Context, namespace string, resources *VeleroResources) error {
+	veleroInstalled, err := s.checkVeleroInstallation(client, ctx, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to check velero installation: %w", err)
+	}
+	if veleroInstalled {
+		if err := s.enhancedCleanupRelease(client, ctx, "velero"); err != nil {
+			return fmt.Errorf("failed to cleanup existing velero installation: %w", err)
+		}
+	}
+	// 안전을 위해 실제 네임스페이스 리소스 자동 삭제는 수행하지 않고 사용자에게 안내
+	return fmt.Errorf("namespace '%s' contains %d existing resources (%v). Please manually clean up the namespace or use a different namespace",
+		namespace, resources.ResourceCount, resources.ResourceTypes)
+}
+
+func (s *Service) checkVeleroInstallation(client client.Client, ctx context.Context, namespace string) (bool, error) {
+	st, err := s.checkVeleroStatus(client, ctx, namespace)
+	if err != nil {
+		return false, err
+	}
+	return st.IsHealthy, nil
+}
+
+//
+// ─── Velero readiness wait ────────────────────────────────────────────────────────
+//
+
 func (s *Service) waitForVeleroReady(client client.Client, ctx context.Context, namespace string) error {
-	timeout := time.After(5 * time.Minute) // 5분 타임아웃
+	timeout := time.After(5 * time.Minute)
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -600,201 +699,228 @@ func (s *Service) waitForVeleroReady(client client.Client, ctx context.Context, 
 		case <-timeout:
 			return fmt.Errorf("timeout waiting for velero pods to be ready in namespace %s", namespace)
 		case <-ticker.C:
-			pods, err := client.Kubernetes().GetPods(ctx, namespace, "")
+			raw, err := client.Kubernetes().GetPods(ctx, namespace, "")
 			if err != nil {
-				continue // 다음 시도
+				continue
 			}
-
 			allReady := true
 			veleroPodsFound := false
-			for _, pod := range pods.(*v1.PodList).Items {
-				if pod.Labels["component"] == "velero" && pod.Labels["deploy"] == "velero" {
-					veleroPodsFound = true
-					if pod.Status.Phase != v1.PodRunning {
-						allReady = false
-						break
+			if podList, ok := raw.(*v1.PodList); ok {
+				for _, pod := range podList.Items {
+					if pod.Labels["component"] == "velero" && pod.Labels["deploy"] == "velero" {
+						veleroPodsFound = true
+						if pod.Status.Phase != v1.PodRunning {
+							allReady = false
+							break
+						}
 					}
 				}
 			}
-
 			if veleroPodsFound && allReady {
-				return nil // Velero Pods are ready
+				return nil
 			}
 		}
 	}
 }
 
-// createMinIOSecret : MinIO 연결을 위한 Secret 생성
-func (s *Service) createMinIOSecret(client client.Client, ctx context.Context, config config.MinioConfig, namespace string, force bool) error {
+//
+// ─── MinIO Secret / BSL 관련 ────────────────────────────────────────────────────
+//
+
+func (s *Service) createMinIOSecret(client client.Client, ctx context.Context, cfg config.MinioConfig, namespace string, force bool) error {
 	secretName := "cloud-credentials"
 
-	// 기존 Secret 존재 여부 확인
 	_, err := client.Kubernetes().GetSecrets(ctx, namespace, secretName)
 	if err == nil && !force {
-		// 이미 존재하고 force가 false면 스킵
 		return nil
 	}
-
-	// force=true이고 Secret이 존재하면 삭제 후 재생성
 	if err == nil && force {
-		// Secret 삭제
-		err = client.Kubernetes().DeleteSecret(ctx, namespace, secretName)
-		if err != nil {
+		if err := client.Kubernetes().DeleteSecret(ctx, namespace, secretName); err != nil {
 			return fmt.Errorf("failed to delete existing secret '%s': %w", secretName, err)
 		}
 	}
 
-	// Secret이 없거나 다른 에러인 경우 생성 시도
 	secretData := map[string]string{
 		"cloud": fmt.Sprintf(`[default]
 aws_access_key_id=%s
 aws_secret_access_key=%s
 region=us-west-2
-`, config.AccessKey, config.SecretKey),
+`, cfg.AccessKey, cfg.SecretKey),
 	}
 
-	// Secret 생성
-	_, err = client.Kubernetes().CreateSecret(ctx, namespace, secretName, secretData)
-	if err != nil {
-		// 이미 존재하는 경우 스킵
+	if _, err := client.Kubernetes().CreateSecret(ctx, namespace, secretName, secretData); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			return nil
 		}
 		return fmt.Errorf("failed to create minio secret '%s': %w", secretName, err)
 	}
-
 	return nil
 }
 
-// checkAndCreateBackupStorageLocation : BSL 확인 및 생성
-func (s *Service) checkAndCreateBackupStorageLocation(client client.Client, ctx context.Context, minioConfig config.MinioConfig, namespace string, force bool) error {
-	bslName := "minio" // 고정된 BSL 이름
+func (s *Service) ensureMinIOSecret(client client.Client, ctx context.Context, cfg config.MinioConfig, namespace string, force bool, result *InstallResult) error {
+	if err := s.createMinIOSecret(client, ctx, cfg, namespace, force); err != nil {
+		return err
+	}
+	if force {
+		result.Details["minio_secret"] = "recreated"
+	} else {
+		result.Details["minio_secret"] = "created"
+	}
+	return nil
+}
 
-	// 1. BSL 존재 여부 확인
+func (s *Service) checkAndCreateBackupStorageLocation(client client.Client, ctx context.Context, minioCfg config.MinioConfig, namespace string, force bool) error {
+	bslName := "minio"
 	bsl, err := client.Velero().GetBackupStorageLocation(ctx, namespace, bslName)
 	if err != nil {
-		// BSL이 없으면 생성
 		if strings.Contains(err.Error(), "not found") {
-			return s.createBackupStorageLocation(client, ctx, minioConfig, namespace, force)
+			return s.createBackupStorageLocation(client, ctx, minioCfg, namespace, force)
 		}
 		return fmt.Errorf("failed to get BackupStorageLocation '%s': %w", bslName, err)
 	}
 
-	// 2. BSL PHASE 확인 및 상세 정보 제공
 	if bsl.Status.Phase != velerov1.BackupStorageLocationPhaseAvailable {
-		// force=true이면 BSL 재생성
 		if force {
-			return s.createBackupStorageLocation(client, ctx, minioConfig, namespace, force)
+			return s.createBackupStorageLocation(client, ctx, minioCfg, namespace, force)
 		}
-
-		// BSL 상태 정보 수집
-		statusInfo := s.buildBSLStatusInfo(bsl, minioConfig)
-
-		// 구체적인 오류 메시지 생성
+		statusInfo := s.buildBSLStatusInfo(bsl, minioCfg)
 		errorMsg := s.buildBSLErrorMessage(bslName, string(bsl.Status.Phase), statusInfo)
-
 		return fmt.Errorf("%s", errorMsg)
 	}
-
 	return nil
 }
 
-// buildBSLStatusInfo : BSL 상태 정보 수집
-func (s *Service) buildBSLStatusInfo(bsl *velerov1.BackupStorageLocation, minioConfig config.MinioConfig) BSLStatusInfo {
-	statusInfo := BSLStatusInfo{
-		Phase:            string(bsl.Status.Phase),
-		Message:          bsl.Status.Message,
-		MinioEndpoint:    minioConfig.Endpoint,
-		Bucket:           "velero",    // 고정값
-		Region:           "us-west-2", // 고정값
-		SuggestedActions: []string{},
+func (s *Service) ensureBackupStorageLocation(client client.Client, ctx context.Context, cfg config.MinioConfig, namespace string, force bool, result *InstallResult) error {
+	if err := s.checkAndCreateBackupStorageLocation(client, ctx, cfg, namespace, force); err != nil {
+		return err
 	}
-
-	// LastValidationTime 포맷팅
-	if !bsl.Status.LastValidationTime.IsZero() {
-		statusInfo.LastValidationTime = bsl.Status.LastValidationTime.Format(time.RFC3339)
+	if force {
+		result.Details["backup_location"] = "recreated"
+	} else {
+		result.Details["backup_location"] = "created"
 	}
-
-	// 오류 메시지 기반 해결 방안 제안
-	statusInfo.SuggestedActions = s.suggestBSLActions(bsl.Status.Message, minioConfig)
-
-	return statusInfo
+	return nil
 }
 
-// suggestBSLActions : BSL 오류 메시지 기반 해결 방안 제안
-func (s *Service) suggestBSLActions(message string, minioConfig config.MinioConfig) []string {
-	actions := []string{}
+func (s *Service) createBackupStorageLocation(client client.Client, ctx context.Context, minioCfg config.MinioConfig, namespace string, force bool) error {
+	bslName := "minio"
 
-	// 네트워크 연결 문제
-	if strings.Contains(message, "no Host in request URL") || strings.Contains(message, "connection refused") {
-		actions = append(actions, "Check MinIO endpoint URL format and accessibility")
-		actions = append(actions, fmt.Sprintf("Verify MinIO is running at: %s", minioConfig.Endpoint))
+	_, err := client.Velero().GetBackupStorageLocation(ctx, namespace, bslName)
+	if err == nil && !force {
+		return nil
+	}
+	if err == nil && force {
+		if err := client.Velero().DeleteBackupStorageLocation(ctx, namespace, bslName); err != nil {
+			return fmt.Errorf("failed to delete existing BackupStorageLocation '%s': %w", bslName, err)
+		}
 	}
 
-	// 인증 문제
+	bsl := &velerov1.BackupStorageLocation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bslName,
+			Namespace: namespace,
+		},
+		Spec: velerov1.BackupStorageLocationSpec{
+			Provider: "aws",
+			StorageType: velerov1.StorageType{
+				ObjectStorage: &velerov1.ObjectStorageLocation{
+					Bucket: "velero",
+					Prefix: "backups",
+				},
+			},
+			Config: map[string]string{
+				"region":           "us-west-2",
+				"s3Url":            fmt.Sprintf("http://%s", minioCfg.Endpoint),
+				"s3ForcePathStyle": "true",
+			},
+		},
+	}
+
+	if err := client.Velero().CreateBackupStorageLocation(ctx, namespace, bsl); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return nil
+		}
+		return fmt.Errorf("failed to create BackupStorageLocation '%s': %w", bslName, err)
+	}
+	return nil
+}
+
+func (s *Service) validateMinIOConnection(client client.Client, ctx context.Context, minioCfg config.MinioConfig, namespace string) (bool, error) {
+	if _, err := client.Minio().ListBuckets(ctx); err != nil {
+		return false, fmt.Errorf("minio connection failed: %w. Please check MinIO endpoint and credentials", err)
+	}
+	bsl, err := client.Velero().GetBackupStorageLocation(ctx, namespace, "minio")
+	if err != nil {
+		return false, fmt.Errorf("failed to get BackupStorageLocation 'minio': %w", err)
+	}
+	if bsl.Status.Phase == velerov1.BackupStorageLocationPhaseAvailable {
+		return true, nil
+	}
+	return false, fmt.Errorf("backup storage location 'minio' is not available. Current phase: %s. Please check MinIO connection and credentials", bsl.Status.Phase)
+}
+
+//
+// ─── BSL 오류 메시지 분석 유틸 ───────────────────────────────────────────────────
+//
+
+func (s *Service) buildBSLStatusInfo(bsl *velerov1.BackupStorageLocation, minioCfg config.MinioConfig) BSLStatusInfo {
+	info := BSLStatusInfo{
+		Phase:            string(bsl.Status.Phase),
+		Message:          bsl.Status.Message,
+		MinioEndpoint:    minioCfg.Endpoint,
+		Bucket:           "velero",
+		Region:           "us-west-2",
+		SuggestedActions: s.suggestBSLActions(bsl.Status.Message, minioCfg),
+	}
+	if !bsl.Status.LastValidationTime.IsZero() {
+		info.LastValidationTime = bsl.Status.LastValidationTime.Format(time.RFC3339)
+	}
+	return info
+}
+
+func (s *Service) suggestBSLActions(message string, minioCfg config.MinioConfig) []string {
+	actions := []string{}
+	if strings.Contains(message, "no Host in request URL") || strings.Contains(message, "connection refused") {
+		actions = append(actions, "Check MinIO endpoint URL format and accessibility")
+		actions = append(actions, fmt.Sprintf("Verify MinIO is running at: %s", minioCfg.Endpoint))
+	}
 	if strings.Contains(message, "access denied") || strings.Contains(message, "invalid credentials") {
 		actions = append(actions, "Verify MinIO AccessKey and SecretKey are correct")
 		actions = append(actions, "Check MinIO user permissions for the 'velero' bucket")
 	}
-
-	// 버킷 접근 문제
 	if strings.Contains(message, "bucket") && (strings.Contains(message, "not found") || strings.Contains(message, "does not exist")) {
 		actions = append(actions, "Create the 'velero' bucket in MinIO")
 		actions = append(actions, "Verify bucket name is 'velero' (case-sensitive)")
 	}
-
-	// S3 호환성 문제
-	if strings.Contains(message, "S3") && strings.Contains(message, "error") {
-		actions = append(actions, "Check MinIO S3 compatibility settings")
-		actions = append(actions, "Verify s3ForcePathStyle is enabled")
-	}
-
-	// 타임아웃 문제
 	if strings.Contains(message, "timeout") || strings.Contains(message, "exceeded maximum number of attempts") {
 		actions = append(actions, "Check network connectivity to MinIO")
 		actions = append(actions, "Verify MinIO server is responsive")
-		actions = append(actions, "Check firewall settings")
 	}
-
-	// 기본 해결 방안
 	if len(actions) == 0 {
-		actions = append(actions, "Check MinIO server status and connectivity")
-		actions = append(actions, "Verify MinIO credentials and permissions")
-		actions = append(actions, "Check Velero configuration")
+		actions = append(actions, "Check MinIO server status and connectivity", "Verify MinIO credentials and permissions", "Check Velero configuration")
 	}
-
 	return actions
 }
 
-// buildBSLErrorMessage : BSL 오류 메시지 생성
 func (s *Service) buildBSLErrorMessage(bslName, phase string, statusInfo BSLStatusInfo) string {
-	// 핵심 오류 메시지 (간결하게)
 	coreError := s.extractCoreError(statusInfo.Message)
-
-	// 주요 해결 방안만 선별 (최대 3개)
 	topActions := s.selectTopActions(statusInfo.SuggestedActions)
 
-	var errorMsg strings.Builder
-	errorMsg.WriteString(fmt.Sprintf("BackupStorageLocation '%s' is %s", bslName, strings.ToLower(phase)))
-
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("BackupStorageLocation '%s' is %s", bslName, strings.ToLower(phase)))
 	if coreError != "" {
-		errorMsg.WriteString(fmt.Sprintf(": %s", coreError))
+		b.WriteString(fmt.Sprintf(": %s", coreError))
 	}
-
 	if len(topActions) > 0 {
-		errorMsg.WriteString(fmt.Sprintf(" | Try: %s", strings.Join(topActions, ", ")))
+		b.WriteString(fmt.Sprintf(" | Try: %s", strings.Join(topActions, ", ")))
 	}
-
-	return errorMsg.String()
+	return b.String()
 }
 
-// extractCoreError : 핵심 오류 메시지 추출
 func (s *Service) extractCoreError(message string) string {
 	if message == "" {
 		return ""
 	}
-
-	// 가장 중요한 오류 부분만 추출
 	if strings.Contains(message, "no Host in request URL") {
 		return "Invalid MinIO endpoint URL"
 	}
@@ -810,47 +936,39 @@ func (s *Service) extractCoreError(message string) string {
 	if strings.Contains(message, "timeout") || strings.Contains(message, "exceeded maximum number of attempts") {
 		return "MinIO connection timeout"
 	}
-
-	// 기본적으로 첫 번째 문장만 사용
 	parts := strings.Split(message, ":")
 	if len(parts) > 0 {
 		return strings.TrimSpace(parts[0])
 	}
-
 	return message
 }
 
-// selectTopActions : 주요 해결 방안 선별 (최대 3개)
 func (s *Service) selectTopActions(actions []string) []string {
 	if len(actions) <= 3 {
 		return actions
 	}
-
-	// 우선순위가 높은 액션들 선별
-	priorityActions := []string{}
-
-	for _, action := range actions {
-		if strings.Contains(action, "endpoint") || strings.Contains(action, "running") {
-			priorityActions = append(priorityActions, action)
+	priority := []string{}
+	for _, a := range actions {
+		if strings.Contains(a, "endpoint") || strings.Contains(a, "running") {
+			priority = append(priority, a)
 		}
 	}
-
-	// 부족하면 나머지 추가
-	if len(priorityActions) < 3 {
-		for _, action := range actions {
-			if !contains(priorityActions, action) {
-				priorityActions = append(priorityActions, action)
-				if len(priorityActions) >= 3 {
+	if len(priority) < 3 {
+		for _, a := range actions {
+			if !contains(priority, a) {
+				priority = append(priority, a)
+				if len(priority) >= 3 {
 					break
 				}
 			}
 		}
 	}
-
-	return priorityActions[:3]
+	if len(priority) > 3 {
+		return priority[:3]
+	}
+	return priority
 }
 
-// contains : 슬라이스에 문자열 포함 여부 확인
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
@@ -860,142 +978,56 @@ func contains(slice []string, item string) bool {
 	return false
 }
 
-// createBackupStorageLocation : BackupStorageLocation 생성
-func (s *Service) createBackupStorageLocation(client client.Client, ctx context.Context, minioConfig config.MinioConfig, namespace string, force bool) error {
-	bslName := "minio"
-
-	// 기존 BSL 존재 여부 재확인 (동시성 고려)
-	_, err := client.Velero().GetBackupStorageLocation(ctx, namespace, bslName)
-	if err == nil && !force {
-		// 이미 존재하고 force가 false면 스킵
-		return nil
-	}
-
-	// force=true이고 BSL이 존재하면 삭제 후 재생성
-	if err == nil && force {
-		// BSL 삭제
-		err = client.Velero().DeleteBackupStorageLocation(ctx, namespace, bslName)
-		if err != nil {
-			return fmt.Errorf("failed to delete existing BackupStorageLocation '%s': %w", bslName, err)
-		}
-	}
-
-	bsl := &velerov1.BackupStorageLocation{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      bslName,
-			Namespace: namespace,
-		},
-		Spec: velerov1.BackupStorageLocationSpec{
-			Provider: "aws", // MinIO를 AWS S3 호환으로 사용
-			StorageType: velerov1.StorageType{
-				ObjectStorage: &velerov1.ObjectStorageLocation{
-					Bucket: "velero", // 기본 버킷명 사용
-					Prefix: "backups",
-				},
-			},
-			Config: map[string]string{
-				"region":           "us-west-2", // 기본 리전 사용
-				"s3Url":            fmt.Sprintf("http://%s", minioConfig.Endpoint),
-				"s3ForcePathStyle": "true",
-			},
-		},
-	}
-
-	err = client.Velero().CreateBackupStorageLocation(ctx, namespace, bsl)
-	if err != nil {
-		// 이미 존재하는 경우 스킵
-		if strings.Contains(err.Error(), "already exists") {
-			return nil
-		}
-		return fmt.Errorf("failed to create BackupStorageLocation '%s': %w", bslName, err)
-	}
-
-	return nil
-}
-
-// validateMinIOConnection : MinIO 연결 및 AccessMode 검증
-func (s *Service) validateMinIOConnection(client client.Client, ctx context.Context, minioConfig config.MinioConfig, namespace string) (bool, error) {
-	// 1. MinIO 연결 테스트
-	_, err := client.Minio().ListBuckets(ctx)
-	if err != nil {
-		return false, fmt.Errorf("minio connection failed: %w. Please check MinIO endpoint and credentials", err)
-	}
-
-	// 2. BackupStorageLocation 상태 확인
-	bsl, err := client.Velero().GetBackupStorageLocation(ctx, namespace, "minio")
-	if err != nil {
-		return false, fmt.Errorf("failed to get BackupStorageLocation 'minio': %w", err)
-	}
-
-	if bsl.Status.Phase == velerov1.BackupStorageLocationPhaseAvailable {
-		return true, nil
-	}
-
-	return false, fmt.Errorf("backup storage location 'minio' is not available. Current phase: %s. Please check MinIO connection and credentials", bsl.Status.Phase)
-}
-
-// GetBackupsInternal : Velero 백업 목록 조회 (내부 로직)
-func (s *Service) GetBackupsInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
-	// Velero 백업 목록 조회
+// GetBackupsInternal : Velero Backup 목록 조회
+func (s *Service) GetBackupsInternal(client client.Client, ctx context.Context, namespace string) ([]velerov1.Backup, error) {
 	backups, err := client.Velero().GetBackups(ctx, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get backups: %w", err)
+		return nil, fmt.Errorf("failed to list backups: %w", err)
 	}
-
 	return backups, nil
 }
 
-// GetRestoresInternal : Velero 복원 목록 조회 (내부 로직)
-func (s *Service) GetRestoresInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
-	// Velero 복원 목록 조회
+// GetRestoresInternal : Velero Restore 목록 조회
+func (s *Service) GetRestoresInternal(client client.Client, ctx context.Context, namespace string) ([]velerov1.Restore, error) {
 	restores, err := client.Velero().GetRestores(ctx, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get restores: %w", err)
+		return nil, fmt.Errorf("failed to list restores: %w", err)
 	}
-
 	return restores, nil
 }
 
-// GetBackupRepositoriesInternal : 백업 저장소 조회 (내부 로직)
-func (s *Service) GetBackupRepositoriesInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
-	// Velero 백업 저장소 목록 조회
-	repositories, err := client.Velero().GetBackupRepositories(ctx, namespace)
+// GetBackupRepositoriesInternal : Velero BackupRepository 목록 조회
+func (s *Service) GetBackupRepositoriesInternal(client client.Client, ctx context.Context, namespace string) ([]velerov1.BackupRepository, error) {
+	repos, err := client.Velero().GetBackupRepositories(ctx, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get backup repositories: %w", err)
+		return nil, fmt.Errorf("failed to list backup repositories: %w", err)
 	}
-
-	return repositories, nil
+	return repos, nil
 }
 
-// GetBackupStorageLocationsInternal : 백업 스토리지 위치 조회 (내부 로직)
-func (s *Service) GetBackupStorageLocationsInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
-	// Velero 백업 스토리지 위치 목록 조회
-	locations, err := client.Velero().GetBackupStorageLocations(ctx, namespace)
+// GetBackupStorageLocationsInternal : Velero BSL 목록 조회
+func (s *Service) GetBackupStorageLocationsInternal(client client.Client, ctx context.Context, namespace string) ([]velerov1.BackupStorageLocation, error) {
+	bsls, err := client.Velero().GetBackupStorageLocations(ctx, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get backup storage locations: %w", err)
+		return nil, fmt.Errorf("failed to list backup storage locations: %w", err)
 	}
-
-	return locations, nil
+	return bsls, nil
 }
 
-// GetVolumeSnapshotLocationsInternal : 볼륨 스냅샷 위치 조회 (내부 로직)
-func (s *Service) GetVolumeSnapshotLocationsInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
-	// Velero 볼륨 스냅샷 위치 목록 조회
-	locations, err := client.Velero().GetVolumeSnapshotLocations(ctx, namespace)
+// GetVolumeSnapshotLocationsInternal : Velero VSL 목록 조회
+func (s *Service) GetVolumeSnapshotLocationsInternal(client client.Client, ctx context.Context, namespace string) ([]velerov1.VolumeSnapshotLocation, error) {
+	vsls, err := client.Velero().GetVolumeSnapshotLocations(ctx, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get volume snapshot locations: %w", err)
+		return nil, fmt.Errorf("failed to list volume snapshot locations: %w", err)
 	}
-
-	return locations, nil
+	return vsls, nil
 }
 
-// GetPodVolumeRestoresInternal : Pod 볼륨 복원 조회 (내부 로직)
-func (s *Service) GetPodVolumeRestoresInternal(client client.Client, ctx context.Context, namespace string) (interface{}, error) {
-	// Velero Pod 볼륨 복원 목록 조회
-	restores, err := client.Velero().GetPodVolumeRestores(ctx, namespace)
+// GetPodVolumeRestoresInternal : Velero PodVolumeRestore 목록 조회
+func (s *Service) GetPodVolumeRestoresInternal(client client.Client, ctx context.Context, namespace string) ([]velerov1.PodVolumeRestore, error) {
+	pvrs, err := client.Velero().GetPodVolumeRestores(ctx, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pod volume restores: %w", err)
+		return nil, fmt.Errorf("failed to list pod volume restores: %w", err)
 	}
-
-	return restores, nil
+	return pvrs, nil
 }

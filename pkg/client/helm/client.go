@@ -32,9 +32,9 @@ type Client interface {
 	IsChartInstalled(releaseName string) (bool, *release.Release, error)
 
 	// Chart 설치/제거
-	InstallChart(releaseName, chartURL, version string, values map[string]interface{}) error
+	InstallChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error
 	UninstallChart(releaseName, namespace string, dryRun bool) error
-	UpgradeChart(releaseName, chartPath string, values map[string]interface{}) error
+	UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error
 }
 
 // helmClient : Helm 클라이언트
@@ -192,16 +192,7 @@ func (h *helmClient) IsChartInstalled(releaseName string) (bool, *release.Releas
 }
 
 // InstallChart : Helm 차트를 URL에서 설치 (버전 지원)
-func (h *helmClient) InstallChart(releaseName, chartURL, version string, values map[string]interface{}) error {
-	// 설치 여부 확인 (릴리스 이름 기준)
-	installed, _, err := h.IsChartInstalled(releaseName)
-	if err != nil {
-		return err
-	}
-	if installed {
-		return fmt.Errorf("release '%s' is already installed", releaseName)
-	}
-
+func (h *helmClient) InstallChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
 	// chartURL이 URL인지 확인
 	if !strings.HasPrefix(chartURL, "http://") && !strings.HasPrefix(chartURL, "https://") {
 		return fmt.Errorf("chartURL must be a valid HTTP/HTTPS URL, got: %s", chartURL)
@@ -209,8 +200,9 @@ func (h *helmClient) InstallChart(releaseName, chartURL, version string, values 
 
 	install := action.NewInstall(h.cfg)
 	install.ReleaseName = releaseName
-	install.Namespace = h.namespace
+	install.Namespace = namespace
 	install.Version = version
+	install.CreateNamespace = true // --create-namespace 옵션 활성화
 
 	// URL에서 차트 다운로드 및 로드
 	chart, err := h.loadChartFromURL(chartURL, version)
@@ -345,41 +337,24 @@ func (h *helmClient) UninstallChart(releaseName, namespace string, dryRun bool) 
 		return fmt.Errorf("[DryRun] chart '%s' uninstall simulation completed successfully (namespace: %s)", releaseName, namespace)
 	}
 
-	// dryRun=false 일 때만 삭제 확인
-	if !dryRun {
-		for i := 0; i < 5; i++ {
-			installed, _, err := h.IsChartInstalled(releaseName)
-			if err != nil {
-				return fmt.Errorf("failed to verify chart '%s' uninstall: %w", releaseName, err)
-			}
-			if !installed {
-				break
-			}
-			time.Sleep(constants.DefaultRequestTimeout)
-		}
-	}
-
-	// 3번 시도 후에도 여전히 설치되어 있으면 에러
-	return fmt.Errorf("chart '%s' is still installed after uninstall (namespace: %s) - uninstall may be in progress", releaseName, namespace)
+	// Uninstall 명령 실행 후 즉시 반환 (완료 확인은 백그라운드에서 처리)
+	return nil
 }
 
 // UpgradeChart : Helm 차트 업그레이드
-func (h *helmClient) UpgradeChart(releaseName, chartPath string, values map[string]interface{}) error {
-	// 설치 여부 확인
-	installed, _, err := h.IsChartInstalled(releaseName)
-	if err != nil {
-		return err
-	}
-	if !installed {
-		return fmt.Errorf("release '%s' is not installed", releaseName)
+func (h *helmClient) UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
+	// chartURL이 URL인지 확인
+	if !strings.HasPrefix(chartURL, "http://") && !strings.HasPrefix(chartURL, "https://") {
+		return fmt.Errorf("chartURL must be a valid HTTP/HTTPS URL, got: %s", chartURL)
 	}
 
 	upgrade := action.NewUpgrade(h.cfg)
-	upgrade.Namespace = h.namespace
+	upgrade.Namespace = namespace
 
-	chart, err := loader.Load(chartPath)
+	// URL에서 차트 다운로드 및 로드
+	chart, err := h.loadChartFromURL(chartURL, version)
 	if err != nil {
-		return fmt.Errorf("failed to load chart: %w", err)
+		return fmt.Errorf("failed to load chart from URL: %w", err)
 	}
 
 	if values == nil {

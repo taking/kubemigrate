@@ -34,15 +34,19 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Router /v1/kubernetes/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
 	return h.HandleResourceClient(c, "kubernetes-health", func(client client.Client, ctx context.Context) (interface{}, error) {
+
+		// 네임스페이스 결정
+		namespace := utils.ResolveNamespace(c, "default")
 		// Kubernetes 연결 테스트
-		_, err := client.Kubernetes().GetPods(ctx, "default", "")
+		_, err := client.Kubernetes().GetPods(ctx, namespace, "")
 		if err != nil {
 			return nil, err
 		}
 
 		return map[string]interface{}{
-			"service": "kubernetes",
-			"message": "Kubernetes connection is working",
+			"service":   "kubernetes",
+			"message":   "Kubernetes connection is working",
+			"namespace": namespace,
 		}, nil
 	})
 }

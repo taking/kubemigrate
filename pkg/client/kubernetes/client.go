@@ -101,6 +101,10 @@ func NewClient() (Client, error) {
 		}
 	}
 
+	// Rate limiter 설정 (QPS: 50, Burst: 100)
+	restConfig.QPS = 50
+	restConfig.Burst = 100
+
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
@@ -132,6 +136,10 @@ func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 			return nil, fmt.Errorf("failed to load in-cluster config: %w", err)
 		}
 	}
+
+	// Rate limiter 설정 (QPS: 50, Burst: 100)
+	restConfig.QPS = 50
+	restConfig.Burst = 100
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {

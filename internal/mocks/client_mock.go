@@ -237,7 +237,7 @@ func (m *MockHelmClient) IsChartInstalled(releaseName string) (bool, *release.Re
 	return true, &release.Release{Name: releaseName}, nil
 }
 
-func (m *MockHelmClient) InstallChart(releaseName, chartURL, version string, values map[string]interface{}) error {
+func (m *MockHelmClient) InstallChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
 	return nil
 }
 
@@ -245,7 +245,7 @@ func (m *MockHelmClient) UninstallChart(releaseName, namespace string, dryRun bo
 	return nil
 }
 
-func (m *MockHelmClient) UpgradeChart(releaseName, chartPath string, values map[string]interface{}) error {
+func (m *MockHelmClient) UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
 	return nil
 }
 

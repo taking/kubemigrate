@@ -215,3 +215,71 @@ func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
 		return h.service.GetPodVolumeRestoresInternal(client, ctx, namespace)
 	})
 }
+
+// GetJobStatus : 작업 상태 조회
+// @Summary Get Job Status
+// @Description Get the status of a specific job
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param jobId path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job status"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/velero/status/{jobId} [get]
+func (h *Handler) GetJobStatus(c echo.Context) error {
+	jobID := c.Param("jobId")
+	if jobID == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "jobId is required", "")
+	}
+
+	result, err := h.service.GetJobStatusInternal(jobID)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 404, "JOB_NOT_FOUND", err.Error(), "")
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// GetJobLogs : 작업 로그 조회
+// @Summary Get Job Logs
+// @Description Get the logs of a specific job
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param jobId path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job logs"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/velero/logs/{jobId} [get]
+func (h *Handler) GetJobLogs(c echo.Context) error {
+	jobID := c.Param("jobId")
+	if jobID == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "jobId is required", "")
+	}
+
+	result, err := h.service.GetJobLogsInternal(jobID)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 404, "JOB_NOT_FOUND", err.Error(), "")
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// GetAllJobs : 모든 작업 조회
+// @Summary Get All Jobs
+// @Description Get all jobs
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "All jobs"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/velero/jobs [get]
+func (h *Handler) GetAllJobs(c echo.Context) error {
+	result, err := h.service.GetAllJobsInternal()
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "INTERNAL_ERROR", err.Error(), "")
+	}
+
+	return response.RespondWithData(c, 200, result)
+}

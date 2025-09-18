@@ -1,11 +1,11 @@
 meta {
-  name: 3_백업 목록 조회
+  name: 8_Velero 설치 상태 조회
   type: http
-  seq: 3
+  seq: 8
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/status/{{jobId}}
   body: json
   auth: inherit
 }
