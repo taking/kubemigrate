@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 )
@@ -112,6 +113,81 @@ func AssertPodVolumeRestoreList(v interface{}) (PodVolumeRestoreList, bool) {
 func AssertPodVolumeRestore(v interface{}) (*PodVolumeRestore, bool) {
 	pvr, ok := v.(*PodVolumeRestore)
 	return pvr, ok
+}
+
+// Velero 설치 관련 타입들
+type (
+	// InstallResult : 설치 결과
+	InstallResult struct {
+		Status           string                 `json:"status"`
+		Message          string                 `json:"message"`
+		VeleroNamespace  string                 `json:"velero_namespace"`
+		MinioConnected   bool                   `json:"minio_connected"`
+		BackupLocation   string                 `json:"backup_location"`
+		InstallationTime time.Duration          `json:"installation_time"`
+		Force            bool                   `json:"force"`
+		Details          map[string]interface{} `json:"details,omitempty"`
+	}
+
+	// VeleroStatus : Velero 상태 정보
+	VeleroStatus struct {
+		PodsInstalled    bool   `json:"pods_installed"`
+		HelmRelease      bool   `json:"helm_release"`
+		ReleaseNamespace string `json:"release_namespace"`
+		IsHealthy        bool   `json:"is_healthy"`
+		ErrorMessage     string `json:"error_message,omitempty"`
+	}
+
+	// InstallationError : 설치 에러 정보
+	InstallationError struct {
+		Type        string   `json:"type"` // "helm_conflict", "pod_failed", "timeout"
+		Message     string   `json:"message"`
+		Details     string   `json:"details"`
+		Suggestions []string `json:"suggestions"`
+		Commands    []string `json:"commands"`
+	}
+
+	// InstallationProgress : 설치 진행 상황
+	InstallationProgress struct {
+		Step      string `json:"step"`
+		Progress  int    `json:"progress"` // 0-100
+		Message   string `json:"message"`
+		Estimated string `json:"estimated"` // 남은 시간
+		CanCancel bool   `json:"can_cancel"`
+	}
+
+	// BSLStatusInfo : BSL 상태 정보
+	BSLStatusInfo struct {
+		Phase              string   `json:"phase"`
+		Message            string   `json:"message"`
+		LastValidationTime string   `json:"last_validation_time"`
+		AccessMode         string   `json:"access_mode"`
+		StorageType        string   `json:"storage_type"`
+		ObjectStorage      string   `json:"object_storage"`
+		Credential         string   `json:"credential"`
+		Config             string   `json:"config"`
+		ValidationErrors   []string `json:"validation_errors,omitempty"`
+	}
+
+	// VeleroResources : Velero 리소스 정보
+	VeleroResources struct {
+		Pods                []string `json:"pods"`
+		ConfigMaps          []string `json:"configmaps"`
+		Secrets             []string `json:"secrets"`
+		Deployments         []string `json:"deployments"`
+		DaemonSets          []string `json:"daemonsets"`
+		StatefulSets        []string `json:"statefulsets"`
+		Services            []string `json:"services"`
+		ServiceAccounts     []string `json:"serviceaccounts"`
+		ClusterRoles        []string `json:"clusterroles"`
+		ClusterRoleBindings []string `json:"clusterrolebindings"`
+		CRDs                []string `json:"crds"`
+	}
+)
+
+// InstallationError의 Error 인터페이스 구현
+func (e *InstallationError) Error() string {
+	return fmt.Sprintf("[%s] %s: %s", e.Type, e.Message, e.Details)
 }
 
 // 안전한 타입 어설션을 위한 래퍼 함수들

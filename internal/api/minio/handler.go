@@ -6,7 +6,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/pkg/client"
-	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // Handler : MinIO 관련 HTTP 핸들러
@@ -44,8 +43,8 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 	})
 }
 
-// ListBuckets : MinIO 버킷 목록 조회
-// @Summary List MinIO Buckets
+// GetBuckets : MinIO 버킷 목록 조회
+// @Summary Get MinIO Buckets
 // @Description Get a list of MinIO buckets
 // @Tags minio
 // @Accept json
@@ -54,9 +53,9 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 // @Success 200 {object} response.SuccessResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/minio/buckets [post]
-func (h *Handler) ListBuckets(c echo.Context) error {
+func (h *Handler) GetBuckets(c echo.Context) error {
 	return h.HandleResourceClient(c, "minio-list-buckets", func(client client.Client, ctx context.Context) (interface{}, error) {
-		return h.service.ListBucketsInternal(client, ctx)
+		return h.service.GetBucketsInternal(client, ctx)
 	})
 }
 
@@ -132,8 +131,8 @@ func (h *Handler) DeleteBucket(c echo.Context) error {
 	})
 }
 
-// ListObjects : MinIO 객체 목록 조회
-// @Summary List Objects
+// GetObjects : MinIO 객체 목록 조회
+// @Summary Get Objects
 // @Description Get a list of objects in a MinIO bucket
 // @Tags minio
 // @Accept json
@@ -144,7 +143,7 @@ func (h *Handler) DeleteBucket(c echo.Context) error {
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/minio/buckets/{bucket}/objects [post]
-func (h *Handler) ListObjects(c echo.Context) error {
+func (h *Handler) GetObjects(c echo.Context) error {
 	return h.HandleResourceClient(c, "list-objects", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 버킷 이름 가져오기
 		bucketName := c.Param("bucket")
@@ -152,7 +151,7 @@ func (h *Handler) ListObjects(c echo.Context) error {
 			return nil, echo.NewHTTPError(400, "bucket parameter is required")
 		}
 
-		return h.service.ListObjectsInternal(client, ctx, bucketName)
+		return h.service.GetObjectsInternal(client, ctx, bucketName)
 	})
 }
 
@@ -315,7 +314,7 @@ func (h *Handler) PresignedGetObject(c echo.Context) error {
 		}
 
 		// 만료 시간 가져오기 (기본값: 3600초)
-		expiry := utils.ResolveInt(c, "expiry", 3600)
+		expiry := h.ResolveInt(c, "expiry", 3600)
 
 		return h.service.PresignedGetObjectInternal(client, ctx, bucketName, objectName, expiry)
 	})
@@ -345,7 +344,7 @@ func (h *Handler) PresignedPutObject(c echo.Context) error {
 		}
 
 		// 만료 시간 가져오기 (기본값: 3600초)
-		expiry := utils.ResolveInt(c, "expiry", 3600)
+		expiry := h.ResolveInt(c, "expiry", 3600)
 
 		return h.service.PresignedPutObjectInternal(client, ctx, bucketName, objectName, expiry)
 	})

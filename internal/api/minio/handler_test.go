@@ -9,13 +9,13 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
-	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/internal/job"
 )
 
 // TestMinioHandler_HealthCheck 헬스체크 API 테스트
 func TestMinioHandler_HealthCheck(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
@@ -47,10 +47,10 @@ func TestMinioHandler_HealthCheck(t *testing.T) {
 	}
 }
 
-// TestMinioHandler_ListBuckets 버킷 목록 조회 API 테스트
-func TestMinioHandler_ListBuckets(t *testing.T) {
+// TestMinioHandler_GetBuckets 버킷 목록 조회 API 테스트
+func TestMinioHandler_GetBuckets(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
@@ -74,7 +74,7 @@ func TestMinioHandler_ListBuckets(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// 핸들러 실행
-	err := minioHandler.ListBuckets(c)
+	err := minioHandler.GetBuckets(c)
 
 	// 응답 검증 (실제 MinIO 연결이 없으므로 에러가 발생할 수 있음)
 	if err != nil {
@@ -85,7 +85,7 @@ func TestMinioHandler_ListBuckets(t *testing.T) {
 // TestMinioHandler_CheckBucketExists 버킷 존재 확인 API 테스트
 func TestMinioHandler_CheckBucketExists(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
@@ -123,7 +123,7 @@ func TestMinioHandler_CheckBucketExists(t *testing.T) {
 // TestMinioHandler_CreateBucket 버킷 생성 API 테스트
 func TestMinioHandler_CreateBucket(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
@@ -161,7 +161,7 @@ func TestMinioHandler_CreateBucket(t *testing.T) {
 // TestMinioHandler_DeleteBucket 버킷 삭제 API 테스트
 func TestMinioHandler_DeleteBucket(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
@@ -196,10 +196,10 @@ func TestMinioHandler_DeleteBucket(t *testing.T) {
 	}
 }
 
-// TestMinioHandler_ListObjects 객체 목록 조회 API 테스트
-func TestMinioHandler_ListObjects(t *testing.T) {
+// TestMinioHandler_GetObjects 객체 목록 조회 API 테스트
+func TestMinioHandler_GetObjects(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)
@@ -226,7 +226,7 @@ func TestMinioHandler_ListObjects(t *testing.T) {
 	c.SetParamValues("test-bucket")
 
 	// 핸들러 실행
-	err := minioHandler.ListObjects(c)
+	err := minioHandler.GetObjects(c)
 
 	// 응답 검증 (실제 MinIO 연결이 없으므로 에러가 발생할 수 있음)
 	if err != nil {
@@ -237,7 +237,7 @@ func TestMinioHandler_ListObjects(t *testing.T) {
 // TestMinioHandler_InvalidRequest 잘못된 요청 테스트
 func TestMinioHandler_InvalidRequest(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	minioHandler := NewHandler(baseHandler)

@@ -3,6 +3,8 @@ package validator
 import (
 	"fmt"
 
+	"github.com/labstack/echo/v4"
+	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/config"
 )
 
@@ -134,4 +136,63 @@ func (vm *ValidationManager) ValidateAll(configs map[string]interface{}) error {
 	}
 
 	return nil
+}
+
+// ===== Echo Context를 사용한 검증 함수들 =====
+
+// ValidateKubeConfigInternal : Kubernetes 설정 검증 및 바인딩 (Echo Context 사용)
+func (vm *ValidationManager) ValidateKubeConfigInternal(c echo.Context, serviceName string) (config.KubeConfig, error) {
+	var kubeConfig config.KubeConfig
+	if err := c.Bind(&kubeConfig); err != nil {
+		return kubeConfig, vm.HandleValidationError(c, serviceName, "request binding", err)
+	}
+
+	_, err := vm.kubernetesValidator.ValidateKubernetesConfig(&kubeConfig)
+	if err != nil {
+		return kubeConfig, vm.HandleValidationError(c, serviceName, "kubernetes config validation", err)
+	}
+
+	return kubeConfig, nil
+}
+
+// ValidateMinioConfigInternal : MinIO 설정 검증 및 바인딩 (Echo Context 사용)
+func (vm *ValidationManager) ValidateMinioConfigInternal(c echo.Context, serviceName string) (config.MinioConfig, error) {
+	var minioConfig config.MinioConfig
+	if err := c.Bind(&minioConfig); err != nil {
+		return minioConfig, vm.HandleValidationError(c, serviceName, "request binding", err)
+	}
+
+	err := vm.minioValidator.ValidateMinioConfig(&minioConfig)
+	if err != nil {
+		return minioConfig, vm.HandleValidationError(c, serviceName, "minio config validation", err)
+	}
+
+	return minioConfig, nil
+}
+
+// ValidateVeleroConfigInternal : Velero 설정 검증 및 바인딩 (Echo Context 사용)
+func (vm *ValidationManager) ValidateVeleroConfigInternal(c echo.Context, serviceName string) (config.VeleroConfig, error) {
+	var veleroConfig config.VeleroConfig
+	if err := c.Bind(&veleroConfig); err != nil {
+		return veleroConfig, vm.HandleValidationError(c, serviceName, "request binding", err)
+	}
+
+	// MinIO 검증
+	if err := vm.minioValidator.ValidateMinioConfig(&veleroConfig.MinioConfig); err != nil {
+		return veleroConfig, vm.HandleValidationError(c, serviceName, "minio config validation", err)
+	}
+
+	// Kubernetes 검증
+	_, err := vm.kubernetesValidator.ValidateKubernetesConfig(&veleroConfig.KubeConfig)
+	if err != nil {
+		return veleroConfig, vm.HandleValidationError(c, serviceName, "kubernetes config validation", err)
+	}
+
+	return veleroConfig, nil
+}
+
+// HandleValidationError : 검증 에러 처리
+func (vm *ValidationManager) HandleValidationError(c echo.Context, serviceName, operation string, err error) error {
+	return response.RespondWithErrorModel(c, 400, "VALIDATION_FAILED",
+		fmt.Sprintf("%s %s failed", serviceName, operation), err.Error())
 }

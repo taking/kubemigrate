@@ -99,7 +99,7 @@ func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 		}
 	}
 
-	ns := getNamespaceOrDefault(cfg.Namespace, "default")
+	ns := getNamespaceWithDefault(cfg.Namespace, "default")
 
 	// genericclioptions.ConfigFlags 생성
 	flags := genericclioptions.NewConfigFlags(false)
@@ -369,8 +369,8 @@ func (h *helmClient) UpgradeChart(releaseName, chartURL, version, namespace stri
 	return nil
 }
 
-// getNamespaceOrDefault : 네임스페이스가 설정되어 있으면 사용, 없으면 기본값 반환
-func getNamespaceOrDefault(namespace, defaultNS string) string {
+// getNamespaceWithDefault : 네임스페이스가 설정되어 있으면 사용, 없으면 기본값 반환
+func getNamespaceWithDefault(namespace, defaultNS string) string {
 	if namespace != "" {
 		return namespace
 	}

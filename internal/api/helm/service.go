@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/internal/job"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/config"
@@ -14,15 +15,18 @@ import (
 
 // Service : Helm 관련 비즈니스 로직 서비스
 type Service struct {
+	*handler.BaseHandler
 	jobManager job.JobManager
 }
 
 // NewService : 새로운 Helm 서비스 생성
-func NewService() *Service {
-	// 기본 워커 수 설정 (ConfigManager 없이 직접 설정)
-	workerCount := 5
+func NewService(base *handler.BaseHandler) *Service {
+	// ConfigManager를 활용하여 워커 수 설정
+	workerCount := base.GetConfigInt("HELM_WORKER_COUNT", 5)
+
 	return &Service{
-		jobManager: job.NewMemoryJobManagerWithWorkers(workerCount),
+		BaseHandler: base,
+		jobManager:  job.NewMemoryJobManagerWithWorkers(workerCount),
 	}
 }
 
@@ -200,7 +204,7 @@ func (s *Service) InstallChartAsyncInternal(client client.Client, ctx context.Co
 	job := s.jobManager.CreateJob(jobID, metadata)
 
 	// 백그라운드에서 설치 시작
-	go s.installChartBackground(client, ctx, jobID, config)
+	go s.installChartInternal(client, ctx, jobID, config)
 
 	// 즉시 응답 반환
 	return map[string]interface{}{
@@ -213,8 +217,8 @@ func (s *Service) InstallChartAsyncInternal(client client.Client, ctx context.Co
 	}, nil
 }
 
-// installChartBackground : 백그라운드에서 차트 설치
-func (s *Service) installChartBackground(client client.Client, ctx context.Context, jobID string, config config.InstallChartConfig) {
+// installChartInternal : 백그라운드에서 차트 설치
+func (s *Service) installChartInternal(client client.Client, ctx context.Context, jobID string, config config.InstallChartConfig) {
 	// 1. 다운로드 단계
 	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 10, "Downloading chart...")
 	s.jobManager.AddJobLog(jobID, fmt.Sprintf("Starting download of chart: %s", config.ChartURL))
@@ -277,7 +281,7 @@ func (s *Service) UpgradeChartAsyncInternal(client client.Client, ctx context.Co
 	job := s.jobManager.CreateJob(jobID, metadata)
 
 	// 백그라운드에서 업그레이드 시작
-	go s.upgradeChartBackground(client, ctx, jobID, config)
+	go s.upgradeChartInternal(client, ctx, jobID, config)
 
 	// 즉시 응답 반환
 	return map[string]interface{}{
@@ -290,8 +294,8 @@ func (s *Service) UpgradeChartAsyncInternal(client client.Client, ctx context.Co
 	}, nil
 }
 
-// upgradeChartBackground : 백그라운드에서 차트 업그레이드
-func (s *Service) upgradeChartBackground(client client.Client, ctx context.Context, jobID string, config config.UpgradeChartConfig) {
+// upgradeChartInternal : 백그라운드에서 차트 업그레이드
+func (s *Service) upgradeChartInternal(client client.Client, ctx context.Context, jobID string, config config.UpgradeChartConfig) {
 	// 1. 업그레이드 준비 단계
 	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 10, "Preparing upgrade...")
 	s.jobManager.AddJobLog(jobID, fmt.Sprintf("Starting upgrade of chart: %s", config.ReleaseName))
@@ -352,7 +356,7 @@ func (s *Service) UninstallChartAsyncInternal(client client.Client, ctx context.
 	job := s.jobManager.CreateJob(jobID, metadata)
 
 	// 백그라운드에서 제거 시작
-	go s.uninstallChartBackground(client, ctx, jobID, releaseName, namespace, dryRun)
+	go s.uninstallChartInternal(client, ctx, jobID, releaseName, namespace, dryRun)
 
 	// 즉시 응답 반환
 	return map[string]interface{}{
@@ -365,8 +369,8 @@ func (s *Service) UninstallChartAsyncInternal(client client.Client, ctx context.
 	}, nil
 }
 
-// uninstallChartBackground : 백그라운드에서 차트 제거
-func (s *Service) uninstallChartBackground(client client.Client, ctx context.Context, jobID, releaseName, namespace string, dryRun bool) {
+// uninstallChartInternal : 백그라운드에서 차트 제거
+func (s *Service) uninstallChartInternal(client client.Client, ctx context.Context, jobID, releaseName, namespace string, dryRun bool) {
 	// 1. 제거 준비 단계
 	s.jobManager.UpdateJobStatus(jobID, job.JobStatusProcessing, 10, "Preparing uninstall...")
 	s.jobManager.AddJobLog(jobID, fmt.Sprintf("Starting uninstall of chart: %s", releaseName))
@@ -420,7 +424,7 @@ func (s *Service) waitForUninstallComplete(client client.Client, releaseName, na
 
 	deadline := time.Now().Add(timeout)
 
-	for {
+	for { //nolint:gosimple
 		select {
 		case <-ticker.C:
 			// 1. Helm Release 확인
@@ -450,7 +454,7 @@ func (s *Service) waitForUninstallComplete(client client.Client, releaseName, na
 				return fmt.Errorf("uninstall timeout after %v", timeout)
 			}
 
-			s.jobManager.AddJobLog(jobID, fmt.Sprintf("Uninstall in progress... (remaining: %v)", deadline.Sub(time.Now()).Round(time.Second)))
+			s.jobManager.AddJobLog(jobID, fmt.Sprintf("Uninstall in progress... (remaining: %v)", time.Until(deadline).Round(time.Second)))
 		}
 	}
 }
@@ -497,7 +501,7 @@ func (s *Service) waitForInstallComplete(client client.Client, releaseName, name
 
 	deadline := time.Now().Add(timeout)
 
-	for {
+	for { //nolint:gosimple
 		select {
 		case <-ticker.C:
 			// 1. Helm Release 확인
@@ -527,7 +531,7 @@ func (s *Service) waitForInstallComplete(client client.Client, releaseName, name
 				return fmt.Errorf("install timeout after %v", timeout)
 			}
 
-			s.jobManager.AddJobLog(jobID, fmt.Sprintf("Install in progress... (remaining: %v)", deadline.Sub(time.Now()).Round(time.Second)))
+			s.jobManager.AddJobLog(jobID, fmt.Sprintf("Install in progress... (remaining: %v)", time.Until(deadline).Round(time.Second)))
 		}
 	}
 }
@@ -539,7 +543,7 @@ func (s *Service) waitForUpgradeComplete(client client.Client, releaseName, name
 
 	deadline := time.Now().Add(timeout)
 
-	for {
+	for { //nolint:gosimple
 		select {
 		case <-ticker.C:
 			// 1. Helm Release 확인
@@ -569,7 +573,7 @@ func (s *Service) waitForUpgradeComplete(client client.Client, releaseName, name
 				return fmt.Errorf("upgrade timeout after %v", timeout)
 			}
 
-			s.jobManager.AddJobLog(jobID, fmt.Sprintf("Upgrade in progress... (remaining: %v)", deadline.Sub(time.Now()).Round(time.Second)))
+			s.jobManager.AddJobLog(jobID, fmt.Sprintf("Upgrade in progress... (remaining: %v)", time.Until(deadline).Round(time.Second)))
 		}
 	}
 }

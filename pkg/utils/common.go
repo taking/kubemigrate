@@ -61,24 +61,6 @@ func StringToBoolOrDefault(s string, def bool) bool {
 	return b
 }
 
-// ResolveNamespace : 네임스페이스 결정
-func ResolveNamespace(ctx echo.Context, defaultNS string) string {
-	var namespace string
-
-	if ns := ctx.QueryParam("namespace"); ns != "" {
-		namespace = ns
-	} else {
-		return defaultNS
-	}
-
-	// "all"을 빈 문자열로 변환 (모든 namespace 조회)
-	if namespace == "all" {
-		return ""
-	}
-
-	return namespace
-}
-
 // RunWithTimeout : 타임아웃과 함께 함수 실행
 func RunWithTimeout(ctx context.Context, fn func() error) error {
 	done := make(chan error, 1)
@@ -170,24 +152,6 @@ func ResolveSetValues(c echo.Context) map[string]interface{} {
 	}
 
 	return setValues
-}
-
-// ResolveBool : boolean 쿼리 파라미터 결정
-func ResolveBool(c echo.Context, param string, defaultValue bool) bool {
-	value := c.QueryParam(param)
-	if value == "" {
-		return defaultValue
-	}
-	return StringToBoolOrDefault(value, defaultValue)
-}
-
-// ResolveInt : integer 쿼리 파라미터 결정
-func ResolveInt(c echo.Context, param string, defaultValue int) int {
-	value := c.QueryParam(param)
-	if value == "" {
-		return defaultValue
-	}
-	return StringToIntOrDefault(value, defaultValue)
 }
 
 // ParseJSON : JSON 문자열을 파싱하여 지정된 타입으로 변환

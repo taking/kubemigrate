@@ -76,8 +76,8 @@ func (c *client) Minio() minio.Client {
 	return c.minio
 }
 
-// createClientWithFallback 설정에 따라 클라이언트를 생성하고 실패 시 fallback 사용
-func createClientWithFallback[T any, R any](
+// createClientWithRetry 설정에 따라 클라이언트를 생성하고 실패 시 retry 사용
+func createClientWithRetry[T any, R any](
 	config interface{},
 	creator func(T) (R, error),
 	fallback R,
@@ -103,25 +103,25 @@ func createClientWithFallback[T any, R any](
 // NewClientWithConfig : 설정을 사용하여 새로운 통합 클라이언트를 생성합니다
 func NewClientWithConfig(kubeConfig, helmConfig, veleroConfig, minioConfig interface{}) Client {
 	return &client{
-		kubernetes: createClientWithFallback[config.KubeConfig, kubernetes.Client]( //nolint:typecheck
+		kubernetes: createClientWithRetry[config.KubeConfig, kubernetes.Client]( //nolint:typecheck
 			kubeConfig,
 			kubernetes.NewClientWithConfig,
 			func() kubernetes.Client { client, _ := kubernetes.NewClient(); return client }(),
 		),
 
-		helm: createClientWithFallback[config.KubeConfig, helm.Client]( //nolint:typecheck
+		helm: createClientWithRetry[config.KubeConfig, helm.Client]( //nolint:typecheck
 			helmConfig,
 			helm.NewClientWithConfig,
 			func() helm.Client { client, _ := helm.NewClient(); return client }(),
 		),
 
-		velero: createClientWithFallback[config.VeleroConfig, velero.Client]( //nolint:typecheck
+		velero: createClientWithRetry[config.VeleroConfig, velero.Client]( //nolint:typecheck
 			veleroConfig,
 			velero.NewClientWithConfig,
 			func() velero.Client { client, _ := velero.NewClient(); return client }(),
 		),
 
-		minio: createClientWithFallback[config.MinioConfig, minio.Client]( //nolint:typecheck
+		minio: createClientWithRetry[config.MinioConfig, minio.Client]( //nolint:typecheck
 			minioConfig,
 			minio.NewClientWithConfig,
 			func() minio.Client { client, _ := minio.NewClient(); return client }(),

@@ -54,7 +54,7 @@ func (s *Service) InstallVeleroWithMinIOInternal(
 	jobInfo := s.jobManager.CreateJob(jobID, metadata)
 
 	// 백그라운드에서 설치 시작
-	go s.installVeleroWithMinIOBackground(client, ctx, jobID, cfg, namespace, force)
+	go s.installVeleroWithMinIOInternal(client, ctx, jobID, cfg, namespace, force)
 
 	// 즉시 응답 반환
 	return map[string]interface{}{
@@ -67,8 +67,8 @@ func (s *Service) InstallVeleroWithMinIOInternal(
 	}, nil
 }
 
-// installVeleroWithMinIOBackground : 백그라운드에서 Velero 설치
-func (s *Service) installVeleroWithMinIOBackground(
+// installVeleroWithMinIOInternal : 백그라운드에서 Velero 설치
+func (s *Service) installVeleroWithMinIOInternal(
 	client client.Client,
 	ctx context.Context,
 	jobID string,

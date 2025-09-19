@@ -1,8 +1,6 @@
 package cache
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"strings"
 	"time"
 
@@ -77,24 +75,6 @@ func maskHelmConfig(helmConfig config.KubeConfig) MaskedHelmConfig {
 	}
 }
 
-// getApiTypeFromKey : 캐시 키에서 API 타입 추출
-func getApiTypeFromKey(key string) string {
-	if len(key) == 64 {
-		return "kubernetes"
-	}
-	lower := strings.ToLower(key)
-	switch {
-	case strings.Contains(lower, "minio"):
-		return "minio"
-	case strings.Contains(lower, "velero"):
-		return "velero"
-	case strings.Contains(lower, "helm"):
-		return "helm"
-	default:
-		return "kubernetes"
-	}
-}
-
 // generateReadableKey : 읽기 쉬운 키 생성
 func generateReadableKey(apiType, key string) string {
 	if len(key) <= 12 {
@@ -106,19 +86,4 @@ func generateReadableKey(apiType, key string) string {
 // calculateAgeSeconds : 생성 시간으로부터 경과된 초 계산
 func calculateAgeSeconds(createdAt time.Time) int {
 	return int(time.Since(createdAt).Seconds())
-}
-
-// calculateRemainingSeconds : 남은 TTL 초 계산
-func calculateRemainingSeconds(createdAt time.Time, ttl time.Duration) int {
-	remaining := time.Until(createdAt.Add(ttl))
-	if remaining < 0 {
-		return 0
-	}
-	return int(remaining.Seconds())
-}
-
-// generateCacheKeyFromConfig : 설정으로부터 캐시 키 생성
-func generateCacheKeyFromConfig(kubeConfig config.KubeConfig) string {
-	hash := sha256.Sum256([]byte(kubeConfig.KubeConfig))
-	return hex.EncodeToString(hash[:])
 }

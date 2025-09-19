@@ -9,7 +9,6 @@ import (
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/minio"
-	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // Handler : Velero 관련 HTTP 핸들러
@@ -68,8 +67,8 @@ func (h *Handler) InstallVeleroWithMinIO(c echo.Context) error {
 	}
 
 	// Query 파라미터 처리
-	namespace := utils.ResolveNamespace(c, "velero")
-	force := utils.ResolveBool(c, "force", false)
+	namespace := h.ResolveNamespace(c, "velero")
+	force := h.ResolveBool(c, "force", false)
 
 	// 컨텍스트 생성 (타임아웃 설정)
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Minute)
@@ -117,7 +116,7 @@ func (h *Handler) InstallVeleroWithMinIO(c echo.Context) error {
 // @Router /v1/velero/backups [get]
 func (h *Handler) GetBackups(c echo.Context) error {
 	return h.HandleResourceClient(c, "velero-backups", func(client client.Client, ctx context.Context) (interface{}, error) {
-		namespace := utils.ResolveNamespace(c, "velero")
+		namespace := h.ResolveNamespace(c, "velero")
 		return h.service.GetBackupsInternal(client, ctx, namespace)
 	})
 }
@@ -135,7 +134,7 @@ func (h *Handler) GetBackups(c echo.Context) error {
 // @Router /v1/velero/restores [get]
 func (h *Handler) GetRestores(c echo.Context) error {
 	return h.HandleResourceClient(c, "velero-restores", func(client client.Client, ctx context.Context) (interface{}, error) {
-		namespace := utils.ResolveNamespace(c, "velero")
+		namespace := h.ResolveNamespace(c, "velero")
 		return h.service.GetRestoresInternal(client, ctx, namespace)
 	})
 }
@@ -153,7 +152,7 @@ func (h *Handler) GetRestores(c echo.Context) error {
 func (h *Handler) GetBackupRepositories(c echo.Context) error {
 	return h.HandleResourceClient(c, "velero-repositories", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// Velero 백업 저장소 조회
-		namespace := utils.ResolveNamespace(c, "velero")
+		namespace := h.ResolveNamespace(c, "velero")
 		return h.service.GetBackupRepositoriesInternal(client, ctx, namespace)
 	})
 }
@@ -171,7 +170,7 @@ func (h *Handler) GetBackupRepositories(c echo.Context) error {
 func (h *Handler) GetBackupStorageLocations(c echo.Context) error {
 	return h.HandleResourceClient(c, "velero-storage-locations", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// Velero 백업 스토리지 위치 조회
-		namespace := utils.ResolveNamespace(c, "velero")
+		namespace := h.ResolveNamespace(c, "velero")
 		return h.service.GetBackupStorageLocationsInternal(client, ctx, namespace)
 	})
 }
@@ -189,7 +188,7 @@ func (h *Handler) GetBackupStorageLocations(c echo.Context) error {
 func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 	return h.HandleResourceClient(c, "velero-volume-snapshot-locations", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// Velero 볼륨 스냅샷 위치 조회
-		namespace := utils.ResolveNamespace(c, "velero")
+		namespace := h.ResolveNamespace(c, "velero")
 		return h.service.GetVolumeSnapshotLocationsInternal(client, ctx, namespace)
 	})
 }
@@ -207,7 +206,7 @@ func (h *Handler) GetVolumeSnapshotLocations(c echo.Context) error {
 func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
 	return h.HandleResourceClient(c, "velero-pod-volume-restores", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// Velero Pod 볼륨 복원 조회
-		namespace := utils.ResolveNamespace(c, "velero")
+		namespace := h.ResolveNamespace(c, "velero")
 		return h.service.GetPodVolumeRestoresInternal(client, ctx, namespace)
 	})
 }

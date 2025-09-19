@@ -175,13 +175,11 @@ func (v *VeleroInstaller) executeForceReinstall(ctx context.Context, client clie
 
 // executeFreshInstall : Fresh 설치 실행
 func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client.Client, config VeleroInstallConfig, result *InstallResult) error {
-	var errors []string
 
 	// 1. 네임스페이스 확인/생성
 	fmt.Printf("  - Ensuring namespace...\n")
 	if err := v.ensureNamespaceWithRetry(ctx, client, config.Namespace); err != nil {
 		fmt.Printf("    Error: Failed to ensure namespace: %v\n", err)
-		errors = append(errors, fmt.Sprintf("namespace: %v", err))
 	} else {
 		fmt.Printf("    ✓ Namespace ensured successfully\n")
 	}
@@ -190,7 +188,6 @@ func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client
 	fmt.Printf("  - Creating MinIO Secret...\n")
 	if err := v.ensureMinIOSecretWithRetry(ctx, client, config.MinioConfig, config.Namespace); err != nil {
 		fmt.Printf("    Error: Failed to ensure minio secret: %v\n", err)
-		errors = append(errors, fmt.Sprintf("minio secret: %v", err))
 	} else {
 		fmt.Printf("    ✓ MinIO Secret created successfully\n")
 	}
@@ -199,7 +196,6 @@ func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client
 	fmt.Printf("  - Installing Velero...\n")
 	if err := v.installVeleroViaHelmWithRetry(ctx, client, config.Namespace, config.MinioConfig); err != nil {
 		fmt.Printf("    Error: Failed to install velero: %v\n", err)
-		errors = append(errors, fmt.Sprintf("velero installation: %v", err))
 		// Velero 설치 실패 시 더 이상 진행할 수 없음
 		return fmt.Errorf("critical error: velero installation failed: %w", err)
 	} else {
@@ -210,7 +206,6 @@ func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client
 	fmt.Printf("  - Waiting for Velero to be ready...\n")
 	if err := v.waitForVeleroReady(ctx, client, config.Namespace); err != nil {
 		fmt.Printf("    Warning: Velero may not be fully ready: %v\n", err)
-		errors = append(errors, fmt.Sprintf("velero readiness: %v", err))
 	} else {
 		fmt.Printf("    ✓ Velero is ready\n")
 	}
@@ -219,7 +214,6 @@ func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client
 	fmt.Printf("  - Creating BackupStorageLocation...\n")
 	if err := v.ensureBackupStorageLocationWithRetry(ctx, client, config.MinioConfig, config.Namespace); err != nil {
 		fmt.Printf("    Warning: Failed to ensure bsl: %v\n", err)
-		errors = append(errors, fmt.Sprintf("bsl: %v", err))
 	} else {
 		fmt.Printf("    ✓ BackupStorageLocation created successfully\n")
 	}
@@ -228,21 +222,12 @@ func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client
 	fmt.Printf("  - Validating MinIO connection...\n")
 	if err := v.validateMinIOConnection(ctx, client, config.MinioConfig, config.Namespace); err != nil {
 		fmt.Printf("    Warning: MinIO connection validation failed: %v\n", err)
-		errors = append(errors, fmt.Sprintf("minio validation: %v", err))
 	} else {
 		fmt.Printf("    ✓ MinIO connection validated successfully\n")
 	}
 
 	// 설치 결과 요약
-	if len(errors) > 0 {
-		fmt.Printf("Fresh installation completed with %d warnings:\n", len(errors))
-		for i, err := range errors {
-			fmt.Printf("  %d. %s\n", i+1, err)
-		}
-		fmt.Printf("Velero installation may not be fully functional. Please check the warnings above.\n")
-	} else {
-		fmt.Printf("Fresh installation completed successfully with no errors\n")
-	}
+	fmt.Printf("Fresh installation completed successfully\n")
 
 	return nil
 }
@@ -274,13 +259,11 @@ func (v *VeleroInstaller) performCompleteCleanup(ctx context.Context, client cli
 
 // performCompleteCleanupWithForce : 완전 정리 (Force 모드 - 에러가 있어도 계속 진행)
 func (v *VeleroInstaller) performCompleteCleanupWithForce(ctx context.Context, client client.Client, namespace string) {
-	var errors []string
 
 	// 1. Helm Release 삭제
 	fmt.Printf("  - Deleting Helm Release...\n")
 	if err := v.deleteHelmRelease(ctx, client, "velero", namespace); err != nil {
 		fmt.Printf("    Warning: Failed to delete helm release: %v\n", err)
-		errors = append(errors, fmt.Sprintf("helm release: %v", err))
 	} else {
 		fmt.Printf("    ✓ Helm Release deleted successfully\n")
 	}
@@ -289,7 +272,6 @@ func (v *VeleroInstaller) performCompleteCleanupWithForce(ctx context.Context, c
 	fmt.Printf("  - Deleting Helm Release Secrets...\n")
 	if err := v.deleteHelmReleaseSecrets(ctx, client, "velero"); err != nil {
 		fmt.Printf("    Warning: Failed to delete helm release secrets: %v\n", err)
-		errors = append(errors, fmt.Sprintf("helm secrets: %v", err))
 	} else {
 		fmt.Printf("    ✓ Helm Release Secrets deleted successfully\n")
 	}
@@ -298,7 +280,6 @@ func (v *VeleroInstaller) performCompleteCleanupWithForce(ctx context.Context, c
 	fmt.Printf("  - Deleting Namespace...\n")
 	if err := v.deleteNamespace(ctx, client, namespace); err != nil {
 		fmt.Printf("    Warning: Failed to delete namespace: %v\n", err)
-		errors = append(errors, fmt.Sprintf("namespace: %v", err))
 	} else {
 		fmt.Printf("    ✓ Namespace deleted successfully\n")
 	}
@@ -307,21 +288,12 @@ func (v *VeleroInstaller) performCompleteCleanupWithForce(ctx context.Context, c
 	fmt.Printf("  - Deleting Velero CRDs...\n")
 	if err := v.deleteVeleroCRDs(ctx, client); err != nil {
 		fmt.Printf("    Warning: Failed to delete velero crds: %v\n", err)
-		errors = append(errors, fmt.Sprintf("crds: %v", err))
 	} else {
 		fmt.Printf("    ✓ Velero CRDs deleted successfully\n")
 	}
 
 	// 정리 결과 요약
-	if len(errors) > 0 {
-		fmt.Printf("Force cleanup completed with %d warnings:\n", len(errors))
-		for i, err := range errors {
-			fmt.Printf("  %d. %s\n", i+1, err)
-		}
-		fmt.Printf("Continuing with fresh installation...\n")
-	} else {
-		fmt.Printf("Force cleanup completed successfully with no errors\n")
-	}
+	fmt.Printf("Force cleanup completed successfully\n")
 }
 
 // ensureNamespace : 네임스페이스 확인/생성

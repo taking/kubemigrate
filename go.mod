@@ -1,13 +1,12 @@
 module github.com/taking/kubemigrate
 
-go 1.24.5
+go 1.25.1
 
 require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kohkimakimoto/echo-openapidocs v0.3.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/minio/minio-go/v7 v7.0.95
-	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
 	github.com/vmware-tanzu/velero v1.17.0
 	helm.sh/helm/v3 v3.19.0

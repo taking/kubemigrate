@@ -22,7 +22,7 @@ type Handler struct {
 func NewHandler(base *handler.BaseHandler) *Handler {
 	return &Handler{
 		BaseHandler: base,
-		service:     NewService(),
+		service:     NewService(base),
 	}
 }
 
@@ -41,7 +41,7 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 		ServiceName: "helm",
 		DefaultNS:   "all",
 		HealthFunc: func(client client.Client, ctx context.Context) error {
-			namespace := utils.ResolveNamespace(c, "all")
+			namespace := h.ResolveNamespace(c, "all")
 			_, err := client.Helm().GetCharts(ctx, namespace)
 			return err
 		},
@@ -61,7 +61,7 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 func (h *Handler) GetCharts(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-charts", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "all")
+		namespace := h.ResolveNamespace(c, "all")
 
 		// 서비스 로직 호출
 		return h.service.GetChartsInternal(client, ctx, namespace)
@@ -83,7 +83,7 @@ func (h *Handler) GetCharts(c echo.Context) error {
 func (h *Handler) GetChart(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")
@@ -112,7 +112,7 @@ func (h *Handler) GetChart(c echo.Context) error {
 func (h *Handler) GetChartStatus(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-status", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")
@@ -146,7 +146,7 @@ func (h *Handler) InstallChart(c echo.Context) error {
 	releaseName := c.QueryParam("releaseName")
 	chartURL := c.QueryParam("chartURL")
 	version := c.QueryParam("version")
-	namespace := utils.ResolveNamespace(c, "default")
+	namespace := h.ResolveNamespace(c, "default")
 	valuesStr := c.QueryParam("values")
 
 	// 필수 파라미터 검증
@@ -198,7 +198,7 @@ func (h *Handler) InstallChart(c echo.Context) error {
 // @Router /api/v1/helm/charts/{name} [delete]
 func (h *Handler) UninstallChart(c echo.Context) error {
 	// 네임스페이스 결정
-	namespace := utils.ResolveNamespace(c, "default")
+	namespace := h.ResolveNamespace(c, "default")
 
 	// 차트 이름 가져오기
 	chartName := c.Param("name")
@@ -241,7 +241,7 @@ func (h *Handler) UninstallChart(c echo.Context) error {
 // @Router /api/v1/helm/charts/{name} [put]
 func (h *Handler) UpgradeChart(c echo.Context) error {
 	// 네임스페이스 결정
-	namespace := utils.ResolveNamespace(c, "default")
+	namespace := h.ResolveNamespace(c, "default")
 
 	// 차트 이름 가져오기
 	chartName := c.Param("name")
@@ -303,7 +303,7 @@ func (h *Handler) UpgradeChart(c echo.Context) error {
 func (h *Handler) GetChartHistory(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-history", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")
@@ -331,7 +331,7 @@ func (h *Handler) GetChartHistory(c echo.Context) error {
 func (h *Handler) GetChartValues(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-values", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")

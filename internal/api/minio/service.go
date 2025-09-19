@@ -22,8 +22,8 @@ func NewService(base *handler.BaseHandler) *Service {
 	}
 }
 
-// ListBucketsInternal : MinIO 버킷 목록 조회 (내부 로직)
-func (s *Service) ListBucketsInternal(client client.Client, ctx context.Context) (interface{}, error) {
+// GetBucketsInternal : MinIO 버킷 목록 조회 (내부 로직)
+func (s *Service) GetBucketsInternal(client client.Client, ctx context.Context) (interface{}, error) {
 	// MinIO 버킷 목록 조회
 	buckets, err := client.Minio().ListBuckets(ctx)
 	if err != nil {
@@ -78,8 +78,8 @@ func (s *Service) DeleteBucketInternal(client client.Client, ctx context.Context
 	}, nil
 }
 
-// ListObjectsInternal : MinIO 객체 목록 조회 (내부 로직)
-func (s *Service) ListObjectsInternal(client client.Client, ctx context.Context, bucketName string) (interface{}, error) {
+// GetObjectsInternal : MinIO 객체 목록 조회 (내부 로직)
+func (s *Service) GetObjectsInternal(client client.Client, ctx context.Context, bucketName string) (interface{}, error) {
 	// MinIO 객체 목록 조회
 	objects, err := client.Minio().ListObjects(ctx, bucketName)
 	if err != nil {
