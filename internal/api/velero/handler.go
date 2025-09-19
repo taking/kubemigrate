@@ -37,17 +37,13 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/velero/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleResourceClient(c, "velero-health", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// Velero 연결 테스트
-		_, err := client.Velero().GetBackups(ctx, "velero")
-		if err != nil {
-			return nil, err
-		}
-
-		return map[string]interface{}{
-			"service": "velero",
-			"message": "Velero connection is working",
-		}, nil
+	return h.BaseHandler.HealthCheck(c, handler.HealthCheckConfig{
+		ServiceName: "velero",
+		DefaultNS:   "", // Velero는 고정 네임스페이스 사용
+		HealthFunc: func(client client.Client, ctx context.Context) error {
+			_, err := client.Velero().GetBackups(ctx, "velero")
+			return err
+		},
 	})
 }
 
@@ -65,10 +61,10 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/velero/install [post]
 func (h *Handler) InstallVeleroWithMinIO(c echo.Context) error {
-	// 기존 utils 함수 재사용
-	config, err := utils.BindAndValidateVeleroConfig(c, h.MinioValidator, h.KubernetesValidator)
+	// 공통 검증 및 바인딩 사용
+	config, err := h.ValidateVeleroConfig(c, "velero")
 	if err != nil {
-		return response.RespondWithErrorModel(c, 400, "INVALID_CONFIG", "Invalid configuration", err.Error())
+		return err
 	}
 
 	// Query 파라미터 처리
@@ -82,13 +78,13 @@ func (h *Handler) InstallVeleroWithMinIO(c echo.Context) error {
 	// MinIO 클라이언트 직접 생성 및 테스트
 	minioClient, err := minio.NewClientWithConfig(config.MinioConfig)
 	if err != nil {
-		return response.RespondWithErrorModel(c, 500, "MINIO_CLIENT_FAILED", "MinIO client creation failed", err.Error())
+		return h.HandleConnectionError(c, "velero", "minio client creation", err)
 	}
 
 	// MinIO 연결 테스트
 	_, err = minioClient.ListBuckets(ctx)
 	if err != nil {
-		return response.RespondWithErrorModel(c, 500, "MINIO_CONNECTION_FAILED", "MinIO connection failed", err.Error())
+		return h.HandleConnectionError(c, "velero", "minio connection", err)
 	}
 
 	// 통합 클라이언트 생성 (MinIO 클라이언트는 이미 검증됨)
@@ -102,7 +98,7 @@ func (h *Handler) InstallVeleroWithMinIO(c echo.Context) error {
 	// Velero 설치 및 MinIO 연동 실행
 	result, err := h.service.InstallVeleroWithMinIOInternal(unifiedClient, ctx, config, namespace, force)
 	if err != nil {
-		return response.RespondWithErrorModel(c, 500, "INSTALLATION_FAILED", "Velero installation failed", err.Error())
+		return h.HandleInternalError(c, "velero", "installation", err)
 	}
 
 	return response.RespondWithData(c, 200, result)

@@ -34,17 +34,13 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/minio/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleResourceClient(c, "minio-health", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// MinIO 연결 테스트
-		_, err := client.Minio().ListBuckets(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		return map[string]interface{}{
-			"service": "minio",
-			"message": "MinIO connection is working",
-		}, nil
+	return h.BaseHandler.HealthCheck(c, handler.HealthCheckConfig{
+		ServiceName: "minio",
+		DefaultNS:   "", // MinIO는 네임스페이스가 없음
+		HealthFunc: func(client client.Client, ctx context.Context) error {
+			_, err := client.Minio().ListBuckets(ctx)
+			return err
+		},
 	})
 }
 

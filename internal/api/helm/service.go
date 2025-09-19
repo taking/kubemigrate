@@ -19,8 +19,10 @@ type Service struct {
 
 // NewService : 새로운 Helm 서비스 생성
 func NewService() *Service {
+	// 기본 워커 수 설정 (ConfigManager 없이 직접 설정)
+	workerCount := 5
 	return &Service{
-		jobManager: job.NewMemoryJobManager(),
+		jobManager: job.NewMemoryJobManagerWithWorkers(workerCount),
 	}
 }
 

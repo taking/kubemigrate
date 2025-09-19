@@ -41,6 +41,7 @@ import (
 	"github.com/taking/kubemigrate/internal/validator"
 	"github.com/taking/kubemigrate/pkg/config"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -76,9 +77,16 @@ type Client interface {
 	// DeleteSecret deletes a secret
 	DeleteSecret(ctx context.Context, namespace, name string) error
 
-	// Namespace 관련 (기존 유지)
-	GetNamespaces(ctx context.Context) (*v1.NamespaceList, error)
-	GetNamespace(ctx context.Context, name string) (*v1.Namespace, error)
+	// DeleteCRD deletes a custom resource definition
+	DeleteCRD(ctx context.Context, name string) error
+
+	// DeleteNamespace deletes a namespace
+	DeleteNamespace(ctx context.Context, name string) error
+
+	// GetNamespaces returns:
+	// - (*v1.NamespaceList, error) when name is empty (list all namespaces)
+	// - (*v1.Namespace, error) when name is provided (single namespace)
+	GetNamespaces(ctx context.Context, name string) (interface{}, error)
 
 	// Secret 생성
 	CreateSecret(ctx context.Context, namespace, name string, data map[string]string) (*v1.Secret, error)
@@ -86,7 +94,8 @@ type Client interface {
 
 // client Kubernetes 클라이언트 구현체
 type client struct {
-	clientset *kubernetes.Clientset
+	clientset    *kubernetes.Clientset
+	crdClientset *apiextensionsclientset.Clientset
 }
 
 // NewClient : 새로운 Kubernetes 클라이언트를 생성합니다 (기본 설정)
@@ -110,7 +119,15 @@ func NewClient() (Client, error) {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	return &client{clientset: clientset}, nil
+	crdClientset, err := apiextensionsclientset.NewForConfig(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create crd client: %w", err)
+	}
+
+	return &client{
+		clientset:    clientset,
+		crdClientset: crdClientset,
+	}, nil
 }
 
 // NewClientWithConfig : 설정을 받아서 Kubernetes 클라이언트를 생성합니다
@@ -146,7 +163,15 @@ func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 		return nil, err
 	}
 
-	return &client{clientset: clientset}, nil
+	crdClientset, err := apiextensionsclientset.NewForConfig(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create crd client: %w", err)
+	}
+
+	return &client{
+		clientset:    clientset,
+		crdClientset: crdClientset,
+	}, nil
 }
 
 // GetPods : Pod를 조회합니다
@@ -196,14 +221,23 @@ func (c *client) GetStorageClasses(ctx context.Context, name string) (interface{
 	}
 }
 
-// GetNamespaces : Namespace 목록을 조회합니다
-func (c *client) GetNamespaces(ctx context.Context) (*v1.NamespaceList, error) {
-	return c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-}
-
-// GetNamespace : 특정 Namespace를 조회합니다
-func (c *client) GetNamespace(ctx context.Context, name string) (*v1.Namespace, error) {
-	return c.clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+// GetNamespaces : Namespace를 조회합니다
+// name이 빈 문자열("")이면 목록을 조회하고, 있으면 단일 Namespace를 조회합니다
+func (c *client) GetNamespaces(ctx context.Context, name string) (interface{}, error) {
+	if name == "" {
+		// 목록 조회
+		namespaces, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		sort.Slice(namespaces.Items, func(i, j int) bool {
+			return namespaces.Items[j].CreationTimestamp.Before(&namespaces.Items[i].CreationTimestamp)
+		})
+		return namespaces, nil
+	} else {
+		// 단일 조회
+		return c.clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+	}
 }
 
 // GetConfigMaps : ConfigMap을 조회합니다
@@ -274,6 +308,16 @@ func (c *client) CreateSecret(ctx context.Context, namespace, name string, data 
 // CreateNamespace : Namespace 생성
 func (c *client) CreateNamespace(ctx context.Context, namespace *v1.Namespace) (interface{}, error) {
 	return c.clientset.CoreV1().Namespaces().Create(ctx, namespace, metav1.CreateOptions{})
+}
+
+// DeleteCRD : Custom Resource Definition 삭제
+func (c *client) DeleteCRD(ctx context.Context, name string) error {
+	return c.crdClientset.ApiextensionsV1().CustomResourceDefinitions().Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// DeleteNamespace : Namespace 삭제
+func (c *client) DeleteNamespace(ctx context.Context, name string) error {
+	return c.clientset.CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // DeleteSecret : Secret 삭제

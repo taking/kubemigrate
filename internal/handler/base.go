@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/cache"
@@ -16,6 +17,7 @@ import (
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/config"
 	"github.com/taking/kubemigrate/pkg/constants"
+	"github.com/taking/kubemigrate/pkg/utils"
 	pkgutils "github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -23,6 +25,9 @@ import (
 type BaseHandler struct {
 	KubernetesValidator *validator.KubernetesValidator
 	MinioValidator      *validator.MinioValidator
+	ConfigManager       *config.ConfigManager
+	ValidationManager   *validator.ValidationManager
+	ConfigBinder        *utils.ConfigBinder
 	workerPool          *pkgutils.WorkerPool
 	clientCache         *cache.LRUCache
 	useMockClient       bool // 테스트용 Mock 클라이언트 사용 여부
@@ -30,13 +35,24 @@ type BaseHandler struct {
 
 // NewBaseHandler : 기본 핸들러 생성
 func NewBaseHandler(workerPool *pkgutils.WorkerPool) *BaseHandler {
-	return &BaseHandler{
+	baseHandler := &BaseHandler{
 		KubernetesValidator: validator.NewKubernetesValidator(),
 		MinioValidator:      validator.NewMinioValidator(),
+		ConfigManager:       config.NewConfigManager(),
+		ValidationManager:   validator.NewValidationManager(),
+		ConfigBinder:        utils.NewConfigBinder(),
 		workerPool:          workerPool,
 		clientCache:         cache.NewLRUCache(100), // 최대 100개 항목
 		useMockClient:       false,
 	}
+
+	// 설정 검증
+	if err := baseHandler.ValidateConfiguration(); err != nil {
+		// 로그만 출력하고 계속 진행 (개발 환경에서는 유연하게)
+		fmt.Printf("Warning: Configuration validation failed: %v\n", err)
+	}
+
+	return baseHandler
 }
 
 // NewBaseHandlerWithMock : Mock 클라이언트를 사용하는 핸들러 생성 (테스트용)
@@ -44,10 +60,155 @@ func NewBaseHandlerWithMock(workerPool *pkgutils.WorkerPool) *BaseHandler {
 	return &BaseHandler{
 		KubernetesValidator: validator.NewKubernetesValidator(),
 		MinioValidator:      validator.NewMinioValidator(),
+		ConfigManager:       config.NewConfigManager(),
+		ValidationManager:   validator.NewValidationManager(),
+		ConfigBinder:        utils.NewConfigBinder(),
 		workerPool:          workerPool,
 		clientCache:         cache.NewLRUCache(100), // 최대 100개 항목
 		useMockClient:       true,
 	}
+}
+
+// HealthCheckConfig : HealthCheck 설정
+type HealthCheckConfig struct {
+	ServiceName string
+	DefaultNS   string
+	HealthFunc  func(client.Client, context.Context) error
+}
+
+// HealthCheck : 공통 HealthCheck 함수
+func (h *BaseHandler) HealthCheck(c echo.Context, config HealthCheckConfig) error {
+	return h.HandleResourceClient(c, config.ServiceName+"-health", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// 네임스페이스 결정
+		namespace := utils.ResolveNamespace(c, config.DefaultNS)
+
+		// HealthCheck 함수 실행
+		if err := config.HealthFunc(client, ctx); err != nil {
+			return nil, err
+		}
+
+		// 응답 데이터 구성
+		response := map[string]interface{}{
+			"service": config.ServiceName,
+			"message": config.ServiceName + " connection is working",
+		}
+
+		// 네임스페이스가 있는 경우에만 추가
+		if namespace != "" {
+			response["namespace"] = namespace
+		}
+
+		return response, nil
+	})
+}
+
+// ErrorHandlerConfig : 에러 처리 설정
+type ErrorHandlerConfig struct {
+	ServiceName string
+	Operation   string
+	ErrorCode   string
+	StatusCode  int
+}
+
+// HandleError : 공통 에러 처리 함수
+func (h *BaseHandler) HandleError(c echo.Context, config ErrorHandlerConfig, err error) error {
+	// 에러 로깅
+	logger.Error("Operation failed",
+		logger.String("service", config.ServiceName),
+		logger.String("operation", config.Operation),
+		logger.String("error", err.Error()),
+	)
+
+	// 에러 응답 반환
+	return response.RespondWithErrorModel(c, config.StatusCode, config.ErrorCode,
+		config.ServiceName+" "+config.Operation+" failed", err.Error())
+}
+
+// HandleValidationError : 공통 검증 에러 처리 함수
+func (h *BaseHandler) HandleValidationError(c echo.Context, serviceName, operation string, err error) error {
+	return h.HandleError(c, ErrorHandlerConfig{
+		ServiceName: serviceName,
+		Operation:   operation,
+		ErrorCode:   "VALIDATION_FAILED",
+		StatusCode:  400,
+	}, err)
+}
+
+// HandleConnectionError : 공통 연결 에러 처리 함수
+func (h *BaseHandler) HandleConnectionError(c echo.Context, serviceName, operation string, err error) error {
+	return h.HandleError(c, ErrorHandlerConfig{
+		ServiceName: serviceName,
+		Operation:   operation,
+		ErrorCode:   "CONNECTION_FAILED",
+		StatusCode:  500,
+	}, err)
+}
+
+// HandleInternalError : 공통 내부 에러 처리 함수
+func (h *BaseHandler) HandleInternalError(c echo.Context, serviceName, operation string, err error) error {
+	return h.HandleError(c, ErrorHandlerConfig{
+		ServiceName: serviceName,
+		Operation:   operation,
+		ErrorCode:   "INTERNAL_ERROR",
+		StatusCode:  500,
+	}, err)
+}
+
+// ValidationConfig : 검증 설정
+type ValidationConfig struct {
+	ServiceName string
+	ConfigType  string
+}
+
+// ValidateKubeConfig : Kubernetes 설정 검증 및 바인딩
+func (h *BaseHandler) ValidateKubeConfig(c echo.Context, serviceName string) (config.KubeConfig, error) {
+	var kubeConfig config.KubeConfig
+	if err := c.Bind(&kubeConfig); err != nil {
+		return kubeConfig, h.HandleValidationError(c, serviceName, "request binding", err)
+	}
+
+	_, err := h.KubernetesValidator.ValidateKubernetesConfig(&kubeConfig)
+	if err != nil {
+		return kubeConfig, h.HandleValidationError(c, serviceName, "kubernetes config validation", err)
+	}
+
+	return kubeConfig, nil
+}
+
+// ValidateMinioConfig : MinIO 설정 검증 및 바인딩
+func (h *BaseHandler) ValidateMinioConfig(c echo.Context, serviceName string) (config.MinioConfig, error) {
+	var minioConfig config.MinioConfig
+	if err := c.Bind(&minioConfig); err != nil {
+		return minioConfig, h.HandleValidationError(c, serviceName, "request binding", err)
+	}
+
+	err := h.MinioValidator.ValidateMinioConfig(&minioConfig)
+	if err != nil {
+		return minioConfig, h.HandleValidationError(c, serviceName, "minio config validation", err)
+	}
+
+	return minioConfig, nil
+}
+
+// ValidateVeleroConfig : Velero 설정 검증 및 바인딩
+func (h *BaseHandler) ValidateVeleroConfig(c echo.Context, serviceName string) (config.VeleroConfig, error) {
+	var veleroConfig config.VeleroConfig
+	if err := c.Bind(&veleroConfig); err != nil {
+		return veleroConfig, h.HandleValidationError(c, serviceName, "request binding", err)
+	}
+
+	// MinIO 검증
+	if err := h.MinioValidator.ValidateMinioConfig(&veleroConfig.MinioConfig); err != nil {
+		return veleroConfig, h.HandleValidationError(c, serviceName, "minio config validation", err)
+	}
+
+	// Kubernetes 검증
+	_, err := h.KubernetesValidator.ValidateKubernetesConfig(&veleroConfig.KubeConfig)
+	if err != nil {
+		return veleroConfig, h.HandleValidationError(c, serviceName, "kubernetes config validation", err)
+	}
+
+	return veleroConfig, nil
 }
 
 // HandleResourceClient : 통합 클라이언트를 사용한 리소스 처리
@@ -257,6 +418,53 @@ func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeC
 // GetCacheStats : 캐시 통계 정보 조회
 func (h *BaseHandler) GetCacheStats() map[string]interface{} {
 	return h.clientCache.Stats()
+}
+
+// ===== ConfigManager 활용 메서드들 =====
+
+// GetServerConfig : 서버 설정 조회
+func (h *BaseHandler) GetServerConfig() config.ServerConfig {
+	return h.ConfigManager.GetServerConfig()
+}
+
+// GetTimeoutConfig : 타임아웃 설정 조회
+func (h *BaseHandler) GetTimeoutConfig() config.TimeoutConfig {
+	return h.ConfigManager.GetTimeoutConfig()
+}
+
+// GetLoggingConfig : 로깅 설정 조회
+func (h *BaseHandler) GetLoggingConfig() config.LoggingConfig {
+	return h.ConfigManager.GetLoggingConfig()
+}
+
+// ValidateConfiguration : 설정 검증
+func (h *BaseHandler) ValidateConfiguration() error {
+	return h.ConfigManager.ValidateConfig()
+}
+
+// ReloadConfiguration : 설정 재로드
+func (h *BaseHandler) ReloadConfiguration() error {
+	return h.ConfigManager.Reload()
+}
+
+// GetConfigValue : 환경변수 기반 설정 값 조회
+func (h *BaseHandler) GetConfigValue(key, defaultValue string) string {
+	return config.GetEnvOrDefault(key, defaultValue)
+}
+
+// GetConfigDuration : 환경변수 기반 Duration 설정 값 조회
+func (h *BaseHandler) GetConfigDuration(key string, defaultValue time.Duration) time.Duration {
+	return config.GetDurationOrDefault(key, defaultValue)
+}
+
+// GetConfigInt : 환경변수 기반 int 설정 값 조회
+func (h *BaseHandler) GetConfigInt(key string, defaultValue int) int {
+	return config.GetIntOrDefault(key, defaultValue)
+}
+
+// GetConfigBool : 환경변수 기반 bool 설정 값 조회
+func (h *BaseHandler) GetConfigBool(key string, defaultValue bool) bool {
+	return config.GetBoolOrDefault(key, defaultValue)
 }
 
 // GetDetailedCacheStats : 상세한 캐시 통계 정보 조회

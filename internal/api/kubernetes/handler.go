@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/types"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
 
@@ -33,21 +34,20 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/kubernetes/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleResourceClient(c, "kubernetes-health", func(client client.Client, ctx context.Context) (interface{}, error) {
+	return h.BaseHandler.HealthCheck(c, handler.HealthCheckConfig{
+		ServiceName: "kubernetes",
+		DefaultNS:   "default",
+		HealthFunc: func(client client.Client, ctx context.Context) error {
+			namespace := utils.ResolveNamespace(c, "default")
+			result, err := client.Kubernetes().GetPods(ctx, namespace, "")
+			if err != nil {
+				return err
+			}
 
-		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
-		// Kubernetes 연결 테스트
-		_, err := client.Kubernetes().GetPods(ctx, namespace, "")
-		if err != nil {
-			return nil, err
-		}
-
-		return map[string]interface{}{
-			"service":   "kubernetes",
-			"message":   "Kubernetes connection is working",
-			"namespace": namespace,
-		}, nil
+			// 타입 안전성 검증
+			_, err = types.SafeGetPodList(result)
+			return err
+		},
 	})
 }
 

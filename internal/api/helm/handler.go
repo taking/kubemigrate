@@ -37,20 +37,14 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/helm/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleResourceClient(c, "helm-health", func(client client.Client, ctx context.Context) (interface{}, error) {
-
-		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "all")
-		_, err := client.Helm().GetCharts(ctx, namespace)
-		if err != nil {
-			return nil, err
-		}
-
-		return map[string]interface{}{
-			"service":   "helm",
-			"message":   "Helm connection is working",
-			"namespace": namespace,
-		}, nil
+	return h.BaseHandler.HealthCheck(c, handler.HealthCheckConfig{
+		ServiceName: "helm",
+		DefaultNS:   "all",
+		HealthFunc: func(client client.Client, ctx context.Context) error {
+			namespace := utils.ResolveNamespace(c, "all")
+			_, err := client.Helm().GetCharts(ctx, namespace)
+			return err
+		},
 	})
 }
 
