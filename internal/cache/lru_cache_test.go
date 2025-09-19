@@ -361,17 +361,41 @@ func TestLRUCache_Concurrent(t *testing.T) {
 type MockClient struct{}
 
 func (m *MockClient) Kubernetes() kubernetes.Client {
-	return kubernetes.NewClient()
+	client, err := kubernetes.NewClient()
+	if err != nil {
+		// For testing purposes, return a nil client if creation fails
+		// In real scenarios, this should be handled appropriately
+		return nil
+	}
+	return client
 }
 
 func (m *MockClient) Helm() helm.Client {
-	return helm.NewClient()
+	client, err := helm.NewClient()
+	if err != nil {
+		// For testing purposes, return a nil client if creation fails
+		// In real scenarios, this should be handled appropriately
+		return nil
+	}
+	return client
 }
 
 func (m *MockClient) Velero() velero.Client {
-	return velero.NewClient()
+	client, err := velero.NewClient()
+	if err != nil {
+		// For testing purposes, return a nil client if creation fails
+		// In real scenarios, this should be handled appropriately
+		return nil
+	}
+	return client
 }
 
 func (m *MockClient) Minio() minio.Client {
-	return minio.NewClient()
+	client, err := minio.NewClient()
+	if err != nil {
+		// For testing purposes, return a nil client if creation fails
+		// In real scenarios, this should be handled appropriately
+		return nil
+	}
+	return client
 }

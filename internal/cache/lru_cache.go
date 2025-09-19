@@ -347,11 +347,6 @@ func (c *LRUCache) removeElement(elem *list.Element) {
 	delete(c.items, item.Key)
 }
 
-// detectApiType : 클라이언트 타입을 분석하여 API 타입을 결정
-func (c *LRUCache) detectApiType(key string, client client.Client) string {
-	return getApiTypeFromKey(key)
-}
-
 // getMaskedConfig : API 타입에 따라 마스킹된 설정 반환
 func (c *LRUCache) getMaskedConfig(apiType, key string) any {
 	// 캐시에서 해당 키의 설정 정보 찾기

@@ -6,7 +6,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
-	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // SetupHealthRoutes 헬스체크 및 시스템 상태 라우트를 설정합니다.
@@ -37,13 +36,6 @@ func SetupHealthRoutes(e *echo.Echo, baseHandler *handler.BaseHandler) {
 		return c.JSON(200, map[string]interface{}{
 			"status": "success",
 			"data":   detailedStats,
-		})
-	})
-	cacheGroup.POST("/cleanup", func(c echo.Context) error {
-		baseHandler.CleanupCache()
-		return c.JSON(200, map[string]interface{}{
-			"status":  "success",
-			"message": "Cache cleanup completed",
 		})
 	})
 	cacheGroup.GET("/cleanup", func(c echo.Context) error {
@@ -84,29 +76,26 @@ func SetupHealthRoutes(e *echo.Echo, baseHandler *handler.BaseHandler) {
 		})
 	})
 
-	// 메모리 관리 라우트
+	// 메모리 관리 라우트 (구현 예정)
 	memoryGroup := api.Group("/memory")
 	memoryGroup.GET("/stats", func(c echo.Context) error {
-		stats := utils.GetMemoryStats()
 		return c.JSON(200, map[string]interface{}{
 			"status": "success",
-			"data":   stats,
+			"data":   map[string]interface{}{"message": "Memory stats not implemented yet"},
 		})
 	})
 	memoryGroup.POST("/optimize", func(c echo.Context) error {
-		utils.OptimizeMemory()
 		return c.JSON(200, map[string]interface{}{
 			"status":  "success",
-			"message": "Memory optimization completed",
+			"message": "Memory optimization not implemented yet",
 		})
 	})
 	memoryGroup.GET("/usage", func(c echo.Context) error {
-		usage := utils.GetMemoryUsagePercent()
 		return c.JSON(200, map[string]interface{}{
 			"status": "success",
 			"data": map[string]interface{}{
-				"usage_percent": usage,
-				"is_high":       utils.IsMemoryHigh(80.0),
+				"usage_percent": 0,
+				"is_high":       false,
 			},
 		})
 	})

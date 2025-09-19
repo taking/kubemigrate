@@ -9,13 +9,13 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
-	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/internal/job"
 )
 
 // TestKubernetesHandler_HealthCheck 헬스체크 API 테스트
 func TestKubernetesHandler_HealthCheck(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)
@@ -48,7 +48,7 @@ func TestKubernetesHandler_HealthCheck(t *testing.T) {
 // TestKubernetesHandler_GetResources 리소스 조회 API 테스트
 func TestKubernetesHandler_GetResources(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)
@@ -108,7 +108,7 @@ func TestKubernetesHandler_GetResources(t *testing.T) {
 // TestKubernetesHandler_GetResources_WithName 이름이 있는 리소스 조회 테스트
 func TestKubernetesHandler_GetResources_WithName(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)
@@ -138,7 +138,7 @@ func TestKubernetesHandler_GetResources_WithName(t *testing.T) {
 // TestKubernetesHandler_GetResources_QueryParams 쿼리 파라미터 테스트
 func TestKubernetesHandler_GetResources_QueryParams(t *testing.T) {
 	// 테스트용 BaseHandler 생성 (Mock 클라이언트 사용)
-	workerPool := utils.NewWorkerPool(2)
+	workerPool := job.NewWorkerPool(2)
 	defer workerPool.Close()
 	baseHandler := handler.NewBaseHandlerWithMock(workerPool)
 	kubernetesHandler := NewHandler(baseHandler)

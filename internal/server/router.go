@@ -8,11 +8,11 @@ import (
 	"github.com/taking/kubemigrate/internal/api/minio"
 	"github.com/taking/kubemigrate/internal/api/velero"
 	"github.com/taking/kubemigrate/internal/handler"
+	"github.com/taking/kubemigrate/internal/job"
 	appMiddleware "github.com/taking/kubemigrate/internal/middleware"
 	"github.com/taking/kubemigrate/internal/server/routes"
 	"github.com/taking/kubemigrate/pkg/config"
 	"github.com/taking/kubemigrate/pkg/constants"
-	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // NewRouter 새로운 라우터를 생성합니다
@@ -23,7 +23,7 @@ func NewRouter(cfg *config.Config) *echo.Echo {
 	appMiddleware.SetupMiddleware(e, cfg)
 
 	// 공통 컴포넌트 초기화
-	workerPool := utils.NewWorkerPool(constants.DefaultWorkerPoolSize)
+	workerPool := job.NewWorkerPool(constants.DefaultWorkerPoolSize)
 
 	// BaseHandler 생성
 	baseHandler := handler.NewBaseHandler(workerPool)

@@ -5,13 +5,13 @@ meta {
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts?namespace=default
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts?namespace=all
   body: json
   auth: inherit
 }
 
 params:query {
-  namespace: default
+  namespace: all
 }
 
 body:json {

@@ -98,9 +98,8 @@ GET /api/v1/cache/detailed
 
 #### 캐시 정리
 ```http
-# 전체 캐시 정리 (GET 또는 POST)
+# 전체 캐시 정리
 GET /api/v1/cache/cleanup
-POST /api/v1/cache/cleanup
 
 # 특정 캐시 키 정리
 DELETE /api/v1/cache/clean/:cache_key

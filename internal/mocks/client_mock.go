@@ -49,18 +49,91 @@ func (m *MockClient) Velero() velero.Client {
 // MockKubernetesClient : Mock Kubernetes 클라이언트
 type MockKubernetesClient struct{}
 
-func (m *MockKubernetesClient) GetNamespaces(ctx context.Context) (*v1.NamespaceList, error) {
-	return &v1.NamespaceList{
-		Items: []v1.Namespace{
-			{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}},
-		},
-	}, nil
+func (m *MockKubernetesClient) GetNamespaces(ctx context.Context, name string) (interface{}, error) {
+	if name == "" {
+		// 목록 조회
+		return &v1.NamespaceList{
+			Items: []v1.Namespace{
+				{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}},
+			},
+		}, nil
+	} else {
+		// 단일 조회
+		return &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+		}, nil
+	}
 }
 
-func (m *MockKubernetesClient) GetNamespace(ctx context.Context, name string) (*v1.Namespace, error) {
-	return &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+func (m *MockKubernetesClient) GetPods(ctx context.Context, namespace, name string) (interface{}, error) {
+	if name == "" {
+		// 목록 조회
+		return &v1.PodList{
+			Items: []v1.Pod{
+				{ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: namespace}},
+			},
+		}, nil
+	} else {
+		// 단일 조회
+		return &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		}, nil
+	}
+}
+
+func (m *MockKubernetesClient) GetConfigMaps(ctx context.Context, namespace, name string) (interface{}, error) {
+	if name == "" {
+		// 목록 조회
+		return &v1.ConfigMapList{
+			Items: []v1.ConfigMap{
+				{ObjectMeta: metav1.ObjectMeta{Name: "test-cm", Namespace: namespace}},
+			},
+		}, nil
+	} else {
+		// 단일 조회
+		return &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		}, nil
+	}
+}
+
+func (m *MockKubernetesClient) GetSecrets(ctx context.Context, namespace, name string) (interface{}, error) {
+	if name == "" {
+		// 목록 조회
+		return &v1.SecretList{
+			Items: []v1.Secret{
+				{ObjectMeta: metav1.ObjectMeta{Name: "test-secret", Namespace: namespace}},
+			},
+		}, nil
+	} else {
+		// 단일 조회
+		return &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		}, nil
+	}
+}
+
+func (m *MockKubernetesClient) CreateNamespace(ctx context.Context, namespace *v1.Namespace) (interface{}, error) {
+	return namespace, nil
+}
+
+func (m *MockKubernetesClient) DeleteSecret(ctx context.Context, namespace, name string) error {
+	return nil
+}
+
+func (m *MockKubernetesClient) DeleteCRD(ctx context.Context, name string) error {
+	return nil
+}
+
+func (m *MockKubernetesClient) DeleteNamespace(ctx context.Context, name string) error {
+	return nil
+}
+
+func (m *MockKubernetesClient) CreateSecret(ctx context.Context, namespace, name string, data map[string]string) (*v1.Secret, error) {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Data:       map[string][]byte{},
 	}, nil
 }
 
@@ -68,30 +141,6 @@ func (m *MockKubernetesClient) GetStorageClasses(ctx context.Context, name strin
 	return map[string]interface{}{
 		"items": []map[string]interface{}{
 			{"metadata": map[string]interface{}{"name": "test-storageclass"}},
-		},
-	}, nil
-}
-
-func (m *MockKubernetesClient) GetPods(ctx context.Context, namespace, labelSelector string) (interface{}, error) {
-	return map[string]interface{}{
-		"items": []map[string]interface{}{
-			{"metadata": map[string]interface{}{"name": "test-pod"}},
-		},
-	}, nil
-}
-
-func (m *MockKubernetesClient) GetConfigMaps(ctx context.Context, namespace, labelSelector string) (interface{}, error) {
-	return map[string]interface{}{
-		"items": []map[string]interface{}{
-			{"metadata": map[string]interface{}{"name": "test-configmap"}},
-		},
-	}, nil
-}
-
-func (m *MockKubernetesClient) GetSecrets(ctx context.Context, namespace, labelSelector string) (interface{}, error) {
-	return map[string]interface{}{
-		"items": []map[string]interface{}{
-			{"metadata": map[string]interface{}{"name": "test-secret"}},
 		},
 	}, nil
 }
@@ -200,11 +249,25 @@ func (m *MockHelmClient) GetChart(ctx context.Context, releaseName, namespace st
 	}, nil
 }
 
+func (m *MockHelmClient) GetValues(ctx context.Context, releaseName, namespace string) (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"image": map[string]interface{}{
+			"repository": "nginx",
+			"tag":        "1.21.0",
+		},
+		"service": map[string]interface{}{
+			"type": "ClusterIP",
+			"port": 80,
+		},
+		"replicaCount": 1,
+	}, nil
+}
+
 func (m *MockHelmClient) IsChartInstalled(releaseName string) (bool, *release.Release, error) {
 	return true, &release.Release{Name: releaseName}, nil
 }
 
-func (m *MockHelmClient) InstallChart(releaseName, chartURL, version string, values map[string]interface{}) error {
+func (m *MockHelmClient) InstallChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
 	return nil
 }
 
@@ -212,7 +275,7 @@ func (m *MockHelmClient) UninstallChart(releaseName, namespace string, dryRun bo
 	return nil
 }
 
-func (m *MockHelmClient) UpgradeChart(releaseName, chartPath string, values map[string]interface{}) error {
+func (m *MockHelmClient) UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
 	return nil
 }
 
@@ -360,6 +423,14 @@ func (m *MockVeleroClient) GetBackupStorageLocation(ctx context.Context, namespa
 	return &velerov1.BackupStorageLocation{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}, nil
+}
+
+func (m *MockVeleroClient) CreateBackupStorageLocation(ctx context.Context, namespace string, bsl *velerov1.BackupStorageLocation) error {
+	return nil
+}
+
+func (m *MockVeleroClient) DeleteBackupStorageLocation(ctx context.Context, namespace, name string) error {
+	return nil
 }
 
 func (m *MockVeleroClient) GetVolumeSnapshotLocations(ctx context.Context, namespace string) ([]velerov1.VolumeSnapshotLocation, error) {

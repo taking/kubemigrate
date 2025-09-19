@@ -252,5 +252,3 @@ LRU 캐시 설정은 `internal/constants/constants.go`에서 수정할 수 있�
 
 1. [API 문서](./API.md) 참조
 2. [개발 가이드](./DEVELOPMENT.md) 확인
-3. [배포 가이드](./DEPLOYMENT.md) 참조
-4. [기여 가이드](./CONTRIBUTING.md) 확인

@@ -1,6 +1,8 @@
 package client
 
 import (
+	"fmt"
+
 	"github.com/taking/kubemigrate/pkg/client/helm"
 	"github.com/taking/kubemigrate/pkg/client/kubernetes"
 	"github.com/taking/kubemigrate/pkg/client/minio"
@@ -25,13 +27,33 @@ type client struct {
 }
 
 // NewClient : 새로운 통합 클라이언트를 생성합니다
-func NewClient() Client {
-	return &client{
-		kubernetes: kubernetes.NewClient(),
-		helm:       helm.NewClient(),
-		velero:     velero.NewClient(),
-		minio:      minio.NewClient(),
+func NewClient() (Client, error) {
+	kubeClient, err := kubernetes.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
+
+	helmClient, err := helm.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create helm client: %w", err)
+	}
+
+	minioClient, err := minio.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create minio client: %w", err)
+	}
+
+	veleroClient, err := velero.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create velero client: %w", err)
+	}
+
+	return &client{
+		kubernetes: kubeClient,
+		helm:       helmClient,
+		minio:      minioClient,
+		velero:     veleroClient,
+	}, nil
 }
 
 // Kubernetes : Kubernetes 클라이언트를 반환합니다
@@ -54,50 +76,85 @@ func (c *client) Minio() minio.Client {
 	return c.minio
 }
 
-// createClientWithFallback 설정에 따라 클라이언트를 생성하고 실패 시 fallback 사용
-func createClientWithFallback[T any, R any](
+// createClientWithRetry 설정에 따라 클라이언트를 생성하고 실패 시 fallback 사용
+func createClientWithRetry[T any, R any](
 	config interface{},
 	creator func(T) (R, error),
-	fallback R,
-) R {
+	fallbackCreator func() (R, error),
+) (R, error) {
 	if config == nil {
-		return fallback
+		// config가 nil이면 fallback 클라이언트 생성 시도
+		if fallback, err := fallbackCreator(); err == nil {
+			return fallback, nil
+		}
+		// fallback도 실패하면 에러 반환
+		var zero R
+		return zero, fmt.Errorf("failed to create client: both config and fallback creation failed")
 	}
 
-	if typedConfig, ok := config.(T); ok {
+	// 포인터 타입 처리
+	if ptr, ok := config.(*T); ok {
+		if client, err := creator(*ptr); err == nil {
+			return client, nil
+		}
+	} else if typedConfig, ok := config.(T); ok {
 		if client, err := creator(typedConfig); err == nil {
-			return client
+			return client, nil
 		}
 	}
 
-	return fallback
+	// 설정된 클라이언트 생성 실패 시 fallback 클라이언트 생성 시도
+	if fallback, err := fallbackCreator(); err == nil {
+		return fallback, nil
+	}
+
+	// fallback도 실패하면 에러 반환
+	var zero R
+	return zero, fmt.Errorf("failed to create client: both config and fallback creation failed")
 }
 
 // NewClientWithConfig : 설정을 사용하여 새로운 통합 클라이언트를 생성합니다
-func NewClientWithConfig(kubeConfig, helmConfig, veleroConfig, minioConfig interface{}) Client {
-	return &client{
-		kubernetes: createClientWithFallback[config.KubeConfig, kubernetes.Client]( //nolint:typecheck
-			kubeConfig,
-			kubernetes.NewClientWithConfig,
-			kubernetes.NewClient(),
-		),
-
-		helm: createClientWithFallback[config.KubeConfig, helm.Client]( //nolint:typecheck
-			helmConfig,
-			helm.NewClientWithConfig,
-			helm.NewClient(),
-		),
-
-		velero: createClientWithFallback[config.VeleroConfig, velero.Client]( //nolint:typecheck
-			veleroConfig,
-			velero.NewClientWithConfig,
-			velero.NewClient(),
-		),
-
-		minio: createClientWithFallback[config.MinioConfig, minio.Client]( //nolint:typecheck
-			minioConfig,
-			minio.NewClientWithConfig,
-			minio.NewClient(),
-		),
+func NewClientWithConfig(kubeConfig, helmConfig, veleroConfig, minioConfig interface{}) (Client, error) {
+	kubeClient, err := createClientWithRetry[config.KubeConfig, kubernetes.Client]( //nolint:typecheck
+		kubeConfig,
+		kubernetes.NewClientWithConfig,
+		kubernetes.NewClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
+
+	helmClient, err := createClientWithRetry[config.KubeConfig, helm.Client]( //nolint:typecheck
+		helmConfig,
+		helm.NewClientWithConfig,
+		helm.NewClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create helm client: %w", err)
+	}
+
+	veleroClient, err := createClientWithRetry[config.VeleroConfig, velero.Client]( //nolint:typecheck
+		veleroConfig,
+		velero.NewClientWithConfig,
+		velero.NewClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create velero client: %w", err)
+	}
+
+	minioClient, err := createClientWithRetry[config.MinioConfig, minio.Client]( //nolint:typecheck
+		minioConfig,
+		minio.NewClientWithConfig,
+		minio.NewClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create minio client: %w", err)
+	}
+
+	return &client{
+		kubernetes: kubeClient,
+		helm:       helmClient,
+		velero:     veleroClient,
+		minio:      minioClient,
+	}, nil
 }

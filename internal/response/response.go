@@ -177,3 +177,57 @@ func RespondWithValidationError(ctx echo.Context, errors []ValidationError) erro
 
 	return ctx.JSON(http.StatusBadRequest, response)
 }
+
+// ===== 공통 에러 처리 함수들 =====
+
+// ErrorHandlerConfig : 에러 핸들러 설정
+type ErrorHandlerConfig struct {
+	ServiceName string
+	Operation   string
+	ErrorCode   string
+	StatusCode  int
+}
+
+// HandleError : 공통 에러 처리 함수
+func HandleError(c echo.Context, config ErrorHandlerConfig, err error) error {
+	// 에러 로깅
+	logger.Error("Operation failed",
+		logger.String("service", config.ServiceName),
+		logger.String("operation", config.Operation),
+		logger.String("error", err.Error()),
+	)
+
+	// 에러 응답 반환
+	return RespondWithErrorModel(c, config.StatusCode, config.ErrorCode,
+		config.ServiceName+" "+config.Operation+" failed", err.Error())
+}
+
+// HandleValidationError : 공통 검증 에러 처리 함수
+func HandleValidationError(c echo.Context, serviceName, operation string, err error) error {
+	return HandleError(c, ErrorHandlerConfig{
+		ServiceName: serviceName,
+		Operation:   operation,
+		ErrorCode:   "VALIDATION_FAILED",
+		StatusCode:  400,
+	}, err)
+}
+
+// HandleConnectionError : 공통 연결 에러 처리 함수
+func HandleConnectionError(c echo.Context, serviceName, operation string, err error) error {
+	return HandleError(c, ErrorHandlerConfig{
+		ServiceName: serviceName,
+		Operation:   operation,
+		ErrorCode:   "CONNECTION_FAILED",
+		StatusCode:  500,
+	}, err)
+}
+
+// HandleInternalError : 공통 내부 에러 처리 함수
+func HandleInternalError(c echo.Context, serviceName, operation string, err error) error {
+	return HandleError(c, ErrorHandlerConfig{
+		ServiceName: serviceName,
+		Operation:   operation,
+		ErrorCode:   "INTERNAL_ERROR",
+		StatusCode:  500,
+	}, err)
+}

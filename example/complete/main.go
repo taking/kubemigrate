@@ -85,11 +85,34 @@ type ClusterStatus struct {
 
 // 클라이언트 초기화
 func initializeClients() *Clients {
-	clients := &Clients{
-		Kubernetes: kubernetes.NewClient(),
-		Helm:       helm.NewClient(),
-		MinIO:      minio.NewClient(),
-		Velero:     velero.NewClient(),
+	clients := &Clients{}
+
+	// Kubernetes 클라이언트 생성
+	if kubeClient, err := kubernetes.NewClient(); err == nil {
+		clients.Kubernetes = kubeClient
+	} else {
+		fmt.Printf("Warning: Failed to create Kubernetes client: %v\n", err)
+	}
+
+	// Helm 클라이언트 생성
+	if helmClient, err := helm.NewClient(); err == nil {
+		clients.Helm = helmClient
+	} else {
+		fmt.Printf("Warning: Failed to create Helm client: %v\n", err)
+	}
+
+	// MinIO 클라이언트 생성
+	if minioClient, err := minio.NewClient(); err == nil {
+		clients.MinIO = minioClient
+	} else {
+		fmt.Printf("Warning: Failed to create MinIO client: %v\n", err)
+	}
+
+	// Velero 클라이언트 생성
+	if veleroClient, err := velero.NewClient(); err == nil {
+		clients.Velero = veleroClient
+	} else {
+		fmt.Printf("Warning: Failed to create Velero client: %v\n", err)
 	}
 
 	ctx := context.Background()

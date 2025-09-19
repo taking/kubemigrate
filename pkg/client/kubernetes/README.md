@@ -2,18 +2,18 @@
 
 Kubernetes 리소스 작업을 위한 통합 클라이언트로, 리스트 조회와 단일 리소스 조회를 위한 단일 인터페이스를 제공하여 일반적인 작업을 단순화합니다.
 
-## 📋 개요
+## 개요
 
 Kubernetes 클라이언트는 Kubernetes API와 상호작용하기 위한 고수준 인터페이스를 제공합니다. 이 클라이언트는 복잡한 Kubernetes API 호출을 단순화하고, 타입 안전성을 보장하며, 일관된 에러 처리를 제공합니다.
 
-## ✨ 주요 특징
+## 주요 특징
 
-- **🔗 통합 API**: 리스트 및 단일 리소스 작업을 위한 단일 메서드
-- **🛡️ 타입 안전성**: 타입 어설션에 대한 명확한 문서화
-- **🏷️ 네임스페이스 지원**: "all" 네임스페이스를 포함한 전체 네임스페이스 지원
-- **⚠️ 에러 처리**: 상세한 메시지와 함께 포괄적인 에러 처리
-- **⚡ 성능 최적화**: 효율적인 리소스 관리 및 캐싱
-- **🔧 설정 유연성**: 다양한 설정 옵션 지원
+- **통합 API**: 리스트 및 단일 리소스 작업을 위한 단일 메서드
+- **타입 안전성**: 타입 어설션에 대한 명확한 문서화
+- **네임스페이스 지원**: "all" 네임스페이스를 포함한 전체 네임스페이스 지원
+- **에러 처리**: 상세한 메시지와 함께 포괄적인 에러 처리
+- **성능 최적화**: 효율적인 리소스 관리 및 캐싱
+- **설정 유연성**: 다양한 설정 옵션 지원
 
 ## 기능
 
@@ -114,27 +114,22 @@ func (c *client) GetStorageClasses(ctx context.Context, name string) (interface{
 - `name`이 비어있을 때: `(*storagev1.StorageClassList, error)` (모든 storage class 목록)
 - `name`이 제공될 때: `(*storagev1.StorageClass, error)` (단일 storage class)
 
-### GetNamespaces
 
-모든 네임스페이스 목록을 조회합니다.
+### GetNamespaces (통합)
 
-```go
-func (c *client) GetNamespaces(ctx context.Context) (*v1.NamespaceList, error)
-```
-
-**반환값:**
-- `(*v1.NamespaceList, error)`: 네임스페이스 목록, 에러
-
-### GetNamespace
-
-특정 네임스페이스를 조회합니다.
+네임스페이스 목록 또는 특정 네임스페이스를 조회합니다.
 
 ```go
-func (c *client) GetNamespace(ctx context.Context, name string) (*v1.Namespace, error)
+func (c *client) GetNamespaces(ctx context.Context, name string) (interface{}, error)
 ```
 
+**매개변수:**
+- `ctx`: 요청을 위한 컨텍스트
+- `name`: 네임스페이스 이름 (목록의 경우 "", 특정 네임스페이스의 경우 이름 지정)
+
 **반환값:**
-- `(*v1.Namespace, error)`: 네임스페이스 정보, 에러
+- `name`이 비어있을 때: `(*v1.NamespaceList, error)` (모든 네임스페이스 목록)
+- `name`이 제공될 때: `(*v1.Namespace, error)` (단일 네임스페이스)
 
 ## 타입 어설션 가이드
 
@@ -148,6 +143,7 @@ func (c *client) GetNamespace(ctx context.Context, name string) (*v1.Namespace, 
 | `GetConfigMaps(ctx, namespace, "")` | `*v1.ConfigMapList` |
 | `GetSecrets(ctx, namespace, "")` | `*v1.SecretList` |
 | `GetStorageClasses(ctx, "")` | `*storagev1.StorageClassList` |
+| `GetNamespaces(ctx, "")` | `*v1.NamespaceList` |
 
 ### 단일 리소스 작업 (name이 제공됨)
 
@@ -157,6 +153,7 @@ func (c *client) GetNamespace(ctx context.Context, name string) (*v1.Namespace, 
 | `GetConfigMaps(ctx, namespace, "cm-name")` | `*v1.ConfigMap` |
 | `GetSecrets(ctx, namespace, "secret-name")` | `*v1.Secret` |
 | `GetStorageClasses(ctx, "sc-name")` | `*storagev1.StorageClass` |
+| `GetNamespaces(ctx, "ns-name")` | `*v1.Namespace` |
 
 ## 에러 처리
 
@@ -256,14 +253,13 @@ go test ./pkg/client/kubernetes/... -v
 
 현재 테스트는 다음 기능들을 커버합니다:
 
-- ✅ `NewClient()` - 기본 클라이언트 생성
-- ✅ `NewClientWithConfig()` - 설정을 통한 클라이언트 생성
-- ✅ `GetPods()` - 파드 조회 (목록/단일)
-- ✅ `GetConfigMaps()` - ConfigMap 조회 (목록/단일)
-- ✅ `GetSecrets()` - Secret 조회 (목록/단일)
-- ✅ `GetStorageClasses()` - StorageClass 조회 (목록/단일)
-- ✅ `GetNamespaces()` - 네임스페이스 목록 조회
-- ✅ `GetNamespace()` - 특정 네임스페이스 조회
+- `NewClient()` - 기본 클라이언트 생성
+- `NewClientWithConfig()` - 설정을 통한 클라이언트 생성
+- `GetPods()` - 파드 조회 (목록/단일)
+- `GetConfigMaps()` - ConfigMap 조회 (목록/단일)
+- `GetSecrets()` - Secret 조회 (목록/단일)
+- `GetStorageClasses()` - StorageClass 조회 (목록/단일)
+- `GetNamespaces()` - 네임스페이스 조회 (목록/단일)
 
 ### 테스트 실행 예제
 
