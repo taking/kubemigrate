@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine3.22 AS builder
+FROM golang:1.25-alpine3.22 AS builder
 
 LABEL authors="taking"
 LABEL description="KubeMigrate API Server - Multi-cluster backup and restore management"
