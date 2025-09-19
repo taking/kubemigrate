@@ -466,12 +466,15 @@ func main() {
     }
     
     // 설정을 통한 클라이언트 생성
-    unifiedClient := client.NewClientWithConfig(
+    unifiedClient, err := client.NewClientWithConfig(
         kubeConfig,  // Kubernetes 설정
         kubeConfig,  // Helm 설정 (Kubernetes와 동일)
         veleroConfig, // Velero 설정
         minioConfig,  // MinIO 설정
     )
+    if err != nil {
+        log.Fatalf("Failed to create unified client: %v", err)
+    }
     
     // 클라이언트 사용...
 }

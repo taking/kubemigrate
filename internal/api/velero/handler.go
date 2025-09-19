@@ -87,12 +87,15 @@ func (h *Handler) InstallVeleroWithMinIO(c echo.Context) error {
 	}
 
 	// 통합 클라이언트 생성 (MinIO 클라이언트는 이미 검증됨)
-	unifiedClient := client.NewClientWithConfig(
+	unifiedClient, err := client.NewClientWithConfig(
 		&config.KubeConfig,
 		&config.KubeConfig,
 		&config,
 		&config.MinioConfig,
 	)
+	if err != nil {
+		return h.HandleConnectionError(c, "velero", "unified client creation", err)
+	}
 
 	// Velero 설치 및 MinIO 연동 실행
 	result, err := h.service.InstallVeleroWithMinIOInternal(unifiedClient, ctx, config, namespace, force)

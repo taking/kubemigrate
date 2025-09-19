@@ -172,17 +172,38 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 			func() client.Client {
 				// MinIO API인 경우 minioConfig만 유효하므로 명시적으로 처리
 				if strings.Contains(c.Request().URL.Path, "/minio/") {
-					return client.NewClientWithConfig(nil, nil, nil, minioConfig)
+					client, err := client.NewClientWithConfig(nil, nil, nil, minioConfig)
+					if err != nil {
+						logger.Error("Failed to create MinIO client",
+							logger.String("error", err.Error()),
+						)
+						return mocks.NewMockClient()
+					}
+					return client
 				}
 
 				// Velero API인 경우 Kubernetes + MinIO 조합 클라이언트 생성
 				if strings.Contains(c.Request().URL.Path, "/velero/") {
 					// Velero는 Kubernetes 클라이언트를 사용하지만, MinIO 설정도 함께 전달
-					return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+					client, err := client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+					if err != nil {
+						logger.Error("Failed to create Velero client",
+							logger.String("error", err.Error()),
+						)
+						return mocks.NewMockClient()
+					}
+					return client
 				}
 
 				// 기본 Kubernetes/Helm API
-				return client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+				client, err := client.NewClientWithConfig(kubeConfig, kubeConfig, veleroConfig, minioConfig)
+				if err != nil {
+					logger.Error("Failed to create client",
+						logger.String("error", err.Error()),
+					)
+					return mocks.NewMockClient()
+				}
+				return client
 			},
 		)
 	}
