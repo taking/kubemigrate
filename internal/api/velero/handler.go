@@ -224,7 +224,7 @@ func (h *Handler) GetPodVolumeRestores(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "Job status"
 // @Failure 404 {object} map[string]interface{} "Job not found"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/velero/status/{jobId} [get]
+// @Router /v1/velero/status/{jobId} [get]
 func (h *Handler) GetJobStatus(c echo.Context) error {
 	jobID := c.Param("jobId")
 	if jobID == "" {
@@ -249,7 +249,7 @@ func (h *Handler) GetJobStatus(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "Job logs"
 // @Failure 404 {object} map[string]interface{} "Job not found"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/velero/logs/{jobId} [get]
+// @Router /v1/velero/logs/{jobId} [get]
 func (h *Handler) GetJobLogs(c echo.Context) error {
 	jobID := c.Param("jobId")
 	if jobID == "" {
@@ -272,7 +272,7 @@ func (h *Handler) GetJobLogs(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} map[string]interface{} "All jobs"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/velero/jobs [get]
+// @Router /v1/velero/jobs [get]
 func (h *Handler) GetAllJobs(c echo.Context) error {
 	result, err := h.service.GetAllJobsInternal()
 	if err != nil {

@@ -140,7 +140,7 @@ func (h *Handler) GetChartStatus(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "Job started"
 // @Failure 400 {object} map[string]interface{} "Bad request"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/helm/charts [post]
+// @Router /v1/helm/charts [post]
 func (h *Handler) InstallChart(c echo.Context) error {
 	// Query parameters 파싱
 	releaseName := c.QueryParam("releaseName")
@@ -195,7 +195,7 @@ func (h *Handler) InstallChart(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "Job started"
 // @Failure 400 {object} map[string]interface{} "Bad request"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/helm/charts/{name} [delete]
+// @Router /v1/helm/charts/{name} [delete]
 func (h *Handler) UninstallChart(c echo.Context) error {
 	// 네임스페이스 결정
 	namespace := h.ResolveNamespace(c, "default")
@@ -238,7 +238,7 @@ func (h *Handler) UninstallChart(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "Job started"
 // @Failure 400 {object} map[string]interface{} "Bad request"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/helm/charts/{name} [put]
+// @Router /v1/helm/charts/{name} [put]
 func (h *Handler) UpgradeChart(c echo.Context) error {
 	// 네임스페이스 결정
 	namespace := h.ResolveNamespace(c, "default")
@@ -354,7 +354,7 @@ func (h *Handler) GetChartValues(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "Job status"
 // @Failure 404 {object} map[string]interface{} "Job not found"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/helm/charts/status/{jobId} [get]
+// @Router /v1/helm/charts/status/{jobId} [get]
 func (h *Handler) GetJobStatus(c echo.Context) error {
 	jobID := c.Param("jobId")
 	if jobID == "" {
@@ -379,7 +379,7 @@ func (h *Handler) GetJobStatus(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "Job logs"
 // @Failure 404 {object} map[string]interface{} "Job not found"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/helm/charts/logs/{jobId} [get]
+// @Router /v1/helm/charts/logs/{jobId} [get]
 func (h *Handler) GetJobLogs(c echo.Context) error {
 	jobID := c.Param("jobId")
 	if jobID == "" {
@@ -402,7 +402,7 @@ func (h *Handler) GetJobLogs(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} map[string]interface{} "All jobs"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/helm/charts/jobs [get]
+// @Router /v1/helm/charts/jobs [get]
 func (h *Handler) GetAllJobs(c echo.Context) error {
 	result, err := h.service.GetAllJobsInternal()
 	if err != nil {
