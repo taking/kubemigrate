@@ -2,9 +2,11 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -57,24 +59,6 @@ func StringToBoolOrDefault(s string, def bool) bool {
 		return def
 	}
 	return b
-}
-
-// ResolveNamespace : 네임스페이스 결정
-func ResolveNamespace(ctx echo.Context, defaultNS string) string {
-	var namespace string
-
-	if ns := ctx.QueryParam("namespace"); ns != "" {
-		namespace = ns
-	} else {
-		return defaultNS
-	}
-
-	// "all"을 빈 문자열로 변환 (모든 namespace 조회)
-	if namespace == "all" {
-		return ""
-	}
-
-	return namespace
 }
 
 // RunWithTimeout : 타임아웃과 함께 함수 실행
@@ -139,4 +123,42 @@ func BindAndValidateVeleroConfig(ctx echo.Context, minioValidator *validator.Min
 
 	req.KubeConfig.KubeConfig = decodeKubeConfig
 	return req, nil
+}
+
+// ResolveSetValues : --set 옵션들을 파싱
+func ResolveSetValues(c echo.Context) map[string]interface{} {
+	setValues := make(map[string]interface{})
+
+	// ?set=key1=value1&set=key2=value2 형태로 받기
+	for _, setParam := range c.QueryParams()["set"] {
+		if setParam != "" {
+			parts := strings.SplitN(setParam, "=", 2)
+			if len(parts) == 2 {
+				key := parts[0]
+				value := parts[1]
+
+				// 값 타입 추론
+				if parsedValue, err := strconv.ParseBool(value); err == nil {
+					setValues[key] = parsedValue
+				} else if parsedValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+					setValues[key] = parsedValue
+				} else if parsedValue, err := strconv.ParseFloat(value, 64); err == nil {
+					setValues[key] = parsedValue
+				} else {
+					setValues[key] = value
+				}
+			}
+		}
+	}
+
+	return setValues
+}
+
+// ParseJSON : JSON 문자열을 파싱하여 지정된 타입으로 변환
+func ParseJSON(jsonStr string, target interface{}) error {
+	if jsonStr == "" {
+		return nil
+	}
+
+	return json.Unmarshal([]byte(jsonStr), target)
 }

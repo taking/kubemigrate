@@ -24,8 +24,8 @@ const docTemplate = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/v1/helm/charts": {
-            "get": {
-                "description": "Get list of all Helm charts",
+            "post": {
+                "description": "Get a list of Helm charts",
                 "consumes": [
                     "application/json"
                 ],
@@ -38,8 +38,17 @@ const docTemplate = `{
                 "summary": "Get Helm Charts",
                 "parameters": [
                     {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
                         "type": "string",
-                        "description": "Namespace name (default: 'default', all namespaces: 'all')",
+                        "description": "Namespace (default: 'all')",
                         "name": "namespace",
                         "in": "query"
                     }
@@ -58,9 +67,11 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
+            }
+        },
+        "/v1/helm/charts/{releaseName}": {
             "post": {
-                "description": "Install Helm chart from URL (supports tgz URLs and versions)",
+                "description": "Get a specific Helm chart",
                 "consumes": [
                     "application/json"
                 ],
@@ -70,7 +81,7 @@ const docTemplate = `{
                 "tags": [
                     "helm"
                 ],
-                "summary": "Install Helm Chart",
+                "summary": "Get Helm Chart",
                 "parameters": [
                     {
                         "description": "Kubernetes configuration",
@@ -85,343 +96,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Release name",
                         "name": "releaseName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Chart URL (must be HTTP/HTTPS)",
-                        "name": "chartURL",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Chart version (optional)",
-                        "name": "version",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'default')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/helm/charts/{name}": {
-            "get": {
-                "description": "Get detailed information about a specific Helm chart",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "helm"
-                ],
-                "summary": "Get Helm Chart Details",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Chart name",
-                        "name": "name",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Namespace name (default: 'default')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Upgrade a specific Helm chart",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "helm"
-                ],
-                "summary": "Upgrade Helm Chart",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Chart name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Kubernetes configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.KubeConfig"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Chart path or URL",
-                        "name": "chartPath",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'default')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Uninstall a specific Helm chart",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "helm"
-                ],
-                "summary": "Uninstall Helm Chart",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Chart name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'default')",
-                        "name": "namespace",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Dry run mode (default: false)",
-                        "name": "dryRun",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/helm/charts/{name}/history": {
-            "get": {
-                "description": "Get installation history of a specific Helm chart",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "helm"
-                ],
-                "summary": "Get Chart History",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Chart name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'default')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/helm/charts/{name}/status": {
-            "get": {
-                "description": "Check if a specific Helm chart is installed",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "helm"
-                ],
-                "summary": "Check Chart Installation Status",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Chart name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'default')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/helm/charts/{name}/values": {
-            "get": {
-                "description": "Get current values of a specific Helm chart",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "helm"
-                ],
-                "summary": "Get Chart Values",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Chart name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'default')",
+                        "description": "Namespace (default: 'default')",
                         "name": "namespace",
                         "in": "query"
                     }
@@ -477,6 +157,209 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/install": {
+            "post": {
+                "description": "Install a Helm chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Install Helm Chart",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart URL",
+                        "name": "chartURL",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release name",
+                        "name": "releaseName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart version (default: latest)",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/uninstall/{releaseName}": {
+            "post": {
+                "description": "Uninstall a Helm chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Uninstall Helm Chart",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release name",
+                        "name": "releaseName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/upgrade": {
+            "post": {
+                "description": "Upgrade a Helm chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Upgrade Helm Chart",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart URL",
+                        "name": "chartURL",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release name",
+                        "name": "releaseName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart version (default: latest)",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "500": {
@@ -594,48 +477,8 @@ const docTemplate = `{
             }
         },
         "/v1/minio/buckets": {
-            "get": {
-                "description": "List all MinIO buckets",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "minio"
-                ],
-                "summary": "List Buckets",
-                "parameters": [
-                    {
-                        "description": "MinIO configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.MinioConfig"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/minio/buckets/create-if-not-exists": {
             "post": {
-                "description": "Create a MinIO bucket if it doesn't exist",
+                "description": "Get a list of MinIO buckets",
                 "consumes": [
                     "application/json"
                 ],
@@ -645,7 +488,7 @@ const docTemplate = `{
                 "tags": [
                     "minio"
                 ],
-                "summary": "Create Bucket If Not Exists",
+                "summary": "List MinIO Buckets",
                 "parameters": [
                     {
                         "description": "MinIO configuration",
@@ -655,13 +498,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/config.MinioConfig"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Bucket name",
-                        "name": "bucket",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -669,12 +505,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "500": {
@@ -842,8 +672,8 @@ const docTemplate = `{
             }
         },
         "/v1/minio/buckets/{bucket}/objects": {
-            "get": {
-                "description": "List objects in a MinIO bucket",
+            "post": {
+                "description": "Get a list of objects in a MinIO bucket",
                 "consumes": [
                     "application/json"
                 ],
@@ -868,126 +698,6 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Bucket name",
                         "name": "bucket",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/minio/buckets/{bucket}/objects/delete": {
-            "delete": {
-                "description": "Delete an object from MinIO bucket",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "minio"
-                ],
-                "summary": "Delete Object",
-                "parameters": [
-                    {
-                        "description": "MinIO configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.MinioConfig"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Bucket name",
-                        "name": "bucket",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Object name",
-                        "name": "object",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/minio/buckets/{bucket}/objects/stat": {
-            "get": {
-                "description": "Get object metadata from MinIO bucket",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "minio"
-                ],
-                "summary": "Stat Object",
-                "parameters": [
-                    {
-                        "description": "MinIO configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.MinioConfig"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Bucket name",
-                        "name": "bucket",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Object name",
-                        "name": "object",
                         "in": "path",
                         "required": true
                     }
@@ -1135,6 +845,64 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Delete an object from MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Delete Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/v1/minio/buckets/{bucket}/objects/{object}/presigned-get": {
@@ -1149,7 +917,7 @@ const docTemplate = `{
                 "tags": [
                     "minio"
                 ],
-                "summary": "Generate Presigned GET URL",
+                "summary": "Presigned Get Object",
                 "parameters": [
                     {
                         "description": "MinIO configuration",
@@ -1176,7 +944,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Expiry time in seconds (default: 3600)",
+                        "description": "URL expiry in seconds (default: 3600)",
                         "name": "expiry",
                         "in": "query"
                     }
@@ -1215,7 +983,7 @@ const docTemplate = `{
                 "tags": [
                     "minio"
                 ],
-                "summary": "Generate Presigned PUT URL",
+                "summary": "Presigned Put Object",
                 "parameters": [
                     {
                         "description": "MinIO configuration",
@@ -1242,7 +1010,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Expiry time in seconds (default: 3600)",
+                        "description": "URL expiry in seconds (default: 3600)",
                         "name": "expiry",
                         "in": "query"
                     }
@@ -1269,9 +1037,69 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/minio/buckets/{srcBucket}/objects/{srcObject}/copy/{dstBucket}/{dstObject}": {
+        "/v1/minio/buckets/{bucket}/objects/{object}/stat": {
+            "get": {
+                "description": "Get object information from MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Stat Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{sourceBucket}/objects/{sourceObject}/copy/{destBucket}/{destObject}": {
             "post": {
-                "description": "Copy an object within or between MinIO buckets",
+                "description": "Copy an object within MinIO",
                 "consumes": [
                     "application/json"
                 ],
@@ -1295,28 +1123,28 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Source bucket name",
-                        "name": "srcBucket",
+                        "name": "sourceBucket",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Source object name",
-                        "name": "srcObject",
+                        "name": "sourceObject",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Destination bucket name",
-                        "name": "dstBucket",
+                        "name": "destBucket",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Destination object name",
-                        "name": "dstObject",
+                        "name": "destObject",
                         "in": "path",
                         "required": true
                     }
@@ -1384,7 +1212,7 @@ const docTemplate = `{
             }
         },
         "/v1/velero/backups": {
-            "post": {
+            "get": {
                 "description": "Get list of Velero backups",
                 "consumes": [
                     "application/json"
@@ -1395,20 +1223,20 @@ const docTemplate = `{
                 "tags": [
                     "velero"
                 ],
-                "summary": "Get Backups",
+                "summary": "Get Velero Backups",
                 "parameters": [
                     {
-                        "description": "Velero configuration",
+                        "description": "Kubernetes configuration",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/config.VeleroConfig"
+                            "$ref": "#/definitions/config.KubeConfig"
                         }
                     },
                     {
                         "type": "string",
-                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "description": "Namespace name (default: 'velero')",
                         "name": "namespace",
                         "in": "query"
                     }
@@ -1418,12 +1246,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "500": {
@@ -1475,9 +1297,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/velero/pod-volume-restores": {
-            "get": {
-                "description": "Get list of Velero pod volume restores",
+        "/v1/velero/install": {
+            "post": {
+                "description": "Install Velero and configure MinIO integration",
                 "consumes": [
                     "application/json"
                 ],
@@ -1487,7 +1309,7 @@ const docTemplate = `{
                 "tags": [
                     "velero"
                 ],
-                "summary": "Get Pod Volume Restores",
+                "summary": "Install Velero with MinIO",
                 "parameters": [
                     {
                         "description": "Velero configuration",
@@ -1500,59 +1322,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/velero/repositories": {
-            "get": {
-                "description": "Get list of Velero backup repositories",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "velero"
-                ],
-                "summary": "Get Backup Repositories",
-                "parameters": [
-                    {
-                        "description": "Velero configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.VeleroConfig"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "description": "Namespace name (default: 'velero')",
                         "name": "namespace",
                         "in": "query"
                     }
@@ -1580,7 +1350,7 @@ const docTemplate = `{
             }
         },
         "/v1/velero/restores": {
-            "post": {
+            "get": {
                 "description": "Get list of Velero restores",
                 "consumes": [
                     "application/json"
@@ -1591,20 +1361,20 @@ const docTemplate = `{
                 "tags": [
                     "velero"
                 ],
-                "summary": "Get Restores",
+                "summary": "Get Velero Restores",
                 "parameters": [
                     {
-                        "description": "Velero configuration",
+                        "description": "Kubernetes configuration",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/config.VeleroConfig"
+                            "$ref": "#/definitions/config.KubeConfig"
                         }
                     },
                     {
                         "type": "string",
-                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
+                        "description": "Namespace name (default: 'velero')",
                         "name": "namespace",
                         "in": "query"
                     }
@@ -1614,116 +1384,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/velero/storage-locations": {
-            "get": {
-                "description": "Get list of Velero backup storage locations",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "velero"
-                ],
-                "summary": "Get Backup Storage Locations",
-                "parameters": [
-                    {
-                        "description": "Velero configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.VeleroConfig"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/velero/volume-snapshot-locations": {
-            "get": {
-                "description": "Get list of Velero volume snapshot locations",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "velero"
-                ],
-                "summary": "Get Volume Snapshot Locations",
-                "parameters": [
-                    {
-                        "description": "Velero configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/config.VeleroConfig"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Namespace name (default: 'velero', all namespaces: 'all')",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "500": {

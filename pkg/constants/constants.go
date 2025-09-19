@@ -43,6 +43,15 @@ const (
 	CacheCleanupInterval = 1 * time.Minute
 )
 
+// 메모리 관련 상수
+const (
+	// 메모리 모니터링 간격
+	MemoryMonitoringInterval = 5 * time.Minute
+
+	// 메모리 사용률 임계값
+	MemoryUsageThreshold = 80.0
+)
+
 // 레이트 리미팅 관련 상수
 const (
 	// 기본 레이트 리미팅 설정

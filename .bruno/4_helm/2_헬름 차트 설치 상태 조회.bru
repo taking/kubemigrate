@@ -1,0 +1,21 @@
+meta {
+  name: 10_헬름 차트 설치 상태 조회
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/status/{{jobId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "kubeconfig": "{{base64_local_kubeconfig}}"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

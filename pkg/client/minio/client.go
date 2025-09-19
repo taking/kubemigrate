@@ -46,16 +46,14 @@ type client struct {
 	minioClient *minio.Client
 }
 
-// NewClient 새로운 MinIO 클라이언트를 생성합니다 (기본 설정)
-func NewClient() Client {
+// NewClient : 새로운 MinIO 클라이언트를 생성합니다 (기본 설정)
+func NewClient() (Client, error) {
 	// 기본 설정으로 더미 클라이언트 생성
-	return &client{}
+	return &client{}, nil
 }
 
 // NewClientWithConfig 설정을 받아서 MinIO 클라이언트를 생성합니다
 func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
-	// 디버깅을 위한 로그 추가
-	fmt.Printf("DEBUG: Creating MinIO client with config: %+v\n", cfg)
 
 	// MinIO 클라이언트 초기화
 	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
@@ -67,7 +65,6 @@ func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
 		return nil, fmt.Errorf("failed to create minio client: %w", err)
 	}
 
-	fmt.Printf("DEBUG: MinIO client created successfully\n")
 	return &client{
 		minioClient: minioClient,
 	}, nil

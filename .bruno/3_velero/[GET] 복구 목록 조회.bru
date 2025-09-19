@@ -1,10 +1,10 @@
 meta {
-  name: [GET] 복구 목록 조회
+  name: 4_복구 목록 조회
   type: http
-  seq: 3
+  seq: 4
 }
 
-post {
+get {
   url: {{host_ip}}:{{host_port}}/api/v1/velero/restores
   body: json
   auth: inherit

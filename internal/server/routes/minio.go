@@ -15,13 +15,13 @@ func SetupMinioRoutes(e *echo.Echo, minioHandler *minio.Handler) {
 	minioGroup.POST("/health", minioHandler.HealthCheck)
 
 	// 버킷 관리 라우트 (RESTful)
-	minioGroup.GET("/buckets", minioHandler.ListBuckets)               // 버킷 목록 조회
+	minioGroup.GET("/buckets", minioHandler.GetBuckets)                // 버킷 목록 조회
 	minioGroup.GET("/buckets/:bucket", minioHandler.CheckBucketExists) // 버킷 존재 확인
 	minioGroup.POST("/buckets/:bucket", minioHandler.CreateBucket)     // 버킷 생성
 	minioGroup.DELETE("/buckets/:bucket", minioHandler.DeleteBucket)   // 버킷 삭제
 
 	// 객체 관리 라우트 (RESTful)
-	minioGroup.GET("/buckets/:bucket/objects", minioHandler.ListObjects)                                          // 객체 목록 조회
+	minioGroup.GET("/buckets/:bucket/objects", minioHandler.GetObjects)                                           // 객체 목록 조회
 	minioGroup.POST("/buckets/:bucket/objects/*", minioHandler.PutObject)                                         // 객체 업로드
 	minioGroup.GET("/buckets/:bucket/objects/*", minioHandler.GetObject)                                          // 객체 다운로드
 	minioGroup.GET("/buckets/:bucket/objects/*", minioHandler.StatObject)                                         // 객체 정보 조회

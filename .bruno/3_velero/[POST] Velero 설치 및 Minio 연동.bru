@@ -1,0 +1,38 @@
+meta {
+  name: 2_Velero 설치 및 Minio 연동
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/install?namespace=velero&force=true
+  body: json
+  auth: inherit
+}
+
+params:query {
+  namespace: velero
+  force: true
+}
+
+body:json {
+  {
+    "kubeconfig": {
+      "kubeconfig": "{{base64_local_kubeconfig}}"
+    },
+    "minio": {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
+    }
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("jobId", res.body.data.job.jobId);
+}
+
+settings {
+  encodeUrl: true
+}

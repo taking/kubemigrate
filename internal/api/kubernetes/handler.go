@@ -7,7 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
 	"github.com/taking/kubemigrate/pkg/client"
-	"github.com/taking/kubemigrate/pkg/utils"
+	"github.com/taking/kubemigrate/pkg/types"
 )
 
 // Handler : Kubernetes 관련 HTTP 핸들러
@@ -33,17 +33,20 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/kubernetes/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleResourceClient(c, "kubernetes-health", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// Kubernetes 연결 테스트
-		_, err := client.Kubernetes().GetPods(ctx, "default", "")
-		if err != nil {
-			return nil, err
-		}
+	return h.BaseHandler.HealthCheck(c, handler.HealthCheckConfig{
+		ServiceName: "kubernetes",
+		DefaultNS:   "default",
+		HealthFunc: func(client client.Client, ctx context.Context) error {
+			namespace := h.ResolveNamespace(c, "default")
+			result, err := client.Kubernetes().GetPods(ctx, namespace, "")
+			if err != nil {
+				return err
+			}
 
-		return map[string]interface{}{
-			"service": "kubernetes",
-			"message": "Kubernetes connection is working",
-		}, nil
+			// 타입 안전성 검증
+			_, err = types.SafeGetPodList(result)
+			return err
+		},
 	})
 }
 
@@ -65,7 +68,7 @@ func (h *Handler) GetResources(c echo.Context) error {
 	return h.HandleResourceClient(c, "resources", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
 		// "all"이면 모든 네임스페이스 조회,""이면 3번째 파라미터 값을 네임스페이스로 사용
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// GET 요청에서는 body 바인딩 없이 query parameter만 사용
 		// 리소스 종류, 이름, 네임스페이스 결정

@@ -2,24 +2,27 @@ package helm
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
+	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
+	"github.com/taking/kubemigrate/pkg/config"
 	"github.com/taking/kubemigrate/pkg/utils"
 )
 
 // Handler : Helm 관련 HTTP 핸들러
 type Handler struct {
 	*handler.BaseHandler
+	service *Service
 }
 
 // NewHandler : 새로운 Helm 핸들러 생성
 func NewHandler(base *handler.BaseHandler) *Handler {
 	return &Handler{
 		BaseHandler: base,
+		service:     NewService(base),
 	}
 }
 
@@ -34,22 +37,14 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/helm/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
-	return h.HandleResourceClient(c, "helm-health", func(client client.Client, ctx context.Context) (interface{}, error) {
-
-		// 네임스페이스 결정
-		// "all"이면 모든 네임스페이스 조회
-		namespace := utils.ResolveNamespace(c, "all")
-
-		// Helm 연결 테스트
-		_, err := client.Helm().GetCharts(ctx, namespace)
-		if err != nil {
-			return nil, err
-		}
-
-		return map[string]interface{}{
-			"service": "helm",
-			"message": "Helm connection is working",
-		}, nil
+	return h.BaseHandler.HealthCheck(c, handler.HealthCheckConfig{
+		ServiceName: "helm",
+		DefaultNS:   "all",
+		HealthFunc: func(client client.Client, ctx context.Context) error {
+			namespace := h.ResolveNamespace(c, "all")
+			_, err := client.Helm().GetCharts(ctx, namespace)
+			return err
+		},
 	})
 }
 
@@ -66,16 +61,10 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 func (h *Handler) GetCharts(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-charts", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		// "all"이면 모든 네임스페이스 조회,""이면 3번째 파라미터 값을 네임스페이스로 사용
-		namespace := utils.ResolveNamespace(c, "all")
+		namespace := h.ResolveNamespace(c, "all")
 
-		// Helm 차트 목록 조회
-		charts, err := client.Helm().GetCharts(ctx, namespace)
-		if err != nil {
-			return nil, err
-		}
-
-		return charts, nil
+		// 서비스 로직 호출
+		return h.service.GetChartsInternal(client, ctx, namespace)
 	})
 }
 
@@ -94,7 +83,7 @@ func (h *Handler) GetCharts(c echo.Context) error {
 func (h *Handler) GetChart(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")
@@ -102,32 +91,28 @@ func (h *Handler) GetChart(c echo.Context) error {
 			return nil, echo.NewHTTPError(400, "chart name is required")
 		}
 
-		// 특정 차트 조회 (최신 버전)
-		chart, err := client.Helm().GetChart(ctx, chartName, namespace, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		return chart, nil
+		// 서비스 로직 호출
+		return h.service.GetChartInternal(client, ctx, chartName, namespace, 0)
 	})
 }
 
-// IsChartInstalled : 차트 설치 상태 확인
-// @Summary Check Chart Installation Status
-// @Description Check if a specific Helm chart is installed
+// GetChartStatus : 차트 상태 조회
+// @Summary Get Helm Chart Status
+// @Description Get status information about a specific Helm chart
 // @Tags helm
 // @Accept json
 // @Produce json
 // @Param name path string true "Chart name"
 // @Param namespace query string false "Namespace name (default: 'default')"
+// @Param request body config.KubeConfig true "Kubernetes configuration"
 // @Success 200 {object} response.SuccessResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/helm/charts/{name}/status [get]
-func (h *Handler) IsChartInstalled(c echo.Context) error {
+func (h *Handler) GetChartStatus(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-status", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")
@@ -135,29 +120,14 @@ func (h *Handler) IsChartInstalled(c echo.Context) error {
 			return nil, echo.NewHTTPError(400, "chart name is required")
 		}
 
-		// 차트 설치 상태 확인
-		installed, release, err := client.Helm().IsChartInstalled(chartName)
-		if err != nil {
-			return nil, err
-		}
-
-		result := map[string]interface{}{
-			"name":      chartName,
-			"namespace": namespace,
-			"installed": installed,
-		}
-
-		if installed && release != nil {
-			result["release"] = release
-		}
-
-		return result, nil
+		// 서비스 로직 호출
+		return h.service.GetChartStatusInternal(client, ctx, chartName, namespace)
 	})
 }
 
-// InstallChart : Helm 차트 설치
-// @Summary Install Helm Chart
-// @Description Install Helm chart from URL (supports tgz URLs and versions)
+// InstallChart : Helm 차트 비동기 설치
+// @Summary Install Helm Chart Asynchronously
+// @Description Install a Helm chart asynchronously and return job ID for status tracking
 // @Tags helm
 // @Accept json
 // @Produce json
@@ -166,142 +136,155 @@ func (h *Handler) IsChartInstalled(c echo.Context) error {
 // @Param chartURL query string true "Chart URL (must be HTTP/HTTPS)"
 // @Param version query string false "Chart version (optional)"
 // @Param namespace query string false "Namespace name (default: 'default')"
-// @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
-// @Router /v1/helm/charts [post]
+// @Param values query string false "Chart values as JSON string"
+// @Success 200 {object} map[string]interface{} "Job started"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/helm/charts [post]
 func (h *Handler) InstallChart(c echo.Context) error {
-	return h.HandleResourceClient(c, "helm-chart-install", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+	// Query parameters 파싱
+	releaseName := c.QueryParam("releaseName")
+	chartURL := c.QueryParam("chartURL")
+	version := c.QueryParam("version")
+	namespace := h.ResolveNamespace(c, "default")
+	valuesStr := c.QueryParam("values")
 
-		// 파라미터 가져오기
-		releaseName := c.QueryParam("releaseName")
-		chartURL := c.QueryParam("chartURL")
-		version := c.QueryParam("version")
+	// 필수 파라미터 검증
+	if releaseName == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "releaseName is required", "")
+	}
+	if chartURL == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "chartURL is required", "")
+	}
+	if version == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "version is required", "")
+	}
 
-		if releaseName == "" || chartURL == "" {
-			return nil, echo.NewHTTPError(400, "releaseName and chartURL are required")
+	// Values 파싱
+	var values map[string]interface{}
+	if valuesStr != "" {
+		if err := utils.ParseJSON(valuesStr, &values); err != nil {
+			return response.RespondWithErrorModel(c, 400, "INVALID_JSON", "Invalid values JSON format", err.Error())
 		}
+	}
 
-		// Helm 차트 설치 (URL 기반, 버전 지원)
-		err := client.Helm().InstallChart(releaseName, chartURL, version, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to install helm chart from %s: %w", chartURL, err)
-		}
+	// Config 생성
+	config := config.InstallChartConfig{
+		ReleaseName: releaseName,
+		ChartURL:    chartURL,
+		Version:     version,
+		Namespace:   namespace,
+		Values:      values,
+	}
 
-		result := map[string]interface{}{
-			"release_name": releaseName,
-			"chart_url":    chartURL,
-			"namespace":    namespace,
-			"status":       "installed",
-		}
-
-		if version != "" {
-			result["version"] = version
-		}
-
-		return result, nil
+	return h.HandleResourceClient(c, "helm-install-async", func(client client.Client, ctx context.Context) (interface{}, error) {
+		return h.service.InstallChartAsyncInternal(client, ctx, config)
 	})
 }
 
-// UninstallChart : Helm 차트 제거
-// @Summary Uninstall Helm Chart
-// @Description Uninstall a specific Helm chart
-// @Tags helm
-// @Accept json
-// @Produce json
-// @Param name path string true "Chart name"
-// @Param namespace query string false "Namespace name (default: 'default')"
-// @Param dryRun query boolean false "Dry run mode (default: false)"
-// @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
-// @Router /v1/helm/charts/{name} [delete]
-func (h *Handler) UninstallChart(c echo.Context) error {
-	return h.HandleResourceClient(c, "helm-chart-uninstall", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
-
-		// 차트 이름 가져오기
-		chartName := c.Param("name")
-		if chartName == "" {
-			return nil, echo.NewHTTPError(400, "chart name is required")
-		}
-
-		// Dry run 모드 확인
-		dryRunStr := c.QueryParam("dryRun")
-		dryRun := false
-		if dryRunStr != "" {
-			var err error
-			dryRun, err = strconv.ParseBool(dryRunStr)
-			if err != nil {
-				return nil, echo.NewHTTPError(400, "invalid dryRun parameter")
-			}
-		}
-
-		// Helm 차트 제거
-		err := client.Helm().UninstallChart(chartName, namespace, dryRun)
-		if err != nil {
-			return nil, err
-		}
-
-		result := map[string]interface{}{
-			"name":      chartName,
-			"namespace": namespace,
-			"dry_run":   dryRun,
-			"status":    "uninstalled",
-		}
-
-		return result, nil
-	})
-}
-
-// UpgradeChart : Helm 차트 업그레이드
-// @Summary Upgrade Helm Chart
-// @Description Upgrade a specific Helm chart
+// UninstallChart : Helm 차트 비동기 제거
+// @Summary Uninstall Helm Chart Asynchronously
+// @Description Uninstall a specific Helm chart asynchronously and return job ID for status tracking
 // @Tags helm
 // @Accept json
 // @Produce json
 // @Param name path string true "Chart name"
 // @Param request body config.KubeConfig true "Kubernetes configuration"
-// @Param chartPath query string true "Chart path or URL"
 // @Param namespace query string false "Namespace name (default: 'default')"
-// @Success 200 {object} response.SuccessResponse
-// @Failure 400 {object} response.ErrorResponse
-// @Failure 500 {object} response.ErrorResponse
-// @Router /v1/helm/charts/{name} [put]
-func (h *Handler) UpgradeChart(c echo.Context) error {
-	return h.HandleResourceClient(c, "helm-chart-upgrade", func(client client.Client, ctx context.Context) (interface{}, error) {
-		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+// @Param dryRun query boolean false "Dry run mode (default: false)"
+// @Success 200 {object} map[string]interface{} "Job started"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/helm/charts/{name} [delete]
+func (h *Handler) UninstallChart(c echo.Context) error {
+	// 네임스페이스 결정
+	namespace := h.ResolveNamespace(c, "default")
 
-		// 차트 이름 가져오기
-		chartName := c.Param("name")
-		if chartName == "" {
-			return nil, echo.NewHTTPError(400, "chart name is required")
-		}
+	// 차트 이름 가져오기
+	chartName := c.Param("name")
+	if chartName == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "chart name is required", "")
+	}
 
-		// 차트 경로 가져오기
-		chartPath := c.QueryParam("chartPath")
-		if chartPath == "" {
-			return nil, echo.NewHTTPError(400, "chartPath is required")
-		}
-
-		// Helm 차트 업그레이드
-		err := client.Helm().UpgradeChart(chartName, chartPath, nil)
+	// Dry run 모드 확인
+	dryRunStr := c.QueryParam("dryRun")
+	dryRun := false
+	if dryRunStr != "" {
+		var err error
+		dryRun, err = strconv.ParseBool(dryRunStr)
 		if err != nil {
-			return nil, err
+			return response.RespondWithErrorModel(c, 400, "INVALID_PARAMETER", "invalid dryRun parameter", err.Error())
 		}
+	}
 
-		result := map[string]interface{}{
-			"name":       chartName,
-			"namespace":  namespace,
-			"chart_path": chartPath,
-			"status":     "upgraded",
+	return h.HandleResourceClient(c, "helm-uninstall-async", func(client client.Client, ctx context.Context) (interface{}, error) {
+		return h.service.UninstallChartAsyncInternal(client, ctx, chartName, namespace, dryRun)
+	})
+}
+
+// UpgradeChart : Helm 차트 비동기 업그레이드
+// @Summary Upgrade Helm Chart Asynchronously
+// @Description Upgrade a specific Helm chart asynchronously and return job ID for status tracking
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param name path string true "Chart name"
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param chartURL query string false "Chart URL (HTTP/HTTPS)"
+// @Param chartPath query string false "Chart local path"
+// @Param version query string false "Chart version"
+// @Param namespace query string false "Namespace name (default: 'default')"
+// @Param values query string false "Chart values as JSON string"
+// @Success 200 {object} map[string]interface{} "Job started"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/helm/charts/{name} [put]
+func (h *Handler) UpgradeChart(c echo.Context) error {
+	// 네임스페이스 결정
+	namespace := h.ResolveNamespace(c, "default")
+
+	// 차트 이름 가져오기
+	chartName := c.Param("name")
+	if chartName == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "chart name is required", "")
+	}
+
+	// 차트 URL/경로 가져오기 (InstallChart와 동일한 방식)
+	chartURL := c.QueryParam("chartURL")
+	chartPath := c.QueryParam("chartPath")
+
+	// chartURL 또는 chartPath 중 하나는 필수
+	if chartURL == "" && chartPath == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "chartURL or chartPath is required", "")
+	}
+
+	// chartURL이 있으면 URL 방식, 없으면 로컬 경로 방식
+	var finalChartPath string
+	if chartURL != "" {
+		finalChartPath = chartURL
+	} else {
+		finalChartPath = chartPath
+	}
+
+	// Values 파싱
+	valuesStr := c.QueryParam("values")
+	var values map[string]interface{}
+	if valuesStr != "" {
+		if err := utils.ParseJSON(valuesStr, &values); err != nil {
+			return response.RespondWithErrorModel(c, 400, "INVALID_JSON", "Invalid values JSON format", err.Error())
 		}
+	}
 
-		return result, nil
+	// Config 생성
+	config := config.UpgradeChartConfig{
+		ReleaseName: chartName,
+		ChartPath:   finalChartPath,
+		Namespace:   namespace,
+		Values:      values,
+	}
+
+	return h.HandleResourceClient(c, "helm-upgrade-async", func(client client.Client, ctx context.Context) (interface{}, error) {
+		return h.service.UpgradeChartAsyncInternal(client, ctx, config)
 	})
 }
 
@@ -320,7 +303,7 @@ func (h *Handler) UpgradeChart(c echo.Context) error {
 func (h *Handler) GetChartHistory(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-history", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")
@@ -328,24 +311,8 @@ func (h *Handler) GetChartHistory(c echo.Context) error {
 			return nil, echo.NewHTTPError(400, "chart name is required")
 		}
 
-		// 차트 히스토리 조회 (최대 10개 버전)
-		history := make([]interface{}, 0)
-		for i := 1; i <= 10; i++ {
-			chart, err := client.Helm().GetChart(ctx, chartName, namespace, i)
-			if err != nil {
-				// 더 이상 히스토리가 없으면 중단
-				break
-			}
-			history = append(history, chart)
-		}
-
-		result := map[string]interface{}{
-			"name":      chartName,
-			"namespace": namespace,
-			"history":   history,
-		}
-
-		return result, nil
+		// 서비스 로직 호출
+		return h.service.GetChartHistoryInternal(client, ctx, chartName, namespace)
 	})
 }
 
@@ -364,7 +331,7 @@ func (h *Handler) GetChartHistory(c echo.Context) error {
 func (h *Handler) GetChartValues(c echo.Context) error {
 	return h.HandleResourceClient(c, "helm-chart-values", func(client client.Client, ctx context.Context) (interface{}, error) {
 		// 네임스페이스 결정
-		namespace := utils.ResolveNamespace(c, "default")
+		namespace := h.ResolveNamespace(c, "default")
 
 		// 차트 이름 가져오기
 		chartName := c.Param("name")
@@ -372,19 +339,75 @@ func (h *Handler) GetChartValues(c echo.Context) error {
 			return nil, echo.NewHTTPError(400, "chart name is required")
 		}
 
-		// 차트 조회 (최신 버전)
-		chart, err := client.Helm().GetChart(ctx, chartName, namespace, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		// 차트에서 값 추출
-		result := map[string]interface{}{
-			"name":      chartName,
-			"namespace": namespace,
-			"values":    chart,
-		}
-
-		return result, nil
+		// 서비스 로직 호출
+		return h.service.GetChartValuesInternal(client, ctx, chartName, namespace)
 	})
+}
+
+// GetJobStatus : 작업 상태 조회
+// @Summary Get Job Status
+// @Description Get the status of a specific job
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param jobId path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job status"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/helm/charts/status/{jobId} [get]
+func (h *Handler) GetJobStatus(c echo.Context) error {
+	jobID := c.Param("jobId")
+	if jobID == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "jobId is required", "")
+	}
+
+	result, err := h.service.GetJobStatusInternal(jobID)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 404, "JOB_NOT_FOUND", err.Error(), "")
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// GetJobLogs : 작업 로그 조회
+// @Summary Get Job Logs
+// @Description Get the logs of a specific job
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Param jobId path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job logs"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/helm/charts/logs/{jobId} [get]
+func (h *Handler) GetJobLogs(c echo.Context) error {
+	jobID := c.Param("jobId")
+	if jobID == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "jobId is required", "")
+	}
+
+	result, err := h.service.GetJobLogsInternal(jobID)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 404, "JOB_NOT_FOUND", err.Error(), "")
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// GetAllJobs : 모든 작업 조회
+// @Summary Get All Jobs
+// @Description Get all jobs
+// @Tags helm
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "All jobs"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/helm/charts/jobs [get]
+func (h *Handler) GetAllJobs(c echo.Context) error {
+	result, err := h.service.GetAllJobsInternal()
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "INTERNAL_ERROR", err.Error(), "")
+	}
+
+	return response.RespondWithData(c, 200, result)
 }
