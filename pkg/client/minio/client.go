@@ -65,6 +65,7 @@ func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
 		return nil, fmt.Errorf("failed to create minio client: %w", err)
 	}
 
+	fmt.Printf("DEBUG: MinIO client created successfully\n")
 	return &client{
 		minioClient: minioClient,
 	}, nil
