@@ -91,6 +91,9 @@ type Client interface {
 
 	// Secret 생성
 	CreateSecret(ctx context.Context, namespace, name string, data map[string]string) (*v1.Secret, error)
+
+	// HealthCheck : Kubernetes 연결 확인
+	HealthCheck(ctx context.Context) error
 }
 
 // client Kubernetes 클라이언트 구현체
@@ -425,4 +428,11 @@ func (c *client) DeleteNamespace(ctx context.Context, name string) error {
 // DeleteSecret : Secret 삭제
 func (c *client) DeleteSecret(ctx context.Context, namespace, name string) error {
 	return c.clientset.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// HealthCheck : Kubernetes 연결 확인
+func (c *client) HealthCheck(ctx context.Context) error {
+	// 간단한 API 호출로 연결 상태 확인
+	_, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 1})
+	return err
 }

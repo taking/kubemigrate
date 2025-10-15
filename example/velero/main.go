@@ -13,11 +13,20 @@ func main() {
 
 	// 1. Velero 클라이언트 생성
 	fmt.Println("\n1. Creating Velero client...")
-	client := velero.NewClient()
+	client, err := velero.NewClient()
+	if err != nil {
+		log.Printf("Failed to create Velero client: %v", err)
+		fmt.Println("Cannot create Velero client. Please check your configuration.")
+		fmt.Println("Things to check:")
+		fmt.Println("  - Verify that Velero is installed in the cluster")
+		fmt.Println("  - Set VELERO_NAMESPACE environment variable (default: velero)")
+		fmt.Println("  - Check Velero Pod status with: kubectl get pods -n velero")
+		return
+	}
 	ctx := context.Background()
 
 	// 클라이언트 생성 후 간단한 테스트로 연결 확인
-	_, err := client.GetBackups(ctx, "velero")
+	_, err = client.GetBackups(ctx, "velero")
 	if err != nil {
 		log.Printf("Velero client connection failed: %v", err)
 		fmt.Println("Cannot connect to Velero server. Please check your configuration.")

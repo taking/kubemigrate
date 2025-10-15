@@ -6,12 +6,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/taking/kubemigrate/internal/cache"
+	minioapi "github.com/minio/minio-go/v7"
 	"github.com/taking/kubemigrate/pkg/client/helm"
 	"github.com/taking/kubemigrate/pkg/client/kubernetes"
 	"github.com/taking/kubemigrate/pkg/client/minio"
 	"github.com/taking/kubemigrate/pkg/client/velero"
 	"github.com/taking/kubemigrate/pkg/utils"
+	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 )
 
 func main() {
@@ -56,10 +58,10 @@ func main() {
 
 	monitorPerformance(clients)
 
-	// 6. 캐시 최적화 데모
-	fmt.Println("\n6. Cache optimization demo...")
+	// 6. 성능 최적화 데모
+	fmt.Println("\n6. Performance optimization demo...")
 
-	demonstrateCacheOptimization()
+	demonstratePerformanceOptimization()
 
 	fmt.Println("\n=== Example completed successfully! ===")
 }
@@ -70,23 +72,43 @@ type ClientSet struct {
 	Helm       helm.Client
 	Minio      minio.Client
 	Velero     velero.Client
-	Cache      *cache.LRUCache
 }
 
 // initializeClients : 모든 클라이언트 초기화
 func initializeClients() *ClientSet {
-	// LRU 캐시 생성 (TTL 기능 포함)
-	lruCache := cache.NewLRUCache(100)
+	// Kubernetes 클라이언트 생성
+	kubeClient, err := kubernetes.NewClient()
+	if err != nil {
+		log.Printf("Failed to create Kubernetes client: %v", err)
+		return nil
+	}
 
-	// TTL과 함께 캐시 설정 (30분)
-	lruCache.SetWithTTL("cluster-info", "cached-data", 30*time.Minute)
+	// Helm 클라이언트 생성
+	helmClient, err := helm.NewClient()
+	if err != nil {
+		log.Printf("Failed to create Helm client: %v", err)
+		return nil
+	}
+
+	// MinIO 클라이언트 생성
+	minioClient, err := minio.NewClient()
+	if err != nil {
+		log.Printf("Failed to create MinIO client: %v", err)
+		return nil
+	}
+
+	// Velero 클라이언트 생성
+	veleroClient, err := velero.NewClient()
+	if err != nil {
+		log.Printf("Failed to create Velero client: %v", err)
+		return nil
+	}
 
 	clients := &ClientSet{
-		Kubernetes: kubernetes.NewClient(),
-		Helm:       helm.NewClient(),
-		Minio:      minio.NewClient(),
-		Velero:     velero.NewClient(),
-		Cache:      lruCache,
+		Kubernetes: kubeClient,
+		Helm:       helmClient,
+		Minio:      minioClient,
+		Velero:     veleroClient,
 	}
 
 	return clients
@@ -112,26 +134,31 @@ func checkClusterStatus(clients *ClientSet) *ClusterStatus {
 
 	// Kubernetes 상태 확인
 	fmt.Println("  - Checking Kubernetes cluster...")
-	err := clients.Kubernetes.HealthCheck()
+	_, err := clients.Kubernetes.GetNamespaces(ctx, "")
 	status.KubernetesHealthy = (err == nil)
 	if err != nil {
 		log.Printf("    Kubernetes health check failed: %v", err)
 	} else {
-		// Pod 및 Service 개수 조회
-		pods, err := clients.Kubernetes.GetPods(ctx, "default", "")
+		// Pod 개수 조회
+		podsResponse, err := clients.Kubernetes.GetPods(ctx, "default", "")
 		if err == nil {
-			status.PodCount = len(pods)
+			if podList, ok := podsResponse.(*v1.PodList); ok {
+				status.PodCount = len(podList.Items)
+			}
 		}
 
-		services, err := clients.Kubernetes.GetServices(ctx, "default", "")
+		// ConfigMap 개수 조회 (Service 대신)
+		configMapsResponse, err := clients.Kubernetes.GetConfigMaps(ctx, "default", "")
 		if err == nil {
-			status.ServiceCount = len(services)
+			if configMapList, ok := configMapsResponse.(*v1.ConfigMapList); ok {
+				status.ServiceCount = len(configMapList.Items) // ConfigMap 개수를 ServiceCount로 사용
+			}
 		}
 	}
 
 	// Helm 상태 확인
 	fmt.Println("  - Checking Helm...")
-	err = clients.Helm.HealthCheck()
+	_, err = clients.Helm.GetCharts(ctx, "default")
 	status.HelmHealthy = (err == nil)
 	if err != nil {
 		log.Printf("    Helm health check failed: %v", err)
@@ -145,21 +172,23 @@ func checkClusterStatus(clients *ClientSet) *ClusterStatus {
 
 	// MinIO 상태 확인
 	fmt.Println("  - Checking MinIO...")
-	err = clients.Minio.HealthCheck()
+	_, err = clients.Minio.ListBuckets(ctx)
 	status.MinioHealthy = (err == nil)
 	if err != nil {
 		log.Printf("    MinIO health check failed: %v", err)
 	} else {
 		// 버킷 개수 조회
-		buckets, err := clients.Minio.ListBuckets(ctx)
+		bucketsResponse, err := clients.Minio.ListBuckets(ctx)
 		if err == nil {
-			status.BucketCount = len(buckets)
+			if buckets, ok := bucketsResponse.([]minioapi.BucketInfo); ok {
+				status.BucketCount = len(buckets)
+			}
 		}
 	}
 
 	// Velero 상태 확인
 	fmt.Println("  - Checking Velero...")
-	err = clients.Velero.HealthCheck()
+	_, err = clients.Velero.GetBackups(ctx, "velero")
 	status.VeleroHealthy = (err == nil)
 	if err != nil {
 		log.Printf("    Velero health check failed: %v", err)
@@ -203,19 +232,23 @@ func performBackupSimulation(clients *ClientSet) error {
 
 	// 1. 클러스터 리소스 확인
 	fmt.Println("    Step 1: Checking cluster resources...")
-	pods, err := clients.Kubernetes.GetPods(ctx, "default", "")
+	podsResponse, err := clients.Kubernetes.GetPods(ctx, "default", "")
 	if err != nil {
 		return fmt.Errorf("failed to get pods: %v", err)
 	}
-	fmt.Printf("    Found %d pods in default namespace\n", len(pods))
+	if podList, ok := podsResponse.(*v1.PodList); ok {
+		fmt.Printf("    Found %d pods in default namespace\n", len(podList.Items))
+	}
 
 	// 2. MinIO 버킷 확인
 	fmt.Println("    Step 2: Checking MinIO storage...")
-	buckets, err := clients.Minio.ListBuckets(ctx)
+	bucketsResponse, err := clients.Minio.ListBuckets(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list buckets: %v", err)
 	}
-	fmt.Printf("    Found %d buckets in MinIO\n", len(buckets))
+	if buckets, ok := bucketsResponse.([]minioapi.BucketInfo); ok {
+		fmt.Printf("    Found %d buckets in MinIO\n", len(buckets))
+	}
 
 	// 3. Velero 백업 상태 확인
 	fmt.Println("    Step 3: Checking Velero backup status...")
@@ -240,11 +273,13 @@ func performMigrationSimulation(clients *ClientSet) error {
 
 	// 1. 소스 클러스터 리소스 확인
 	fmt.Println("    Step 1: Checking source cluster resources...")
-	pods, err := clients.Kubernetes.GetPods(ctx, "default", "")
+	podsResponse, err := clients.Kubernetes.GetPods(ctx, "default", "")
 	if err != nil {
 		return fmt.Errorf("failed to get pods: %v", err)
 	}
-	fmt.Printf("    Found %d pods in source cluster\n", len(pods))
+	if podList, ok := podsResponse.(*v1.PodList); ok {
+		fmt.Printf("    Found %d pods in source cluster\n", len(podList.Items))
+	}
 
 	// 2. Helm 차트 확인
 	fmt.Println("    Step 2: Checking Helm charts...")
@@ -256,11 +291,13 @@ func performMigrationSimulation(clients *ClientSet) error {
 
 	// 3. 스토리지 클래스 확인
 	fmt.Println("    Step 3: Checking storage classes...")
-	storageClasses, err := clients.Kubernetes.GetStorageClasses(ctx)
+	storageClassesResponse, err := clients.Kubernetes.GetStorageClasses(ctx, "")
 	if err != nil {
 		return fmt.Errorf("failed to get storage classes: %v", err)
 	}
-	fmt.Printf("    Found %d storage classes\n", len(storageClasses))
+	if storageClassList, ok := storageClassesResponse.(*storagev1.StorageClassList); ok {
+		fmt.Printf("    Found %d storage classes\n", len(storageClassList.Items))
+	}
 
 	// 4. 마이그레이션 시뮬레이션
 	fmt.Println("    Step 4: Simulating migration process...")
@@ -286,63 +323,52 @@ func monitorPerformance(clients *ClientSet) {
 		})
 	}()
 
-	// 캐시 성능 테스트
-	fmt.Println("    Testing cache performance...")
+	// 성능 테스트
+	fmt.Println("    Testing performance...")
 	start := time.Now()
 
-	// 캐시에서 데이터 조회
-	_, exists := clients.Cache.Get("cluster-info")
-	if exists {
-		fmt.Printf("    Cache hit: %v\n", time.Since(start))
+	// 간단한 성능 테스트
+	ctx := context.Background()
+	_, err := clients.Kubernetes.GetNamespaces(ctx, "")
+	elapsed := time.Since(start)
+	if err != nil {
+		fmt.Printf("    Performance test failed: %v\n", err)
 	} else {
-		fmt.Printf("    Cache miss: %v\n", time.Since(start))
+		fmt.Printf("    Kubernetes API call completed in: %v\n", elapsed)
 	}
-
-	// 캐시 통계 출력
-	stats := clients.Cache.Stats()
-	fmt.Printf("    Cache stats: %+v\n", stats)
 
 	time.Sleep(3 * time.Second) // 모니터링 시간
 }
 
-// demonstrateCacheOptimization : 캐시 최적화 데모
-func demonstrateCacheOptimization() {
-	fmt.Println("  - Demonstrating cache optimization features...")
+// demonstratePerformanceOptimization : 성능 최적화 데모
+func demonstratePerformanceOptimization() {
+	fmt.Println("  - Demonstrating performance optimization features...")
 
-	// 새로운 캐시 생성
-	cache := cache.NewLRUCache(5)
+	// 메모리 사용량 확인
+	fmt.Println("    Checking memory usage...")
+	memStats := utils.GetMemoryStats()
+	fmt.Printf("    Current memory usage: %.2f%%\n", utils.GetMemoryUsagePercent())
+	fmt.Printf("    Memory allocated: %s\n", utils.FormatBytes(memStats.Alloc))
 
-	// TTL이 다른 데이터 저장
-	fmt.Println("    Storing data with different TTLs...")
-	cache.SetWithTTL("short-ttl", "data1", 1*time.Second)
-	cache.SetWithTTL("medium-ttl", "data2", 5*time.Second)
-	cache.SetWithTTL("long-ttl", "data3", 30*time.Second)
+	// 성능 테스트
+	fmt.Println("    Running performance tests...")
+	start := time.Now()
 
-	// 즉시 조회 (모든 데이터 존재)
-	fmt.Println("    Immediate retrieval (all data should exist):")
-	for _, key := range []string{"short-ttl", "medium-ttl", "long-ttl"} {
-		_, exists := cache.Get(key)
-		fmt.Printf("      %s: %s\n", key, getExistsStatus(exists))
+	// 간단한 연산 테스트
+	for i := 0; i < 1000; i++ {
+		_ = utils.GenerateCacheKey(fmt.Sprintf("test-key-%d", i))
 	}
 
-	// 짧은 TTL이 지난 후 조회
-	fmt.Println("    After short TTL expires:")
-	time.Sleep(2 * time.Second)
-	for _, key := range []string{"short-ttl", "medium-ttl", "long-ttl"} {
-		_, exists := cache.Get(key)
-		fmt.Printf("      %s: %s\n", key, getExistsStatus(exists))
-	}
+	elapsed := time.Since(start)
+	fmt.Printf("    Performance test completed in: %v\n", elapsed)
 
-	// 만료된 항목 정리
-	fmt.Println("    Cleaning up expired items...")
-	expiredCount := cache.CleanupExpired()
-	fmt.Printf("    Cleaned up %d expired items\n", expiredCount)
-
-	// 정리 후 상태 확인
-	fmt.Println("    After cleanup:")
-	for _, key := range []string{"short-ttl", "medium-ttl", "long-ttl"} {
-		_, exists := cache.Get(key)
-		fmt.Printf("      %s: %s\n", key, getExistsStatus(exists))
+	// 메모리 최적화
+	if utils.IsMemoryHigh(80.0) {
+		fmt.Println("    High memory usage detected, optimizing...")
+		utils.OptimizeMemory()
+		fmt.Println("    Memory optimization completed")
+	} else {
+		fmt.Println("    Memory usage is within normal range")
 	}
 }
 

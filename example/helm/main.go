@@ -13,7 +13,12 @@ func main() {
 
 	// 1. Helm 클라이언트 생성
 	fmt.Println("\n1. Creating Helm client...")
-	client := helm.NewClient()
+	client, err := helm.NewClient()
+	if err != nil {
+		log.Printf("Failed to create Helm client: %v", err)
+		fmt.Println("Cannot create Helm client. Please check your kubeconfig.")
+		return
+	}
 	ctx := context.Background()
 
 	if _, err := client.GetCharts(ctx, "default"); err != nil {

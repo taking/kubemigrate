@@ -36,6 +36,9 @@ type Client interface {
 	InstallChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error
 	UninstallChart(releaseName, namespace string, dryRun bool) error
 	UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error
+
+	// HealthCheck : Helm 연결 확인
+	HealthCheck(ctx context.Context) error
 }
 
 // helmClient : Helm 클라이언트

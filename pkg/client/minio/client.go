@@ -39,6 +39,9 @@ type Client interface {
 	// Presigned URL
 	PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry int) (string, error)
 	PresignedPutObject(ctx context.Context, bucketName, objectName string, expiry int) (string, error)
+
+	// HealthCheck : MinIO 연결 확인
+	HealthCheck(ctx context.Context) error
 }
 
 // client MinIO 클라이언트 구현체
@@ -261,4 +264,15 @@ func (c *client) PresignedPutObject(ctx context.Context, bucketName, objectName 
 	}
 
 	return url.String(), nil
+}
+
+// HealthCheck : MinIO 연결 확인
+func (c *client) HealthCheck(ctx context.Context) error {
+	if c.minioClient == nil {
+		return fmt.Errorf("minio client not initialized")
+	}
+
+	// 간단한 API 호출로 연결 상태 확인
+	_, err := c.minioClient.ListBuckets(ctx)
+	return err
 }

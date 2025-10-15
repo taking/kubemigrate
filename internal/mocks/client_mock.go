@@ -14,7 +14,7 @@ import (
 	"github.com/taking/kubemigrate/pkg/config"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"helm.sh/helm/v3/pkg/release"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -231,6 +231,10 @@ func (m *MockKubernetesClient) GetResource(ctx context.Context, resourceType, na
 	}, nil
 }
 
+func (m *MockKubernetesClient) HealthCheck(ctx context.Context) error {
+	return nil
+}
+
 // MockHelmClient : Mock Helm 클라이언트
 type MockHelmClient struct{}
 
@@ -276,6 +280,10 @@ func (m *MockHelmClient) UninstallChart(releaseName, namespace string, dryRun bo
 }
 
 func (m *MockHelmClient) UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
+	return nil
+}
+
+func (m *MockHelmClient) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
@@ -356,6 +364,10 @@ func (m *MockMinioClient) PresignedGetObject(ctx context.Context, bucketName, ob
 
 func (m *MockMinioClient) PresignedPutObject(ctx context.Context, bucketName, objectName string, expiry int) (string, error) {
 	return "https://test.example.com/presigned-put-url", nil
+}
+
+func (m *MockMinioClient) HealthCheck(ctx context.Context) error {
+	return nil
 }
 
 // MockVeleroClient : Mock Velero 클라이언트
@@ -455,6 +467,10 @@ func (m *MockVeleroClient) GetPodVolumeRestore(ctx context.Context, namespace, n
 	return &velerov1.PodVolumeRestore{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}, nil
+}
+
+func (m *MockVeleroClient) HealthCheck(ctx context.Context) error {
+	return nil
 }
 
 // MockClientFactory : Mock 클라이언트 팩토리
