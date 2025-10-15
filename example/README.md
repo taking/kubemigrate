@@ -2,7 +2,7 @@
 
 이 폴더는 KubeMigrate Go SDK의 사용 예제들을 포함하고 있습니다. 각 예제는 특정 기능을 보여주며, 실제 프로젝트에서 어떻게 사용할 수 있는지 설명합니다.
 
-## 📋 목차
+## 목차
 
 - [설치](#설치)
 - [기본 사용법](#기본-사용법)
@@ -12,7 +12,7 @@
 - [고급 사용법](#고급-사용법)
 - [성능 최적화](#성능-최적화)
 
-## 🚀 설치
+## 설치
 
 ### Go 모듈로 설치
 
@@ -32,7 +32,7 @@ require (
 )
 ```
 
-## 📖 기본 사용법
+## 기본 사용법
 
 ### 1. Helm 클라이언트 사용
 
@@ -164,7 +164,7 @@ func main() {
 }
 ```
 
-## 📁 예제 파일들
+## 예제 파일들
 
 | 디렉토리 | 설명 | 주요 기능 |
 |----------|------|-----------|
@@ -205,7 +205,7 @@ cd example/complete
 go run main.go
 ```
 
-## 🔧 설정
+## 설정
 
 ### 환경 변수
 
@@ -240,7 +240,7 @@ velero:
   namespace: "velero"
 ```
 
-## 📚 API 문서
+## API 문서
 
 ### Helm 클라이언트
 
@@ -320,11 +320,11 @@ type VeleroClient interface {
 }
 ```
 
-## 🛠️ 문제 해결
+## 문제 해결
 
 ### 일반적인 문제들
 
-#### kubernetes 연결 실패
+#### Kubernetes 연결 실패
 
 ```bash
 # kubeconfig 파일 확인
@@ -334,7 +334,7 @@ kubectl config current-context
 kubectl cluster-info
 ```
 
-#### minio 연결 실패
+#### MinIO 연결 실패
 
 ```bash
 # MinIO 서버 상태 확인
@@ -345,7 +345,7 @@ echo $MINIO_ACCESS_KEY
 echo $MINIO_SECRET_KEY
 ```
 
-#### 3. Velero 연결 실패
+#### Velero 연결 실패
 
 ```bash
 # Velero 네임스페이스 확인
@@ -383,7 +383,7 @@ func handleError(err error) {
 }
 ```
 
-## 🚀 고급 사용법
+## 고급 사용법
 
 ### 통합 클라이언트 사용
 
@@ -515,9 +515,9 @@ func main() {
 }
 ```
 
-## ⚡ 성능 최적화
+## 성능 최적화
 
-### 캐싱 활용
+### TTL 캐시 활용
 
 ```go
 package main
@@ -533,8 +533,11 @@ import (
 )
 
 func main() {
-    // LRU 캐시 생성 (용량: 100)
+    // LRU 캐시 생성 (용량: 100, TTL: 30분)
     cache := cache.NewLRUCache(100)
+    
+    // TTL과 함께 캐시에 저장
+    cache.SetWithTTL("key", value, 30*time.Minute)
     
     // 캐시를 사용한 클라이언트 생성
     client := client.NewClient()
@@ -552,6 +555,10 @@ func main() {
         duration := time.Since(start)
         fmt.Printf("Request %d took: %v\n", i+1, duration)
     }
+    
+    // 만료된 항목 정리
+    expiredCount := cache.CleanupExpired()
+    fmt.Printf("Cleaned up %d expired items\n", expiredCount)
 }
 ```
 
@@ -688,15 +695,42 @@ func main() {
 }
 ```
 
-## 🤝 기여하기
+## 최신 개선사항
+
+### 에러 처리 개선
+- MinIO와 Velero API에서 발생하던 중복 에러 응답 문제 해결
+- 공통 에러 처리 함수로 일관된 에러 메시지 제공
+
+### 설정 관리 통합
+- 중복된 설정 파싱 코드 제거
+- ConfigParser 인터페이스 기반 통합 파서 구현
+- 코드 재사용성 및 유지보수성 향상
+
+### 성능 최적화
+- LRU 캐시에 TTL(Time To Live) 기능 추가
+- 만료된 항목 자동 정리 기능
+- 메모리 효율성 향상
+
+### 보안 강화
+- 포괄적인 보안 미들웨어 구현
+- 보안 헤더 설정 (XSS, CSRF, HSTS 등)
+- CORS 정책 구현
+- 입력 데이터 정화 및 검증
+
+### 테스트 커버리지 개선
+- 새로운 설정 파서들에 대한 포괄적인 테스트 추가
+- 에러 처리 로직 테스트 추가
+- 전체 프로젝트 테스트 통과 확인
+
+## 기여하기
 
 버그 리포트나 기능 요청은 [GitHub Issues](https://github.com/taking/kubemigrate/issues)에 등록해주세요.
 
-## 📄 라이선스
+## 라이선스
 
 이 프로젝트는 MIT 라이선스 하에 배포됩니다.
 
-## 🔗 관련 링크
+## 관련 링크
 
 - [KubeMigrate GitHub](https://github.com/taking/kubemigrate)
 - [Kubernetes 공식 문서](https://kubernetes.io/docs/)

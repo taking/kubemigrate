@@ -3,6 +3,7 @@ package cache
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/helm"
@@ -314,6 +315,89 @@ func TestLRUCache_Stats(t *testing.T) {
 	}
 	if stats["active_items"] != 2 {
 		t.Errorf("Expected 2 active items, got %v", stats["active_items"])
+	}
+}
+
+// TestLRUCache_TTL : TTL 기능 테스트
+func TestLRUCache_TTL(t *testing.T) {
+	cache := NewLRUCache(3)
+
+	// TTL이 짧은 항목 추가
+	shortTTL := 100 * time.Millisecond
+	cache.SetWithTTL("key1", nil, shortTTL)
+
+	// TTL이 긴 항목 추가
+	longTTL := 1 * time.Second
+	cache.SetWithTTL("key2", nil, longTTL)
+
+	// TTL이 없는 항목 추가
+	cache.SetWithTTL("key3", nil, 0)
+
+	// 즉시 조회 (모든 항목이 존재해야 함)
+	if _, exists := cache.Get("key1"); !exists {
+		t.Error("key1 should exist immediately")
+	}
+	if _, exists := cache.Get("key2"); !exists {
+		t.Error("key2 should exist immediately")
+	}
+	if _, exists := cache.Get("key3"); !exists {
+		t.Error("key3 should exist immediately")
+	}
+
+	// 짧은 TTL이 지난 후 조회
+	time.Sleep(150 * time.Millisecond)
+	if _, exists := cache.Get("key1"); exists {
+		t.Error("key1 should be expired")
+	}
+	if _, exists := cache.Get("key2"); !exists {
+		t.Error("key2 should still exist")
+	}
+	if _, exists := cache.Get("key3"); !exists {
+		t.Error("key3 should still exist (no TTL)")
+	}
+
+	// 긴 TTL이 지난 후 조회
+	time.Sleep(1 * time.Second)
+	if _, exists := cache.Get("key2"); exists {
+		t.Error("key2 should be expired")
+	}
+	if _, exists := cache.Get("key3"); !exists {
+		t.Error("key3 should still exist (no TTL)")
+	}
+}
+
+// TestLRUCache_CleanupExpired : 만료된 항목 정리 테스트
+func TestLRUCache_CleanupExpired(t *testing.T) {
+	cache := NewLRUCache(5)
+
+	// 만료 시간이 다른 항목들 추가
+	cache.SetWithTTL("key1", nil, 50*time.Millisecond)
+	cache.SetWithTTL("key2", nil, 100*time.Millisecond)
+	cache.SetWithTTL("key3", nil, 0) // TTL 없음
+
+	// 만료 전 정리 (아무것도 제거되지 않아야 함)
+	expiredCount := cache.CleanupExpired()
+	if expiredCount != 0 {
+		t.Errorf("Expected 0 expired items, got %d", expiredCount)
+	}
+
+	// 첫 번째 항목이 만료된 후 정리
+	time.Sleep(75 * time.Millisecond)
+	expiredCount = cache.CleanupExpired()
+	if expiredCount != 1 {
+		t.Errorf("Expected 1 expired item, got %d", expiredCount)
+	}
+
+	// 두 번째 항목이 만료된 후 정리
+	time.Sleep(50 * time.Millisecond)
+	expiredCount = cache.CleanupExpired()
+	if expiredCount != 1 {
+		t.Errorf("Expected 1 expired item, got %d", expiredCount)
+	}
+
+	// TTL이 없는 항목은 여전히 존재해야 함
+	if _, exists := cache.Get("key3"); !exists {
+		t.Error("key3 should still exist (no TTL)")
 	}
 }
 

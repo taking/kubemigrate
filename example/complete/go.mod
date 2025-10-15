@@ -1,6 +1,6 @@
 module complete-example
 
-go 1.24.5
+go 1.21
 
 require github.com/taking/kubemigrate v0.1.0
 

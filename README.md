@@ -7,7 +7,7 @@ KubeMigrate는 Kubernetes 클러스터 간 백업 및 복구 검증을 위한 �
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
 
-## ✨ 주요 기능
+## 주요 기능
 
 - **Kubernetes 관리**: 클러스터 리소스 조회 및 관리 (통합 API)
 - **Velero 통합**: 백업/복원 작업 모니터링 및 관리 (비동기 처리)
@@ -19,17 +19,17 @@ KubeMigrate는 Kubernetes 클러스터 간 백업 및 복구 검증을 위한 �
 - **고성능**: LRU 캐시 및 워커 풀을 통한 최적화
 - **비동기 처리**: Job Manager를 통한 장시간 작업 관리
 - **모니터링**: 메모리 사용량 및 성능 모니터링
+- **보안**: 포괄적인 보안 미들웨어 및 입력 검증
+- **TTL 캐시**: 만료 기반 캐시 관리로 메모리 효율성 향상
 
----
+## 문서
 
-## 📖 문서
+- [빠른 시작 가이드](docs/QUICKSTART.md) - 설치부터 첫 API 호출까지
+- [API 문서](docs/API.md) - 모든 엔드포인트 상세 설명
+- [개발 가이드](docs/DEVELOPMENT.md) - 개발 환경 설정 및 기여 방법
+- [코드 리뷰 체크리스트](docs/CODE_REVIEW_CHECKLIST.md) - 코드 품질 관리 가이드
 
-- [🚀 빠른 시작 가이드](docs/QUICKSTART.md) - 설치부터 첫 API 호출까지
-- [📚 API 문서](docs/API.md) - 모든 엔드포인트 상세 설명
-- [🛠️ 개발 가이드](docs/DEVELOPMENT.md) - 개발 환경 설정 및 기여 방법
-- [📋 코드 리뷰 체크리스트](docs/CODE_REVIEW_CHECKLIST.md) - 코드 품질 관리 가이드
-
-## 🎯 클라이언트 라이브러리
+## 클라이언트 라이브러리
 
 ### Go SDK
 - [Kubernetes 클라이언트](pkg/client/kubernetes/README.md) - Kubernetes 리소스 관리
@@ -38,12 +38,10 @@ KubeMigrate는 Kubernetes 클러스터 간 백업 및 복구 검증을 위한 �
 - [Velero 클라이언트](pkg/client/velero/README.md) - 백업/복원 관리
 - [예제 코드](example/README.md) - 실제 사용 예제들
 
----
-
-## 🛠️ 설치 및 실행
+## 설치 및 실행
 
 ### 사전 요구사항
-- Go 1.24.5 이상
+- Go 1.21 이상
 - Kubernetes 클러스터 접근 권한
 - Helm
 - MinIO
@@ -97,9 +95,7 @@ make docker-run
 make compose-up
 ```
 
----
-
-## 🔧 개발
+## 개발
 
 ### 프로젝트 구조
 ```
@@ -116,9 +112,9 @@ kubemigrate/
 │   ├── response/          # 응답 처리 (ResponseManager)
 │   ├── job/               # 작업 관리 (JobManager, WorkerPool)
 │   ├── installer/         # 설치 로직 (VeleroInstaller)
-│   ├── cache/             # 캐시 관리 (LRU Cache)
+│   ├── cache/             # 캐시 관리 (LRU Cache with TTL)
 │   ├── logger/            # 로깅
-│   ├── middleware/        # 미들웨어
+│   ├── middleware/        # 미들웨어 (보안, CORS, 입력 검증)
 │   ├── server/            # 서버 설정
 │   └── mocks/            # Mock 클라이언트
 ├── pkg/                    # 공개 패키지
@@ -176,9 +172,7 @@ kubemigrate/
 └──────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## ⚙️ 환경 변수 설정
+## 환경 변수 설정
 
 | 환경 변수 | 설명 | 기본값 |
 |-----------|------|--------|
@@ -192,38 +186,43 @@ kubemigrate/
 | `LOG_LEVEL` | 로그 레벨 | `info` |
 | `LOG_FORMAT` | 로그 포맷 | `json` |
 
----
-
-## 📚 API 구조
+## API 구조
 
 - **Swagger UI**: [https://taking.github.io/kubemigrate/](https://taking.github.io/kubemigrate/)
 - **로컬 실행**: http://localhost:9091/docs
 
-### 🔍 공통 엔드포인트
+### 공통 엔드포인트
 
 - **`GET /`** : 서버 기본 정보
 - **`GET /api/v1/health`** : API 서버 상태 확인
 
-### 🔧 Kubernetes API (`/api/v1/kubernetes`)
+### Kubernetes API (`/api/v1/kubernetes`)
 
 - **`POST /health`** : Kubernetes 클러스터 연결 확인
 - **`GET /:kind`** : 통합 리소스 조회 (pods, services, deployments 등)
 - **`GET /:kind/:name`** : 특정 리소스 조회
 
-### 📦 Velero API (`/api/v1/velero`)
+### Velero API (`/api/v1/velero`)
 
 - **`POST /health`** : Velero 연결 확인
 - **`POST /install`** : Velero 설치 및 MinIO 연동 (비동기)
 - **`GET /backups`** : Backup 목록 조회
+- **`POST /backups`** : Backup 생성
+- **`POST /backups/:backupName/validate`** : Backup 검증
+- **`GET /backups/:backupName`** : Backup 상세 조회
+- **`DELETE /backups/:backupName`** : Backup 삭제
 - **`GET /restores`** : Restore 목록 조회
+- **`POST /restores/:restoreName/validate`** : Restore 검증
+- **`GET /restores/:restoreName`** : Restore 상세 조회
+- **`DELETE /restores/:restoreName`** : Restore 삭제
 - **`GET /repositories`** : BackupRepository 조회
 - **`GET /storage-locations`** : BackupStorageLocation 조회
 - **`GET /volume-snapshot-locations`** : VolumeSnapshotLocation 조회
 - **`GET /pod-volume-restores`** : PodVolumeRestore 조회
-- **`GET /status/{jobId}`** : 작업 상태 조회
-- **`GET /status/{jobId}/logs`** : 작업 로그 조회
+- **`GET /status/:jobId`** : 작업 상태 조회
+- **`GET /logs/:jobId`** : 작업 로그 조회
 
-### ⚙️ Helm API (`/api/v1/helm`)
+### Helm API (`/api/v1/helm`)
 
 - **`POST /health`** : Helm 연결 확인
 - **`POST /charts`** : Helm 차트 설치 (URL 기반, 비동기)
@@ -234,9 +233,10 @@ kubemigrate/
 - **`GET /charts/:name/history`** : 차트 히스토리 조회
 - **`GET /charts/:name/values`** : 차트 값 조회
 - **`DELETE /charts/:name`** : 차트 제거 (비동기)
-- **`GET /status/{jobId}`** : 작업 상태 조회
+- **`GET /status/:jobId`** : 작업 상태 조회
+- **`GET /logs/:jobId`** : 작업 로그 조회
 
-### 🗄️ MinIO API (`/api/v1/minio`)
+### MinIO API (`/api/v1/minio`)
 
 - **`POST /health`** : MinIO 연결 확인
 
@@ -258,9 +258,7 @@ kubemigrate/
 - **`GET /buckets/:bucket/objects/:objectName/presigned-get`** : Presigned GET URL 생성
 - **`PUT /buckets/:bucket/objects/:objectName/presigned-put`** : Presigned PUT URL 생성
 
----
-
-## 🚀 사용 예제
+## 사용 예제
 
 ### Helm 차트 설치 (URL 기반)
 ```bash
@@ -270,10 +268,10 @@ curl -X POST "http://localhost:9091/api/v1/helm/charts" \
     "kubeconfig": "base64_encoded_kubeconfig"
   }' \
   -G \
-  --data-urlencode "releaseName=my-nginx" \
-  --data-urlencode "chartURL=https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz" \
-  --data-urlencode "version=15.4.2" \
-  --data-urlencode "namespace=default"
+  --data-urlencode "releaseName=wordpress-test" \
+  --data-urlencode "chartURL=oci://registry-1.docker.io/bitnamicharts/wordpress" \
+  --data-urlencode "version=27.0.10" \
+  --data-urlencode "namespace=wordpress-test"
 ```
 
 ### MinIO 객체 업로드
@@ -322,9 +320,7 @@ curl -X POST "http://localhost:9091/api/v1/velero/install?namespace=default&forc
 curl -X GET "http://localhost:9091/api/v1/velero/status/{jobId}"
 ```
 
----
-
-## 🧪 API 테스트
+## API 테스트
 
 프로젝트에는 Bruno API 컬렉션이 포함되어 있어 쉽게 API를 테스트할 수 있습니다:
 
@@ -341,3 +337,42 @@ curl -X GET "http://localhost:9091/api/v1/velero/status/{jobId}"
 ├── 3_helm/          # Helm API 테스트
 └── velero/          # Velero API 테스트
 ```
+
+## 최신 개선사항
+
+### 에러 처리 개선
+- MinIO와 Velero API에서 발생하던 중복 에러 응답 문제 해결
+- 공통 에러 처리 함수로 일관된 에러 메시지 제공
+
+### 설정 관리 통합
+- 중복된 설정 파싱 코드 제거
+- ConfigParser 인터페이스 기반 통합 파서 구현
+- 코드 재사용성 및 유지보수성 향상
+
+### 성능 최적화
+- LRU 캐시에 TTL(Time To Live) 기능 추가
+- 만료된 항목 자동 정리 기능
+- 메모리 효율성 향상
+
+### 보안 강화
+- 포괄적인 보안 미들웨어 구현
+- 보안 헤더 설정 (XSS, CSRF, HSTS 등)
+- CORS 정책 구현
+- 입력 데이터 정화 및 검증
+
+### 테스트 커버리지 개선
+- 새로운 설정 파서들에 대한 포괄적인 테스트 추가
+- 에러 처리 로직 테스트 추가
+- 전체 프로젝트 테스트 통과 확인
+
+## 라이선스
+
+MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## 기여하기
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request

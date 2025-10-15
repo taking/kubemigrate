@@ -151,42 +151,8 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 	// API 타입별 설정 파싱 및 검증
 	kubeConfig, veleroConfig, minioConfig, err := h.parseConfig(c, cacheKey)
 	if err != nil {
-		// 설정 파싱 실패 시 적절한 HTTP 응답으로 변환
-		if strings.Contains(err.Error(), "template variables") {
-			return response.RespondWithErrorModel(c, http.StatusBadRequest,
-				"INVALID_MINIO_CONFIG",
-				"Invalid MinIO configuration",
-				err.Error())
-		}
-		if strings.Contains(err.Error(), "endpoint is required") {
-			return response.RespondWithErrorModel(c, http.StatusBadRequest,
-				"INVALID_MINIO_CONFIG",
-				"Invalid MinIO configuration",
-				err.Error())
-		}
-		if strings.Contains(err.Error(), "invalid request body") {
-			return response.RespondWithErrorModel(c, http.StatusBadRequest,
-				"INVALID_REQUEST_BODY",
-				"Invalid request body",
-				err.Error())
-		}
-		if strings.Contains(err.Error(), "invalid minio configuration") {
-			return response.RespondWithErrorModel(c, http.StatusBadRequest,
-				"INVALID_MINIO_CONFIG",
-				"Invalid MinIO configuration",
-				err.Error())
-		}
-		if strings.Contains(err.Error(), "invalid kubernetes configuration") {
-			return response.RespondWithErrorModel(c, http.StatusBadRequest,
-				"INVALID_KUBERNETES_CONFIG",
-				"Invalid Kubernetes configuration",
-				err.Error())
-		}
-		// 기타 에러
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"CONFIG_PARSE_ERROR",
-			"Configuration parsing failed",
-			err.Error())
+		// 설정 파싱 실패 시 공통 에러 처리 함수 사용
+		return h.handleConfigError(c, err)
 	}
 
 	// API 경로를 기반으로 정확한 API 타입 결정
@@ -309,38 +275,107 @@ func (h *BaseHandler) parseConfig(c echo.Context, cacheKey string) (
 		return kubeConfig, veleroConfig, minioConfig, h.parseVeleroConfig(c, &kubeConfig, &veleroConfig, &minioConfig)
 	}
 
-	return kubeConfig, veleroConfig, minioConfig, response.RespondWithErrorModel(c, http.StatusBadRequest,
-		"UNSUPPORTED_API_PATH",
-		"Unsupported API path",
-		fmt.Sprintf("API path not supported: %s", c.Request().URL.Path))
+	return kubeConfig, veleroConfig, minioConfig, fmt.Errorf("unsupported API path: %s", c.Request().URL.Path)
 }
 
-// parseKubeConfig : Kubernetes 설정 파싱 및 검증
+// parseKubeConfig : Kubernetes 설정 파싱 및 검증 (통합 파서 사용)
 func (h *BaseHandler) parseKubeConfig(c echo.Context, kubeConfig *config.KubeConfig) error {
-	var req struct {
-		KubeConfig string `json:"kubeconfig"`
+	parser := NewKubeConfigParser(kubeConfig)
+
+	// 파싱
+	if err := parser.Parse(c); err != nil {
+		return err
 	}
 
-	if err := c.Bind(&req); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_REQUEST_BODY",
-			"Invalid request body",
-			err.Error())
+	// 검증
+	if err := parser.Validate(); err != nil {
+		return err
 	}
 
-	kubeConfig.KubeConfig = req.KubeConfig
+	// 추가 검증 (KubernetesValidator 사용)
 	if _, err := h.KubernetesValidator.ValidateKubernetesConfig(kubeConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_KUBERNETES_CONFIG",
-			"Invalid Kubernetes configuration",
-			err.Error())
+		return fmt.Errorf("invalid kubernetes configuration: %w", err)
 	}
 
 	return nil
 }
 
-// parseMinioConfig : MinIO 설정 파싱 및 검증
+// parseMinioConfig : MinIO 설정 파싱 및 검증 (통합 파서 사용)
 func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.MinioConfig) error {
+	parser := NewMinioConfigParser(minioConfig)
+
+	// 파싱
+	if err := parser.Parse(c); err != nil {
+		return err
+	}
+
+	// 검증
+	if err := parser.Validate(); err != nil {
+		return err
+	}
+
+	// 추가 검증 (MinioValidator 사용)
+	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
+		return fmt.Errorf("invalid minio configuration: %w", err)
+	}
+
+	return nil
+}
+
+// parseVeleroConfig : Velero 설정 파싱 및 검증 (통합 파서 사용)
+func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeConfig,
+	veleroConfig *config.VeleroConfig, minioConfig *config.MinioConfig) error {
+
+	parser := NewVeleroConfigParser(kubeConfig, veleroConfig, minioConfig)
+
+	// 파싱
+	if err := parser.Parse(c); err != nil {
+		return err
+	}
+
+	// 검증
+	if err := parser.Validate(); err != nil {
+		return err
+	}
+
+	// 추가 검증 (KubernetesValidator 사용)
+	if _, err := h.KubernetesValidator.ValidateKubernetesConfig(kubeConfig); err != nil {
+		return fmt.Errorf("invalid kubernetes configuration: %w", err)
+	}
+
+	// 추가 검증 (MinioValidator 사용)
+	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
+		return fmt.Errorf("invalid minio configuration: %w", err)
+	}
+
+	return nil
+}
+
+// GetCacheStats : 캐시 통계 정보 조회
+func (h *BaseHandler) GetCacheStats() map[string]interface{} {
+	return h.clientCache.Stats()
+}
+
+// ===== 공통 설정 관리 함수들 =====
+
+// ConfigParser : 설정 파서 인터페이스
+type ConfigParser interface {
+	Parse(c echo.Context) error
+	Validate() error
+}
+
+// MinioConfigParser : MinIO 설정 파서
+type MinioConfigParser struct {
+	config *config.MinioConfig
+}
+
+// NewMinioConfigParser : MinIO 설정 파서 생성
+func NewMinioConfigParser(config *config.MinioConfig) *MinioConfigParser {
+	return &MinioConfigParser{config: config}
+}
+
+// Parse : MinIO 설정 파싱
+func (p *MinioConfigParser) Parse(c echo.Context) error {
 	var req struct {
 		Endpoint  string `json:"endpoint"`
 		AccessKey string `json:"accessKey"`
@@ -353,32 +388,79 @@ func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.Minio
 	}
 
 	// MinIO 설정 매핑
-	minioConfig.Endpoint = req.Endpoint
-	minioConfig.AccessKey = req.AccessKey
-	minioConfig.SecretKey = req.SecretKey
-	minioConfig.UseSSL = req.UseSSL
+	p.config.Endpoint = req.Endpoint
+	p.config.AccessKey = req.AccessKey
+	p.config.SecretKey = req.SecretKey
+	p.config.UseSSL = req.UseSSL
 
+	return nil
+}
+
+// Validate : MinIO 설정 검증
+func (p *MinioConfigParser) Validate() error {
 	// 설정 검증 전에 기본값 체크
-	if minioConfig.Endpoint == "" {
+	if p.config.Endpoint == "" {
 		return fmt.Errorf("minio endpoint is required")
 	}
 
 	// 템플릿 변수가 포함된 경우 명확한 에러 메시지 제공
-	if strings.Contains(minioConfig.Endpoint, "{{") || strings.Contains(minioConfig.Endpoint, "}}") {
+	if strings.Contains(p.config.Endpoint, "{{") || strings.Contains(p.config.Endpoint, "}}") {
 		return fmt.Errorf("minio endpoint contains template variables. Please provide actual endpoint URL (e.g., 'localhost:9000' or 'minio.example.com:9000')")
-	}
-
-	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
-		return fmt.Errorf("invalid minio configuration: %w", err)
 	}
 
 	return nil
 }
 
-// parseVeleroConfig : Velero 설정 파싱 및 검증
-func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeConfig,
-	veleroConfig *config.VeleroConfig, minioConfig *config.MinioConfig) error {
+// KubeConfigParser : Kubernetes 설정 파서
+type KubeConfigParser struct {
+	config *config.KubeConfig
+}
 
+// NewKubeConfigParser : Kubernetes 설정 파서 생성
+func NewKubeConfigParser(config *config.KubeConfig) *KubeConfigParser {
+	return &KubeConfigParser{config: config}
+}
+
+// Parse : Kubernetes 설정 파싱
+func (p *KubeConfigParser) Parse(c echo.Context) error {
+	var req struct {
+		KubeConfig string `json:"kubeconfig"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return fmt.Errorf("invalid request body: %w", err)
+	}
+
+	p.config.KubeConfig = req.KubeConfig
+	return nil
+}
+
+// Validate : Kubernetes 설정 검증
+func (p *KubeConfigParser) Validate() error {
+	if p.config.KubeConfig == "" {
+		return fmt.Errorf("kubeconfig is required")
+	}
+	return nil
+}
+
+// VeleroConfigParser : Velero 설정 파서
+type VeleroConfigParser struct {
+	kubeConfig   *config.KubeConfig
+	veleroConfig *config.VeleroConfig
+	minioConfig  *config.MinioConfig
+}
+
+// NewVeleroConfigParser : Velero 설정 파서 생성
+func NewVeleroConfigParser(kubeConfig *config.KubeConfig, veleroConfig *config.VeleroConfig, minioConfig *config.MinioConfig) *VeleroConfigParser {
+	return &VeleroConfigParser{
+		kubeConfig:   kubeConfig,
+		veleroConfig: veleroConfig,
+		minioConfig:  minioConfig,
+	}
+}
+
+// Parse : Velero 설정 파싱
+func (p *VeleroConfigParser) Parse(c echo.Context) error {
 	var req struct {
 		KubeConfig struct {
 			KubeConfig string `json:"kubeconfig"`
@@ -391,37 +473,88 @@ func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeC
 	}
 
 	// Kubernetes 설정
-	kubeConfig.KubeConfig = req.KubeConfig.KubeConfig
-	if _, err := h.KubernetesValidator.ValidateKubernetesConfig(kubeConfig); err != nil {
-		return fmt.Errorf("invalid kubernetes configuration: %w", err)
-	}
-
-	// Velero 설정 (Kubernetes 설정과 동일)
-	veleroConfig.KubeConfig = *kubeConfig
+	p.kubeConfig.KubeConfig = req.KubeConfig.KubeConfig
+	p.veleroConfig.KubeConfig = *p.kubeConfig
 
 	// MinIO 설정
-	*minioConfig = req.Minio
+	*p.minioConfig = req.Minio
 
-	// MinIO 설정 검증 전에 기본값 체크
-	if minioConfig.Endpoint == "" {
+	return nil
+}
+
+// Validate : Velero 설정 검증
+func (p *VeleroConfigParser) Validate() error {
+	// Kubernetes 설정 검증
+	if p.kubeConfig.KubeConfig == "" {
+		return fmt.Errorf("kubeconfig is required")
+	}
+
+	// MinIO 설정 검증
+	if p.minioConfig.Endpoint == "" {
 		return fmt.Errorf("minio endpoint is required")
 	}
 
 	// 템플릿 변수가 포함된 경우 명확한 에러 메시지 제공
-	if strings.Contains(minioConfig.Endpoint, "{{") || strings.Contains(minioConfig.Endpoint, "}}") {
+	if strings.Contains(p.minioConfig.Endpoint, "{{") || strings.Contains(p.minioConfig.Endpoint, "}}") {
 		return fmt.Errorf("minio endpoint contains template variables. Please provide actual endpoint URL (e.g., 'localhost:9000' or 'minio.example.com:9000')")
-	}
-
-	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
-		return fmt.Errorf("invalid minio configuration: %w", err)
 	}
 
 	return nil
 }
 
-// GetCacheStats : 캐시 통계 정보 조회
-func (h *BaseHandler) GetCacheStats() map[string]interface{} {
-	return h.clientCache.Stats()
+// ===== 공통 에러 처리 함수들 =====
+
+// handleConfigError : 설정 파싱 에러를 적절한 HTTP 응답으로 변환
+func (h *BaseHandler) handleConfigError(c echo.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	errorMsg := err.Error()
+
+	// 에러 타입별 처리
+	if strings.Contains(errorMsg, "template variables") {
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"INVALID_MINIO_CONFIG",
+			"Invalid MinIO configuration",
+			errorMsg)
+	}
+	if strings.Contains(errorMsg, "endpoint is required") {
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"INVALID_MINIO_CONFIG",
+			"Invalid MinIO configuration",
+			errorMsg)
+	}
+	if strings.Contains(errorMsg, "invalid request body") {
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"INVALID_REQUEST_BODY",
+			"Invalid request body",
+			errorMsg)
+	}
+	if strings.Contains(errorMsg, "invalid minio configuration") {
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"INVALID_MINIO_CONFIG",
+			"Invalid MinIO configuration",
+			errorMsg)
+	}
+	if strings.Contains(errorMsg, "invalid kubernetes configuration") {
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"INVALID_KUBERNETES_CONFIG",
+			"Invalid Kubernetes configuration",
+			errorMsg)
+	}
+	if strings.Contains(errorMsg, "unsupported API path") {
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"UNSUPPORTED_API_PATH",
+			"Unsupported API path",
+			errorMsg)
+	}
+
+	// 기타 에러
+	return response.RespondWithErrorModel(c, http.StatusBadRequest,
+		"CONFIG_PARSE_ERROR",
+		"Configuration parsing failed",
+		errorMsg)
 }
 
 // ===== ConfigManager 활용 메서드들 =====
