@@ -54,6 +54,16 @@ func NewClient() (Client, error) {
 
 // NewClientWithConfig 설정을 받아서 MinIO 클라이언트를 생성합니다
 func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
+	// 설정 검증
+	if cfg.Endpoint == "" {
+		return nil, fmt.Errorf("minio endpoint is required")
+	}
+	if cfg.AccessKey == "" {
+		return nil, fmt.Errorf("minio access key is required")
+	}
+	if cfg.SecretKey == "" {
+		return nil, fmt.Errorf("minio secret key is required")
+	}
 
 	// MinIO 클라이언트 초기화
 	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
@@ -61,11 +71,9 @@ func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
 		Secure: cfg.UseSSL,
 	})
 	if err != nil {
-		fmt.Printf("DEBUG: Failed to create MinIO client: %v\n", err)
-		return nil, fmt.Errorf("failed to create minio client: %w", err)
+		return nil, fmt.Errorf("failed to create minio client with endpoint '%s': %w", cfg.Endpoint, err)
 	}
 
-	fmt.Printf("DEBUG: MinIO client created successfully\n")
 	return &client{
 		minioClient: minioClient,
 	}, nil

@@ -151,7 +151,42 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 	// API 타입별 설정 파싱 및 검증
 	kubeConfig, veleroConfig, minioConfig, err := h.parseConfig(c, cacheKey)
 	if err != nil {
-		return err
+		// 설정 파싱 실패 시 적절한 HTTP 응답으로 변환
+		if strings.Contains(err.Error(), "template variables") {
+			return response.RespondWithErrorModel(c, http.StatusBadRequest,
+				"INVALID_MINIO_CONFIG",
+				"Invalid MinIO configuration",
+				err.Error())
+		}
+		if strings.Contains(err.Error(), "endpoint is required") {
+			return response.RespondWithErrorModel(c, http.StatusBadRequest,
+				"INVALID_MINIO_CONFIG",
+				"Invalid MinIO configuration",
+				err.Error())
+		}
+		if strings.Contains(err.Error(), "invalid request body") {
+			return response.RespondWithErrorModel(c, http.StatusBadRequest,
+				"INVALID_REQUEST_BODY",
+				"Invalid request body",
+				err.Error())
+		}
+		if strings.Contains(err.Error(), "invalid minio configuration") {
+			return response.RespondWithErrorModel(c, http.StatusBadRequest,
+				"INVALID_MINIO_CONFIG",
+				"Invalid MinIO configuration",
+				err.Error())
+		}
+		if strings.Contains(err.Error(), "invalid kubernetes configuration") {
+			return response.RespondWithErrorModel(c, http.StatusBadRequest,
+				"INVALID_KUBERNETES_CONFIG",
+				"Invalid Kubernetes configuration",
+				err.Error())
+		}
+		// 기타 에러
+		return response.RespondWithErrorModel(c, http.StatusBadRequest,
+			"CONFIG_PARSE_ERROR",
+			"Configuration parsing failed",
+			err.Error())
 	}
 
 	// API 경로를 기반으로 정확한 API 타입 결정
@@ -172,10 +207,19 @@ func (h *BaseHandler) HandleResourceClient(c echo.Context, cacheKey string,
 			func() client.Client {
 				// MinIO API인 경우 minioConfig만 유효하므로 명시적으로 처리
 				if strings.Contains(c.Request().URL.Path, "/minio/") {
+					// MinIO 설정이 유효한지 먼저 확인
+					if minioConfig.Endpoint == "" {
+						logger.Error("MinIO configuration is missing",
+							logger.String("path", c.Request().URL.Path),
+						)
+						return mocks.NewMockClient()
+					}
+
 					client, err := client.NewClientWithConfig(nil, nil, nil, minioConfig)
 					if err != nil {
 						logger.Error("Failed to create MinIO client",
 							logger.String("error", err.Error()),
+							logger.String("endpoint", minioConfig.Endpoint),
 						)
 						return mocks.NewMockClient()
 					}
@@ -305,10 +349,7 @@ func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.Minio
 	}
 
 	if err := c.Bind(&req); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_REQUEST_BODY",
-			"Invalid request body",
-			err.Error())
+		return fmt.Errorf("invalid request body: %w", err)
 	}
 
 	// MinIO 설정 매핑
@@ -317,11 +358,18 @@ func (h *BaseHandler) parseMinioConfig(c echo.Context, minioConfig *config.Minio
 	minioConfig.SecretKey = req.SecretKey
 	minioConfig.UseSSL = req.UseSSL
 
+	// 설정 검증 전에 기본값 체크
+	if minioConfig.Endpoint == "" {
+		return fmt.Errorf("minio endpoint is required")
+	}
+
+	// 템플릿 변수가 포함된 경우 명확한 에러 메시지 제공
+	if strings.Contains(minioConfig.Endpoint, "{{") || strings.Contains(minioConfig.Endpoint, "}}") {
+		return fmt.Errorf("minio endpoint contains template variables. Please provide actual endpoint URL (e.g., 'localhost:9000' or 'minio.example.com:9000')")
+	}
+
 	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_MINIO_CONFIG",
-			"Invalid MinIO configuration",
-			err.Error())
+		return fmt.Errorf("invalid minio configuration: %w", err)
 	}
 
 	return nil
@@ -339,19 +387,13 @@ func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeC
 	}
 
 	if err := c.Bind(&req); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_REQUEST_BODY",
-			"Invalid request body",
-			err.Error())
+		return fmt.Errorf("invalid request body: %w", err)
 	}
 
 	// Kubernetes 설정
 	kubeConfig.KubeConfig = req.KubeConfig.KubeConfig
 	if _, err := h.KubernetesValidator.ValidateKubernetesConfig(kubeConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_KUBERNETES_CONFIG",
-			"Invalid Kubernetes configuration",
-			err.Error())
+		return fmt.Errorf("invalid kubernetes configuration: %w", err)
 	}
 
 	// Velero 설정 (Kubernetes 설정과 동일)
@@ -359,11 +401,19 @@ func (h *BaseHandler) parseVeleroConfig(c echo.Context, kubeConfig *config.KubeC
 
 	// MinIO 설정
 	*minioConfig = req.Minio
+
+	// MinIO 설정 검증 전에 기본값 체크
+	if minioConfig.Endpoint == "" {
+		return fmt.Errorf("minio endpoint is required")
+	}
+
+	// 템플릿 변수가 포함된 경우 명확한 에러 메시지 제공
+	if strings.Contains(minioConfig.Endpoint, "{{") || strings.Contains(minioConfig.Endpoint, "}}") {
+		return fmt.Errorf("minio endpoint contains template variables. Please provide actual endpoint URL (e.g., 'localhost:9000' or 'minio.example.com:9000')")
+	}
+
 	if err := h.MinioValidator.ValidateMinioConfig(minioConfig); err != nil {
-		return response.RespondWithErrorModel(c, http.StatusBadRequest,
-			"INVALID_MINIO_CONFIG",
-			"Invalid MinIO configuration",
-			err.Error())
+		return fmt.Errorf("invalid minio configuration: %w", err)
 	}
 
 	return nil
