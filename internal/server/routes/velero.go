@@ -19,6 +19,9 @@ func SetupVeleroRoutes(e *echo.Echo, veleroHandler *velero.Handler) {
 
 	// 백업 관련 라우트
 	veleroGroup.GET("/backups", veleroHandler.GetBackups)
+	veleroGroup.POST("/backups", veleroHandler.CreateBackup)
+	veleroGroup.DELETE("/backups/:backupName", veleroHandler.DeleteBackup)
+	veleroGroup.POST("/backups/:backupName/validate", veleroHandler.ValidateBackup)
 
 	// 복구 관련 라우트
 	veleroGroup.GET("/restores", veleroHandler.GetRestores)

@@ -1,0 +1,45 @@
+meta {
+  name: 4_백업 생성
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "kubeconfig": {
+      "kubeconfig": "{{base64_local_kubeconfig}}"
+    },
+    "minio": {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
+    },
+    "backup": {
+      "name": "ns-default-backup-2025-10-15",
+      "includeNamespaces": ["default"],
+      "excludeNamespaces": ["kube-system", "kube-public"],
+      "includeResources": ["pods", "services", "configmaps"],
+      "excludeResources": ["events"],
+      "labelSelector": {"app": "myapp"},
+      "storageLocation": "minio",
+      "ttl": "720h0m0s",
+      "includeClusterResources": true
+    }
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("backupName", res.body.data.backupName);
+  bru.setEnvVar("jobId", res.body.data.jobId);
+}
+
+settings {
+  encodeUrl: true
+}

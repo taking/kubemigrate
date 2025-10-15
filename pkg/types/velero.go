@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/taking/kubemigrate/pkg/config"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 )
 
@@ -182,6 +183,108 @@ type (
 		ClusterRoles        []string `json:"clusterroles"`
 		ClusterRoleBindings []string `json:"clusterrolebindings"`
 		CRDs                []string `json:"crds"`
+	}
+
+	// BackupRequest : 백업 생성 요청 구조체
+	BackupRequest struct {
+		Name                    string            `json:"name" binding:"required" example:"my-backup-2024-01-15"`
+		Namespace               string            `json:"namespace,omitempty" example:"default"`
+		IncludeNamespaces       []string          `json:"includeNamespaces,omitempty" example:"default,kube-system"`
+		ExcludeNamespaces       []string          `json:"excludeNamespaces,omitempty" example:"kube-public"`
+		IncludeResources        []string          `json:"includeResources,omitempty" example:"pods,services,configmaps"`
+		ExcludeResources        []string          `json:"excludeResources,omitempty" example:"events"`
+		LabelSelector           map[string]string `json:"labelSelector,omitempty" example:"app=myapp"`
+		StorageLocation         string            `json:"storageLocation,omitempty" example:"default"`
+		VolumeSnapshotLocations []string          `json:"volumeSnapshotLocations,omitempty" example:"default"`
+		TTL                     string            `json:"ttl,omitempty" example:"720h0m0s"`
+		IncludeClusterResources *bool             `json:"includeClusterResources,omitempty" example:"true"`
+		Hooks                   *BackupHooks      `json:"hooks,omitempty"`
+		Metadata                map[string]string `json:"metadata,omitempty"`
+	}
+
+	// CreateBackupRequest : 백업 생성 전체 요청 구조체 (kubeconfig, minio 포함)
+	CreateBackupRequest struct {
+		KubeConfig  config.KubeConfig  `json:"kubeconfig" binding:"required"`
+		MinioConfig config.MinioConfig `json:"minio" binding:"required"`
+		Backup      BackupRequest      `json:"backup" binding:"required"`
+	}
+
+	// BackupHooks : 백업 훅 설정
+	BackupHooks struct {
+		Resources []BackupResourceHookSpec `json:"resources,omitempty"`
+	}
+
+	// BackupResourceHookSpec : 리소스별 훅 설정
+	BackupResourceHookSpec struct {
+		Name          string            `json:"name" binding:"required"`
+		Namespaces    []string          `json:"namespaces,omitempty"`
+		Resources     []string          `json:"resources,omitempty"`
+		LabelSelector map[string]string `json:"labelSelector,omitempty"`
+		PreHooks      []BackupHookSpec  `json:"preHooks,omitempty"`
+		PostHooks     []BackupHookSpec  `json:"postHooks,omitempty"`
+	}
+
+	// BackupHookSpec : 개별 훅 설정
+	BackupHookSpec struct {
+		Exec *ExecHook `json:"exec,omitempty"`
+	}
+
+	// ExecHook : 실행 훅 설정
+	ExecHook struct {
+		Container string   `json:"container,omitempty"`
+		Command   []string `json:"command" binding:"required"`
+		OnError   string   `json:"onError,omitempty"` // "Continue", "Fail"
+		Timeout   string   `json:"timeout,omitempty" example:"30s"`
+	}
+
+	// BackupResult : 백업 생성 결과
+	BackupResult struct {
+		Status     string                 `json:"status"`
+		JobID      string                 `json:"jobId"`
+		BackupName string                 `json:"backupName"`
+		Namespace  string                 `json:"namespace"`
+		Message    string                 `json:"message"`
+		StatusUrl  string                 `json:"statusUrl"`
+		LogsUrl    string                 `json:"logsUrl"`
+		CreatedAt  time.Time              `json:"createdAt"`
+		Details    map[string]interface{} `json:"details,omitempty"`
+	}
+
+	// BackupValidationResult : 백업 검증 결과
+	BackupValidationResult struct {
+		IsValid           bool              `json:"isValid"`
+		BackupName        string            `json:"backupName"`
+		Phase             string            `json:"phase"`
+		ValidationTime    time.Time         `json:"validationTime"`
+		ValidationDetails ValidationDetails `json:"validationDetails"`
+		Errors            []string          `json:"errors,omitempty"`
+		Warnings          []string          `json:"warnings,omitempty"`
+		Summary           BackupSummary     `json:"summary"`
+	}
+
+	// ValidationDetails : 검증 상세 정보
+	ValidationDetails struct {
+		StorageLocationValid  bool     `json:"storageLocationValid"`
+		VolumeSnapshotValid   bool     `json:"volumeSnapshotValid"`
+		BackupRepositoryValid bool     `json:"backupRepositoryValid"`
+		ResourceCount         int      `json:"resourceCount"`
+		VolumeCount           int      `json:"volumeCount"`
+		ValidationErrors      []string `json:"validationErrors,omitempty"`
+		StorageLocationErrors []string `json:"storageLocationErrors,omitempty"`
+		VolumeSnapshotErrors  []string `json:"volumeSnapshotErrors,omitempty"`
+	}
+
+	// BackupSummary : 백업 요약 정보
+	BackupSummary struct {
+		TotalItems       int            `json:"totalItems"`
+		TotalSize        string         `json:"totalSize"`
+		Duration         string         `json:"duration"`
+		StartTime        time.Time      `json:"startTime"`
+		EndTime          time.Time      `json:"endTime"`
+		ResourceCounts   map[string]int `json:"resourceCounts"`
+		VolumeSnapshots  []string       `json:"volumeSnapshots,omitempty"`
+		StorageLocation  string         `json:"storageLocation"`
+		BackupRepository string         `json:"backupRepository"`
 	}
 )
 

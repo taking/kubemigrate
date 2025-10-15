@@ -9,6 +9,8 @@ import (
 	"github.com/taking/kubemigrate/internal/response"
 	"github.com/taking/kubemigrate/pkg/client"
 	"github.com/taking/kubemigrate/pkg/client/minio"
+	"github.com/taking/kubemigrate/pkg/config"
+	"github.com/taking/kubemigrate/pkg/types"
 )
 
 // Handler : Velero 관련 HTTP 핸들러
@@ -277,6 +279,170 @@ func (h *Handler) GetAllJobs(c echo.Context) error {
 	result, err := h.service.GetAllJobsInternal()
 	if err != nil {
 		return response.RespondWithErrorModel(c, 500, "INTERNAL_ERROR", err.Error(), "")
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// CreateBackup : Velero 백업 생성
+// @Summary Create Velero Backup
+// @Description Create a new Velero backup with specified configuration
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body types.CreateBackupRequest true "Backup configuration with kubeconfig and minio settings"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} types.BackupResult
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/backups [post]
+func (h *Handler) CreateBackup(c echo.Context) error {
+	// 백업 요청 바인딩
+	var createBackupReq types.CreateBackupRequest
+	if err := c.Bind(&createBackupReq); err != nil {
+		// 에러 메시지를 간단하게 처리
+		errorMsg := "Invalid request body format"
+		if err.Error() != "" {
+			errorMsg = "Request body validation failed"
+		}
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST_BODY", errorMsg, "")
+	}
+
+	// 필수 필드 검증
+	if createBackupReq.Backup.Name == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "backup name is required", "")
+	}
+
+	// kubeconfig 검증
+	if createBackupReq.KubeConfig.KubeConfig == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "kubeconfig is required", "")
+	}
+
+	// minio 설정 검증
+	if createBackupReq.MinioConfig.Endpoint == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio endpoint is required", "")
+	}
+	if createBackupReq.MinioConfig.AccessKey == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio accessKey is required", "")
+	}
+	if createBackupReq.MinioConfig.SecretKey == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio secretKey is required", "")
+	}
+
+	// Query 파라미터 처리
+	namespace := h.ResolveNamespace(c, "velero")
+
+	// Velero 설정 구성
+	veleroConfig := config.VeleroConfig{
+		KubeConfig:  createBackupReq.KubeConfig,
+		MinioConfig: createBackupReq.MinioConfig,
+	}
+
+	// 컨텍스트 생성 (타임아웃 설정)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Minute)
+	defer cancel()
+
+	// 클라이언트 생성
+	unifiedClient, err := client.NewClientWithConfig(
+		&veleroConfig.KubeConfig,
+		&veleroConfig.KubeConfig,
+		&veleroConfig,
+		&veleroConfig.MinioConfig,
+	)
+	if err != nil {
+		return h.HandleConnectionError(c, "velero", "client creation", err)
+	}
+
+	// 백업 생성 실행
+	result, err := h.service.CreateBackupInternal(unifiedClient, ctx, createBackupReq.Backup, namespace)
+	if err != nil {
+		return h.HandleInternalError(c, "velero", "backup creation", err)
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// ValidateBackup : Velero 백업 검증
+// @Summary Validate Velero Backup
+// @Description Validate a specific Velero backup and check its status
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param backupName path string true "Backup name"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} types.BackupValidationResult
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/backups/{backupName}/validate [post]
+func (h *Handler) ValidateBackup(c echo.Context) error {
+	// 백업 이름 파라미터 추출
+	backupName := c.Param("backupName")
+	if backupName == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "backupName is required", "")
+	}
+
+	// Query 파라미터 처리
+	namespace := h.ResolveNamespace(c, "velero")
+
+	// 컨텍스트 생성 (타임아웃 설정)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 1*time.Minute)
+	defer cancel()
+
+	// 클라이언트 생성 (기본 설정 사용)
+	unifiedClient, err := client.NewClientWithConfig(nil, nil, nil, nil)
+	if err != nil {
+		return h.HandleConnectionError(c, "velero", "client creation", err)
+	}
+
+	// 백업 검증 실행
+	result, err := h.service.ValidateBackupInternal(unifiedClient, ctx, backupName, namespace)
+	if err != nil {
+		return h.HandleInternalError(c, "velero", "backup validation", err)
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// DeleteBackup : Velero 백업 삭제
+// @Summary Delete Velero Backup
+// @Description Delete a specific Velero backup
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param backupName path string true "Backup name"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} map[string]interface{} "Backup deletion result"
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/backups/{backupName} [delete]
+func (h *Handler) DeleteBackup(c echo.Context) error {
+	// 백업 이름 파라미터 추출
+	backupName := c.Param("backupName")
+	if backupName == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "backupName is required", "")
+	}
+
+	// Query 파라미터 처리
+	namespace := h.ResolveNamespace(c, "velero")
+
+	// 컨텍스트 생성 (타임아웃 설정)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 1*time.Minute)
+	defer cancel()
+
+	// 클라이언트 생성 (기본 설정 사용)
+	unifiedClient, err := client.NewClientWithConfig(nil, nil, nil, nil)
+	if err != nil {
+		return h.HandleConnectionError(c, "velero", "client creation", err)
+	}
+
+	// 백업 삭제 실행
+	result, err := h.service.DeleteBackupInternal(unifiedClient, ctx, backupName, namespace)
+	if err != nil {
+		return h.HandleInternalError(c, "velero", "backup deletion", err)
 	}
 
 	return response.RespondWithData(c, 200, result)
