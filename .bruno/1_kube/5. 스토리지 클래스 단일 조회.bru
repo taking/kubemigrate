@@ -1,11 +1,11 @@
 meta {
-  name: 3_파드 단일 조회
+  name: 5_스토리지 클래스 단일 조회
   type: http
-  seq: 3
+  seq: 5
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/pods/nginx?namespace=default
+  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/storage-classes/{{scName}}
   body: json
   auth: inherit
 }

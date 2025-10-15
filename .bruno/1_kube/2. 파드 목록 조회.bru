@@ -20,6 +20,10 @@ body:json {
   }
 }
 
+script:post-response {
+  bru.setEnvVar("podName", res.body.data.items[0].metadata.name);
+}
+
 settings {
   encodeUrl: true
 }

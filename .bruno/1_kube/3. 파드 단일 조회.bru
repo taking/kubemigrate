@@ -1,0 +1,25 @@
+meta {
+  name: 3_파드 단일 조회
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/pods/{{podName}}?namespace=default
+  body: json
+  auth: inherit
+}
+
+params:query {
+  namespace: default
+}
+
+body:json {
+  {
+    "kubeconfig": "{{base64_local_kubeconfig}}"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
