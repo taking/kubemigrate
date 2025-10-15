@@ -1,11 +1,11 @@
 meta {
-  name: 10_Velero Job 상태 조회
+  name: 7_백업 삭제
   type: http
-  seq: 10
+  seq: 7
 }
 
-get {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/status/{{jobId}}
+delete {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups/{{backupName}}
   body: json
   auth: inherit
 }

@@ -153,6 +153,19 @@ func (s *Service) GetBackupsInternal(client client.Client, ctx context.Context, 
 	return backups, nil
 }
 
+// GetBackupInternal : Velero Backup 상세 조회
+func (s *Service) GetBackupInternal(client client.Client, ctx context.Context, namespace, backupName string) (*velerov1.Backup, error) {
+	backup, err := client.Velero().GetBackup(ctx, namespace, backupName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get backup '%s': %w", backupName, err)
+	}
+
+	// managedFields 제거
+	backup.ObjectMeta.ManagedFields = nil
+
+	return backup, nil
+}
+
 // GetRestoresInternal : Velero Restore 목록 조회
 func (s *Service) GetRestoresInternal(client client.Client, ctx context.Context, namespace string) ([]velerov1.Restore, error) {
 	restores, err := client.Velero().GetRestores(ctx, namespace)
@@ -164,6 +177,103 @@ func (s *Service) GetRestoresInternal(client client.Client, ctx context.Context,
 	removeManagedFieldsFromRestores(restores)
 
 	return restores, nil
+}
+
+// GetRestoreInternal : Velero Restore 상세 조회
+func (s *Service) GetRestoreInternal(client client.Client, ctx context.Context, namespace, restoreName string) (*velerov1.Restore, error) {
+	restore, err := client.Velero().GetRestore(ctx, namespace, restoreName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get restore '%s': %w", restoreName, err)
+	}
+
+	// managedFields 제거
+	restore.ObjectMeta.ManagedFields = nil
+
+	return restore, nil
+}
+
+// CreateRestoreInternal : Velero Restore 생성
+func (s *Service) CreateRestoreInternal(client client.Client, ctx context.Context, req types.VeleroRestoreRequest) (map[string]interface{}, error) {
+	// RestoreRequest를 velerov1.Restore로 변환
+	restore := &velerov1.Restore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Restore.Name,
+			Namespace: "velero",
+		},
+		Spec: velerov1.RestoreSpec{
+			BackupName:              req.Restore.BackupName,
+			IncludedNamespaces:      req.Restore.IncludeNamespaces,
+			ExcludedNamespaces:      req.Restore.ExcludeNamespaces,
+			IncludedResources:       req.Restore.IncludeResources,
+			ExcludedResources:       req.Restore.ExcludeResources,
+			IncludeClusterResources: req.Restore.IncludeClusterResources,
+			RestorePVs:              req.Restore.RestorePVs,
+		},
+	}
+
+	// LabelSelector 변환
+	if req.Restore.LabelSelector != nil {
+		restore.Spec.LabelSelector = &metav1.LabelSelector{
+			MatchLabels: req.Restore.LabelSelector,
+		}
+	}
+
+	// 복원 생성
+	err := client.Velero().CreateRestore(ctx, "velero", restore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create restore '%s': %w", req.Restore.Name, err)
+	}
+
+	// managedFields 제거
+	restore.ObjectMeta.ManagedFields = nil
+
+	return map[string]interface{}{
+		"restore": restore,
+		"message": fmt.Sprintf("Restore '%s' created successfully", req.Restore.Name),
+	}, nil
+}
+
+// ValidateRestoreInternal : Velero Restore 검증
+func (s *Service) ValidateRestoreInternal(client client.Client, ctx context.Context, namespace, restoreName string) (map[string]interface{}, error) {
+	// 복원 조회
+	restore, err := client.Velero().GetRestore(ctx, namespace, restoreName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get restore '%s': %w", restoreName, err)
+	}
+
+	// managedFields 제거
+	restore.ObjectMeta.ManagedFields = nil
+
+	// 검증 결과 구성
+	validationResult := map[string]interface{}{
+		"restore": restore,
+		"valid":   true,
+		"message": "Restore is valid",
+	}
+
+	// 상태별 검증
+	if restore.Status.Phase != "" {
+		validationResult["status"] = map[string]interface{}{
+			"phase":               restore.Status.Phase,
+			"startTimestamp":      restore.Status.StartTimestamp,
+			"completionTimestamp": restore.Status.CompletionTimestamp,
+			"totalErrors":         restore.Status.Errors,
+			"totalWarnings":       restore.Status.Warnings,
+		}
+
+		// 에러가 있는 경우
+		if restore.Status.Errors > 0 {
+			validationResult["valid"] = false
+			validationResult["message"] = fmt.Sprintf("Restore has %d errors", restore.Status.Errors)
+		}
+
+		// 경고가 있는 경우
+		if restore.Status.Warnings > 0 {
+			validationResult["warnings"] = fmt.Sprintf("Restore has %d warnings", restore.Status.Warnings)
+		}
+	}
+
+	return validationResult, nil
 }
 
 // GetBackupRepositoriesInternal : Velero BackupRepository 목록 조회

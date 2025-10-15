@@ -1,18 +1,13 @@
 meta {
-  name: 2_Velero 설치 및 Minio 연동
+  name: 6_백업 상세 조회
   type: http
-  seq: 2
+  seq: 6
 }
 
-post {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/install?namespace=velero&force=true
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups/{{backupName}}
   body: json
   auth: inherit
-}
-
-params:query {
-  namespace: velero
-  force: true
 }
 
 body:json {
@@ -27,10 +22,6 @@ body:json {
       "useSSL": false
     }
   }
-}
-
-script:post-response {
-  bru.setEnvVar("jobId", res.body.data.job.jobId);
 }
 
 settings {

@@ -1,0 +1,43 @@
+meta {
+  name: 9_복구 생성
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/restores
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "kubeconfig": {
+      "kubeconfig": "{{base64_local_kubeconfig}}"
+    },
+    "minio": {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
+    },
+    "restore": {
+      "name": "{{backupName}}-to-restore",
+      "backupName": "{{backupName}}",
+      "includeNamespaces": ["wordpress-test"],
+      "excludeNamespaces": ["kube-system", "kube-public"],
+      "includeResources": ["deployments", "services", "configmaps", "secrets"],
+      "includeClusterResources": true,
+      "restorePVs": true
+    }
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("restoreName", res.body.data.restore.metadata.name);
+  bru.setEnvVar("jobId", res.body.data.jobId);
+}
+
+settings {
+  encodeUrl: true
+}

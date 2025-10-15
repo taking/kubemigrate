@@ -209,6 +209,104 @@ type (
 		Backup      BackupRequest      `json:"backup" binding:"required"`
 	}
 
+	// RestoreRequest : 복원 생성 요청 구조체
+	RestoreRequest struct {
+		Name                    string            `json:"name" binding:"required" example:"my-restore-2024-01-15"`
+		BackupName              string            `json:"backupName" binding:"required" example:"my-backup-2024-01-15"`
+		Namespace               string            `json:"namespace,omitempty" example:"default"`
+		IncludeNamespaces       []string          `json:"includeNamespaces,omitempty" example:"default,kube-system"`
+		ExcludeNamespaces       []string          `json:"excludeNamespaces,omitempty" example:"kube-public"`
+		IncludeResources        []string          `json:"includeResources,omitempty" example:"pods,services,configmaps"`
+		ExcludeResources        []string          `json:"excludeResources,omitempty" example:"events"`
+		LabelSelector           map[string]string `json:"labelSelector,omitempty" example:"app=myapp"`
+		StorageLocation         string            `json:"storageLocation,omitempty" example:"default"`
+		VolumeSnapshotLocations []string          `json:"volumeSnapshotLocations,omitempty" example:"default"`
+		IncludeClusterResources *bool             `json:"includeClusterResources,omitempty" example:"true"`
+		RestorePVs              *bool             `json:"restorePVs,omitempty" example:"true"`
+		Hooks                   *RestoreHooks     `json:"hooks,omitempty"`
+		Metadata                map[string]string `json:"metadata,omitempty"`
+	}
+
+	// VeleroRestoreRequest : 복원 생성 전체 요청 구조체 (kubeconfig 포함)
+	VeleroRestoreRequest struct {
+		KubeConfig config.KubeConfig `json:"kubeconfig" binding:"required"`
+		Restore    RestoreRequest    `json:"restore" binding:"required"`
+	}
+
+	// RestoreHooks : 복원 훅 설정
+	RestoreHooks struct {
+		Resources []RestoreResourceHookSpec `json:"resources,omitempty"`
+	}
+
+	// RestoreResourceHookSpec : 리소스별 복원 훅 설정
+	RestoreResourceHookSpec struct {
+		Name          string            `json:"name" binding:"required"`
+		Namespaces    []string          `json:"namespaces,omitempty"`
+		Resources     []string          `json:"resources,omitempty"`
+		LabelSelector map[string]string `json:"labelSelector,omitempty"`
+		PreHooks      []RestoreHookSpec `json:"preHooks,omitempty"`
+		PostHooks     []RestoreHookSpec `json:"postHooks,omitempty"`
+	}
+
+	// RestoreHookSpec : 개별 복원 훅 설정
+	RestoreHookSpec struct {
+		Exec *ExecHook `json:"exec,omitempty"`
+	}
+
+	// RestoreResult : 복원 생성 결과
+	RestoreResult struct {
+		Status      string                 `json:"status"`
+		JobID       string                 `json:"jobId"`
+		RestoreName string                 `json:"restoreName"`
+		BackupName  string                 `json:"backupName"`
+		Namespace   string                 `json:"namespace"`
+		Message     string                 `json:"message"`
+		StatusUrl   string                 `json:"statusUrl"`
+		LogsUrl     string                 `json:"logsUrl"`
+		CreatedAt   time.Time              `json:"createdAt"`
+		Details     map[string]interface{} `json:"details,omitempty"`
+	}
+
+	// RestoreValidationResult : 복원 검증 결과
+	RestoreValidationResult struct {
+		IsValid           bool                     `json:"isValid"`
+		RestoreName       string                   `json:"restoreName"`
+		BackupName        string                   `json:"backupName"`
+		Phase             string                   `json:"phase"`
+		ValidationTime    time.Time                `json:"validationTime"`
+		ValidationDetails RestoreValidationDetails `json:"validationDetails"`
+		Errors            []string                 `json:"errors,omitempty"`
+		Warnings          []string                 `json:"warnings,omitempty"`
+		Summary           RestoreSummary           `json:"summary"`
+	}
+
+	// RestoreValidationDetails : 복원 검증 상세 정보
+	RestoreValidationDetails struct {
+		BackupExists          bool     `json:"backupExists"`
+		BackupValid           bool     `json:"backupValid"`
+		StorageLocationValid  bool     `json:"storageLocationValid"`
+		VolumeSnapshotValid   bool     `json:"volumeSnapshotValid"`
+		ResourceCount         int      `json:"resourceCount"`
+		VolumeCount           int      `json:"volumeCount"`
+		ValidationErrors      []string `json:"validationErrors,omitempty"`
+		BackupErrors          []string `json:"backupErrors,omitempty"`
+		StorageLocationErrors []string `json:"storageLocationErrors,omitempty"`
+		VolumeSnapshotErrors  []string `json:"volumeSnapshotErrors,omitempty"`
+	}
+
+	// RestoreSummary : 복원 요약 정보
+	RestoreSummary struct {
+		TotalItems       int            `json:"totalItems"`
+		TotalSize        string         `json:"totalSize"`
+		Duration         string         `json:"duration"`
+		StartTime        time.Time      `json:"startTime"`
+		EndTime          time.Time      `json:"endTime"`
+		ResourceCounts   map[string]int `json:"resourceCounts"`
+		VolumeSnapshots  []string       `json:"volumeSnapshots,omitempty"`
+		StorageLocation  string         `json:"storageLocation"`
+		BackupRepository string         `json:"backupRepository"`
+	}
+
 	// BackupHooks : 백업 훅 설정
 	BackupHooks struct {
 		Resources []BackupResourceHookSpec `json:"resources,omitempty"`

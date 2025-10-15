@@ -22,15 +22,26 @@ body:json {
       "useSSL": false
     },
     "backup": {
-      "name": "ns-default-backup-2025-10-15",
-      "includeNamespaces": ["default"],
-      "excludeNamespaces": ["kube-system", "kube-public"],
-      "includeResources": ["pods", "services", "configmaps"],
-      "excludeResources": ["events"],
-      "labelSelector": {"app": "myapp"},
+      "name": "ns-wordpress-test-backup-2025-10-15-7",
+      "includeNamespaces": ["wordpress-test"],
+  //     "excludeNamespaces": ["kube-system", "kube-public"],
+  //     "includeResources": [
+  //       "*"
+  //     ],
+  //     "includeResources": [
+  //       "deployments", 
+  //       "services", 
+  //       "configmaps", 
+  //       "secrets", 
+  //       "statefulsets",
+  //       "replicasets",
+  //       "pods"
+  //     ],
+  //     "excludeResources": ["events"],
+  //     "labelSelector": {"app": "myapp"},
       "storageLocation": "minio",
-      "ttl": "720h0m0s",
-      "includeClusterResources": true
+      "ttl": "720h0m0s"
+  //     "includeClusterResources": true
     }
   }
 }

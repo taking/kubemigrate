@@ -1,11 +1,11 @@
 meta {
-  name: 4_백업 검증
+  name: 17_Velero Job 상태 조회
   type: http
-  seq: 5
+  seq: 17
 }
 
-post {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups/{{backupName}}/validate
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/status/{{jobId}}
   body: json
   auth: inherit
 }

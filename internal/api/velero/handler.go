@@ -126,6 +126,31 @@ func (h *Handler) GetBackups(c echo.Context) error {
 	})
 }
 
+// GetBackup : Velero 백업 상세 조회
+// @Summary Get Velero Backup Details
+// @Description Get detailed information about a specific Velero backup
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param backupName path string true "Backup name"
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/backups/{backupName} [get]
+func (h *Handler) GetBackup(c echo.Context) error {
+	backupName := c.Param("backupName")
+	if backupName == "" {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Backup name is required", "")
+	}
+
+	return h.HandleResourceClient(c, "velero-backup", func(client client.Client, ctx context.Context) (interface{}, error) {
+		namespace := h.ResolveNamespace(c, "velero")
+		return h.service.GetBackupInternal(client, ctx, namespace, backupName)
+	})
+}
+
 // GetRestores : Velero 복원 목록 조회
 // @Summary Get Velero Restores
 // @Description Get list of Velero restores
@@ -142,6 +167,111 @@ func (h *Handler) GetRestores(c echo.Context) error {
 		namespace := h.ResolveNamespace(c, "velero")
 		return h.service.GetRestoresInternal(client, ctx, namespace)
 	})
+}
+
+// GetRestore : Velero 복원 상세 조회
+// @Summary Get Velero Restore Details
+// @Description Get detailed information about a specific Velero restore
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param restoreName path string true "Restore name"
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/restores/{restoreName} [get]
+func (h *Handler) GetRestore(c echo.Context) error {
+	restoreName := c.Param("restoreName")
+	if restoreName == "" {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Restore name is required", "")
+	}
+
+	return h.HandleResourceClient(c, "velero-restore", func(client client.Client, ctx context.Context) (interface{}, error) {
+		namespace := h.ResolveNamespace(c, "velero")
+		return h.service.GetRestoreInternal(client, ctx, namespace, restoreName)
+	})
+}
+
+// CreateRestore : Velero 복원 생성
+// @Summary Create Velero Restore
+// @Description Create a new Velero restore from a backup
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body types.VeleroRestoreRequest true "Restore configuration"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/restores [post]
+func (h *Handler) CreateRestore(c echo.Context) error {
+	var req types.VeleroRestoreRequest
+	if err := c.Bind(&req); err != nil {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST_BODY", "Invalid request body format", err.Error())
+	}
+
+	// 필수 필드 검증
+	if req.Restore.Name == "" {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Restore name is required", "")
+	}
+	if req.Restore.BackupName == "" {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Backup name is required", "")
+	}
+
+	// 클라이언트 생성
+	client, err := client.NewClientWithConfig(req.KubeConfig, "", "", "")
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "CLIENT_CREATION_FAILED", "Failed to create client", err.Error())
+	}
+
+	// 복원 생성
+	result, err := h.service.CreateRestoreInternal(client, context.Background(), req)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "RESTORE_CREATION_FAILED", "Failed to create restore", err.Error())
+	}
+
+	return response.RespondWithData(c, 200, result)
+}
+
+// ValidateRestore : Velero 복원 검증
+// @Summary Validate Velero Restore
+// @Description Validate a specific Velero restore
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param restoreName path string true "Restore name"
+// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/restores/{restoreName}/validate [post]
+func (h *Handler) ValidateRestore(c echo.Context) error {
+	restoreName := c.Param("restoreName")
+	if restoreName == "" {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Restore name is required", "")
+	}
+
+	var req config.KubeConfig
+	if err := c.Bind(&req); err != nil {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST_BODY", "Invalid request body format", err.Error())
+	}
+
+	// 클라이언트 생성
+	client, err := client.NewClientWithConfig(req, "", "", "")
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "CLIENT_CREATION_FAILED", "Failed to create client", err.Error())
+	}
+
+	// 복원 검증
+	result, err := h.service.ValidateRestoreInternal(client, context.Background(), h.ResolveNamespace(c, "velero"), restoreName)
+	if err != nil {
+		return response.RespondWithErrorModel(c, 500, "RESTORE_VALIDATION_FAILED", "Failed to validate restore", err.Error())
+	}
+
+	return response.RespondWithData(c, 200, result)
 }
 
 // GetBackupRepositories : 백업 저장소 조회
