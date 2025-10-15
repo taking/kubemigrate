@@ -513,26 +513,10 @@ func (h *Handler) ValidateBackup(c echo.Context) error {
 		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "backupName is required", "")
 	}
 
-	// Query 파라미터 처리
-	namespace := h.ResolveNamespace(c, "velero")
-
-	// 컨텍스트 생성 (타임아웃 설정)
-	ctx, cancel := context.WithTimeout(c.Request().Context(), 1*time.Minute)
-	defer cancel()
-
-	// 클라이언트 생성 (기본 설정 사용)
-	unifiedClient, err := client.NewClientWithConfig(nil, nil, nil, nil)
-	if err != nil {
-		return h.HandleConnectionError(c, "velero", "client creation", err)
-	}
-
-	// 백업 검증 실행
-	result, err := h.service.ValidateBackupInternal(unifiedClient, ctx, backupName, namespace)
-	if err != nil {
-		return h.HandleInternalError(c, "velero", "backup validation", err)
-	}
-
-	return response.RespondWithData(c, 200, result)
+	return h.HandleResourceClient(c, "velero-backup-validation", func(client client.Client, ctx context.Context) (interface{}, error) {
+		namespace := h.ResolveNamespace(c, "velero")
+		return h.service.ValidateBackupInternal(client, ctx, backupName, namespace)
+	})
 }
 
 // DeleteBackup : Velero 백업 삭제
@@ -556,24 +540,8 @@ func (h *Handler) DeleteBackup(c echo.Context) error {
 		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "backupName is required", "")
 	}
 
-	// Query 파라미터 처리
-	namespace := h.ResolveNamespace(c, "velero")
-
-	// 컨텍스트 생성 (타임아웃 설정)
-	ctx, cancel := context.WithTimeout(c.Request().Context(), 1*time.Minute)
-	defer cancel()
-
-	// 클라이언트 생성 (기본 설정 사용)
-	unifiedClient, err := client.NewClientWithConfig(nil, nil, nil, nil)
-	if err != nil {
-		return h.HandleConnectionError(c, "velero", "client creation", err)
-	}
-
-	// 백업 삭제 실행
-	result, err := h.service.DeleteBackupInternal(unifiedClient, ctx, backupName, namespace)
-	if err != nil {
-		return h.HandleInternalError(c, "velero", "backup deletion", err)
-	}
-
-	return response.RespondWithData(c, 200, result)
+	return h.HandleResourceClient(c, "velero-backup-deletion", func(client client.Client, ctx context.Context) (interface{}, error) {
+		namespace := h.ResolveNamespace(c, "velero")
+		return h.service.DeleteBackupInternal(client, ctx, backupName, namespace)
+	})
 }
