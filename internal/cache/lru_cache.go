@@ -17,6 +17,7 @@ type LRUItem struct {
 	Value        client.Client
 	CreatedAt    time.Time
 	LastAccess   time.Time
+	TTL          time.Duration // TTL (Time To Live)
 	ApiType      string
 	KubeConfig   config.KubeConfig
 	VeleroConfig config.VeleroConfig
@@ -42,13 +43,20 @@ func NewLRUCache(capacity int) *LRUCache {
 	}
 }
 
-// Get : 캐시에서 값 조회
+// Get : 캐시에서 값 조회 (TTL 검사 포함)
 func (c *LRUCache) Get(key string) (client.Client, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	if elem, exists := c.items[key]; exists {
 		item := elem.Value.(*LRUItem)
+
+		// TTL 검사
+		if c.isExpired(item) {
+			c.removeElement(elem)
+			c.totalMisses++
+			return nil, false
+		}
 
 		item.LastAccess = time.Now()
 		c.list.MoveToFront(elem)
@@ -70,42 +78,91 @@ func (c *LRUCache) SetWithApiType(key string, value client.Client, apiType strin
 	c.SetWithConfigs(key, value, apiType, config.KubeConfig{}, config.VeleroConfig{}, config.MinioConfig{})
 }
 
-// SetWithConfigs : 설정 정보와 함께 캐시에 값 저장
-func (c *LRUCache) SetWithConfigs(key string, value client.Client, apiType string, kubeConfig config.KubeConfig, veleroConfig config.VeleroConfig, minioConfig config.MinioConfig) {
+// isExpired : 아이템이 만료되었는지 확인
+func (c *LRUCache) isExpired(item *LRUItem) bool {
+	if item.TTL <= 0 {
+		return false // TTL이 설정되지 않은 경우 만료되지 않음
+	}
+	return time.Since(item.CreatedAt) > item.TTL
+}
+
+// removeElement : 리스트에서 요소 제거 (내부 함수)
+func (c *LRUCache) removeElement(elem *list.Element) {
+	item := elem.Value.(*LRUItem)
+	delete(c.items, item.Key)
+	c.list.Remove(elem)
+}
+
+// SetWithTTL : TTL과 함께 캐시에 값 저장
+func (c *LRUCache) SetWithTTL(key string, value client.Client, ttl time.Duration) {
+	c.SetWithTTLAndApiType(key, value, ttl, "unknown")
+}
+
+// SetWithTTLAndApiType : TTL과 API 타입을 함께 설정하여 캐시에 값 저장
+func (c *LRUCache) SetWithTTLAndApiType(key string, value client.Client, ttl time.Duration, apiType string) {
+	c.SetWithTTLAndConfigs(key, value, ttl, apiType, config.KubeConfig{}, config.VeleroConfig{}, config.MinioConfig{})
+}
+
+// SetWithTTLAndConfigs : TTL과 설정 정보를 함께 설정하여 캐시에 값 저장
+func (c *LRUCache) SetWithTTLAndConfigs(key string, value client.Client, ttl time.Duration, apiType string, kubeConfig config.KubeConfig, veleroConfig config.VeleroConfig, minioConfig config.MinioConfig) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if elem, exists := c.items[key]; exists {
-		item := elem.Value.(*LRUItem)
-		item.Value = value
-		item.LastAccess = time.Now()
-		item.ApiType = apiType
-		item.KubeConfig = kubeConfig
-		item.VeleroConfig = veleroConfig
-		item.MinioConfig = minioConfig
-		c.list.MoveToFront(elem)
-		return
-	}
-
+	now := time.Now()
 	item := &LRUItem{
 		Key:          key,
 		Value:        value,
-		CreatedAt:    time.Now(),
-		LastAccess:   time.Now(),
+		CreatedAt:    now,
+		LastAccess:   now,
+		TTL:          ttl,
 		ApiType:      apiType,
 		KubeConfig:   kubeConfig,
 		VeleroConfig: veleroConfig,
 		MinioConfig:  minioConfig,
 	}
 
-	// 캐시가 가득 찬 경우 오래된 항목 제거
+	if elem, exists := c.items[key]; exists {
+		c.removeElement(elem)
+	}
+
 	if c.list.Len() >= c.capacity {
 		c.evictOldest()
 	}
 
-	// 새 항목을 리스트 맨 앞에 추가
 	elem := c.list.PushFront(item)
 	c.items[key] = elem
+}
+
+// SetWithConfigs : 설정 정보와 함께 캐시에 값 저장 (기본 TTL: 30분)
+func (c *LRUCache) SetWithConfigs(key string, value client.Client, apiType string, kubeConfig config.KubeConfig, veleroConfig config.VeleroConfig, minioConfig config.MinioConfig) {
+	// 기본 TTL: 30분
+	defaultTTL := 30 * time.Minute
+	c.SetWithTTLAndConfigs(key, value, defaultTTL, apiType, kubeConfig, veleroConfig, minioConfig)
+}
+
+// CleanupExpired : 만료된 항목들을 정리
+func (c *LRUCache) CleanupExpired() int {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	expiredCount := 0
+	var toRemove []*list.Element
+
+	// 만료된 항목들을 찾아서 제거 목록에 추가
+	for elem := c.list.Back(); elem != nil; elem = elem.Prev() {
+		item := elem.Value.(*LRUItem)
+		if c.isExpired(item) {
+			toRemove = append(toRemove, elem)
+		}
+	}
+
+	// 만료된 항목들을 제거
+	for _, elem := range toRemove {
+		c.removeElement(elem)
+		expiredCount++
+	}
+
+	return expiredCount
 }
 
 // Remove : 캐시에서 항목 제거
@@ -338,13 +395,6 @@ func (c *LRUCache) evictOldest() {
 	// 리스트의 마지막 요소(가장 오래된) 제거
 	elem := c.list.Back()
 	c.removeElement(elem)
-}
-
-// removeElement : 리스트에서 요소 제거
-func (c *LRUCache) removeElement(elem *list.Element) {
-	item := elem.Value.(*LRUItem)
-	c.list.Remove(elem)
-	delete(c.items, item.Key)
 }
 
 // getMaskedConfig : API 타입에 따라 마스킹된 설정 반환

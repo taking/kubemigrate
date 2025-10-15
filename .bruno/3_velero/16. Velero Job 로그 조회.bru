@@ -1,11 +1,11 @@
 meta {
-  name: 3_백업 목록 조회
+  name: 16_Velero Job 로그 조회
   type: http
-  seq: 3
+  seq: 16
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/logs/{{jobId}}
   body: json
   auth: inherit
 }

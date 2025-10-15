@@ -5,13 +5,13 @@ meta {
 }
 
 delete {
-  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/nginx?namespace=default
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/wordpress-test?namespace=wordpress-test
   body: json
   auth: inherit
 }
 
 params:query {
-  namespace: default
+  namespace: wordpress-test
 }
 
 body:json {

@@ -1,0 +1,37 @@
+meta {
+  name: 2_헬름 차트 설치
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts?namespace=wordpress-test&releaseName=wordpress-test&chartURL=oci://registry-1.docker.io/bitnamicharts/wordpress&version=27.0.10&values={"mariadb":{"auth":{"database":"wordpressdb","password":"WordPressPass123","rootPassword":"MyRootPass123","username":"wordpressuser"},"enabled":true},"persistence":{"enabled":true,"size":"1Gi"},"service":{"type":"NodePort","nodePorts":{"http":"32222","https":"32223"}},"wordpressEmail":"admin@example.com","wordpressPassword":"password","wordpressUsername":"admin"}
+  body: json
+  auth: inherit
+}
+
+params:query {
+  namespace: wordpress-test
+  releaseName: wordpress-test
+  chartURL: oci://registry-1.docker.io/bitnamicharts/wordpress
+  version: 27.0.10
+  values: {"mariadb":{"auth":{"database":"wordpressdb","password":"WordPressPass123","rootPassword":"MyRootPass123","username":"wordpressuser"},"enabled":true},"persistence":{"enabled":true,"size":"1Gi"},"service":{"type":"NodePort","nodePorts":{"http":"32222","https":"32223"}},"wordpressEmail":"admin@example.com","wordpressPassword":"password","wordpressUsername":"admin"}
+}
+
+body:json {
+  {
+    "kubeconfig": "{{base64_local_kubeconfig}}"
+  }
+}
+
+body:form-urlencoded {
+  : 
+}
+
+script:post-response {
+  bru.setEnvVar("jobId", res.body.data.job.jobId);
+}
+
+settings {
+  encodeUrl: true
+}

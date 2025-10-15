@@ -13,11 +13,20 @@ func main() {
 
 	// 1. MinIO 클라이언트 생성
 	fmt.Println("\n1. Creating MinIO client...")
-	client := minio.NewClient()
+	client, err := minio.NewClient()
+	if err != nil {
+		log.Printf("Failed to create MinIO client: %v", err)
+		fmt.Println("Cannot create MinIO client. Please check your configuration.")
+		fmt.Println("Environment variables to check:")
+		fmt.Println("  - MINIO_ENDPOINT (e.g., localhost:9000)")
+		fmt.Println("  - MINIO_ACCESS_KEY (e.g., minioadmin)")
+		fmt.Println("  - MINIO_SECRET_KEY (e.g., minioadmin)")
+		return
+	}
 	ctx := context.Background()
 
 	// 클라이언트 생성 후 간단한 테스트로 연결 확인
-	_, err := client.ListBuckets(ctx)
+	_, err = client.ListBuckets(ctx)
 	if err != nil {
 		log.Printf("MinIO client connection failed: %v", err)
 		fmt.Println("Cannot connect to MinIO server. Please check your configuration.")

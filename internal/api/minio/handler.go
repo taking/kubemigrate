@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/labstack/echo/v4"
 	"github.com/taking/kubemigrate/internal/handler"
@@ -30,6 +31,7 @@ func NewHandler(base *handler.BaseHandler) *Handler {
 // @Produce json
 // @Param request body config.MinioConfig true "MinIO configuration"
 // @Success 200 {object} response.SuccessResponse
+// @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /v1/minio/health [post]
 func (h *Handler) HealthCheck(c echo.Context) error {
@@ -37,8 +39,16 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 		ServiceName: "minio",
 		DefaultNS:   "", // MinIO는 네임스페이스가 없음
 		HealthFunc: func(client client.Client, ctx context.Context) error {
+			// MinIO 클라이언트가 초기화되었는지 확인
+			if client.Minio() == nil {
+				return fmt.Errorf("minio client not initialized - please check your configuration")
+			}
+
 			_, err := client.Minio().ListBuckets(ctx)
-			return err
+			if err != nil {
+				return fmt.Errorf("failed to connect to MinIO: %w", err)
+			}
+			return nil
 		},
 	})
 }

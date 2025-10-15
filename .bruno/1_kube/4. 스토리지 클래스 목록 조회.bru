@@ -1,0 +1,25 @@
+meta {
+  name: 4_스토리지 클래스 목록 조회
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/storage-classes
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "kubeconfig": "{{base64_local_kubeconfig}}"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("scName", res.body.data.items[0].metadata.name);
+}
+
+settings {
+  encodeUrl: true
+}

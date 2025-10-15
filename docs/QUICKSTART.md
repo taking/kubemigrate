@@ -36,6 +36,20 @@ docker build -t kubemigrate .
 docker run -p 9091:9091 kubemigrate
 ```
 
+### 4. Make 명령어 사용
+
+```bash
+# 개발 서버 실행 (Swagger 포함)
+make runWithSwagger
+
+# 프로덕션 빌드
+make build-compressed
+
+# Docker 빌드 및 실행
+make docker-build
+make docker-run
+```
+
 ## 환경 변수 설정
 
 ### 기본 설정
@@ -50,85 +64,117 @@ export IDLE_TIMEOUT=120s
 
 # 로깅 설정
 export LOG_LEVEL=info
-export LOG_FORMAT=pretty
+export LOG_FORMAT=json
+```
 
+### 고급 설정
+
+```bash
 # 타임아웃 설정
 export HEALTH_CHECK_TIMEOUT=5s
 export REQUEST_TIMEOUT=30s
+
+# 캐시 설정 (TTL 기반)
+export CACHE_TTL=30m
+export CACHE_CAPACITY=100
 ```
 
-### Kubernetes 설정
+## 첫 번째 API 호출
+
+### 1. 서버 상태 확인
 
 ```bash
-# KubeConfig 파일 경로 (선택사항)
-export KUBECONFIG=/path/to/kubeconfig
-
-# 또는 환경변수로 설정
-export KUBE_CONFIG_BASE64="base64-encoded-kubeconfig"
-```
-
-### MinIO 설정
-
-```bash
-export MINIO_ENDPOINT=localhost:9000
-export MINIO_ACCESS_KEY=minioadmin
-export MINIO_SECRET_KEY=minioadmin123
-export MINIO_USE_SSL=false
-```
-
-## 기본 사용법
-
-### 1. 서버 시작
-
-```bash
-# 기본 설정으로 시작
-./kubemigrate
-
-# 환경변수와 함께 시작
-SERVER_PORT=8080 LOG_LEVEL=debug ./kubemigrate
-```
-
-### 2. 헬스체크
-
-```bash
-# 서버 상태 확인
 curl http://localhost:9091/api/v1/health
-
-# 응답 예시
-{
-  "status": "healthy",
-  "message": "API server is running",
-  "timestamp": "2024-01-01T00:00:00Z"
-}
 ```
 
-### 3. Kubernetes 리소스 조회
+### 2. Kubernetes 클러스터 연결 확인
+
+```bash
+curl -X POST http://localhost:9091/api/v1/kubernetes/health \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kubeconfig": "base64_encoded_kubeconfig"
+  }'
+```
+
+### 3. MinIO 연결 확인
+
+```bash
+curl -X POST http://localhost:9091/api/v1/minio/health \
+  -H "Content-Type: application/json" \
+  -d '{
+    "endpoint": "localhost:9000",
+    "accessKey": "minioadmin",
+    "secretKey": "minioadmin123",
+    "useSSL": false
+  }'
+```
+
+### 4. Velero 연결 확인
+
+```bash
+curl -X POST http://localhost:9091/api/v1/velero/health \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kubeconfig": "base64_encoded_kubeconfig",
+    "minio": {
+      "endpoint": "localhost:9000",
+      "accessKey": "minioadmin",
+      "secretKey": "minioadmin123",
+      "useSSL": false
+    }
+  }'
+```
+
+## API 문서 확인
+
+### Swagger UI 접근
+
+- **로컬**: http://localhost:9091/docs
+- **온라인**: https://taking.github.io/kubemigrate/
+
+### Bruno 컬렉션 사용
+
+1. [Bruno](https://www.usebruno.com/) 설치
+2. `.bruno/` 폴더를 Bruno에서 열기
+3. 환경 변수 설정:
+   - `{{base_url}}`: http://localhost:9091
+   - `{{base64_local_kubeconfig}}`: base64 인코딩된 kubeconfig
+4. API 테스트 실행
+
+## 일반적인 사용 사례
+
+### 1. Kubernetes 리소스 조회
 
 ```bash
 # Pod 목록 조회
-curl -X GET "http://localhost:9091/api/v1/kubernetes/pods?namespace=default"
+curl -X GET "http://localhost:9091/api/v1/kubernetes/pods" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kubeconfig": "base64_encoded_kubeconfig",
+    "namespace": "default"
+  }'
 
 # 특정 Pod 조회
-curl -X GET "http://localhost:9091/api/v1/kubernetes/pods/my-pod?namespace=default"
-```
-
-### 4. Helm 차트 관리
-
-```bash
-# 차트 목록 조회
-curl -X GET "http://localhost:9091/api/v1/helm/charts"
-
-# 차트 설치
-curl -X POST "http://localhost:9091/api/v1/helm/charts?releaseName=nginx&chartURL=https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz&version=15.4.2&namespace=default" \
+curl -X GET "http://localhost:9091/api/v1/kubernetes/pods/my-pod" \
   -H "Content-Type: application/json" \
-  -d '{"kubeconfig": "base64-encoded-kubeconfig"}'
+  -d '{
+    "kubeconfig": "base64_encoded_kubeconfig"
+  }'
 ```
 
-### 5. MinIO 버킷 관리
+### 2. MinIO 버킷 관리
 
 ```bash
 # 버킷 목록 조회
-curl -X GET "http://localhost:9091/api/v1/minio/buckets"
+curl -X GET "http://localhost:9091/api/v1/minio/buckets" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "endpoint": "localhost:9000",
+    "accessKey": "minioadmin",
+    "secretKey": "minioadmin123",
+    "useSSL": false
+  }'
 
 # 버킷 생성
 curl -X POST "http://localhost:9091/api/v1/minio/buckets/my-bucket" \
@@ -141,114 +187,76 @@ curl -X POST "http://localhost:9091/api/v1/minio/buckets/my-bucket" \
   }'
 ```
 
-## 개발 환경 설정
-
-### 1. 로컬 개발
+### 3. Helm 차트 설치
 
 ```bash
-# 개발 모드로 실행 (디버그 로그 활성화)
-LOG_LEVEL=debug ./kubemigrate
-
-# 테스트 실행
-go test ./...
-
-# 특정 패키지 테스트
-go test ./internal/api/kubernetes
+# Helm 차트 설치 (비동기)
+curl -X POST "http://localhost:9091/api/v1/helm/charts" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kubeconfig": "base64_encoded_kubeconfig"
+  }' \
+  -G \
+  --data-urlencode "releaseName=nginx" \
+  --data-urlencode "chartURL=https://charts.bitnami.com/bitnami/nginx-15.4.2.tgz" \
+  --data-urlencode "version=15.4.2" \
+  --data-urlencode "namespace=default"
 ```
 
-### 2. 코드 포맷팅 및 린팅
+### 4. Velero 백업 관리
 
 ```bash
-# 코드 포맷팅
-go fmt ./...
+# Velero 설치 (비동기)
+curl -X POST "http://localhost:9091/api/v1/velero/install?namespace=velero&force=false" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kubeconfig": "base64_encoded_kubeconfig",
+    "minio": {
+      "endpoint": "localhost:9000",
+      "accessKey": "minioadmin",
+      "secretKey": "minioadmin123",
+      "useSSL": false
+    }
+  }'
 
-# 린팅
-golangci-lint run
-
-# 또는 Makefile 사용
-make lint
-make format
-```
-
-### 3. 빌드 및 배포
-
-```bash
-# 릴리스 빌드
-make build
-
-# Docker 이미지 빌드
-make docker-build
-
-# 모든 플랫폼용 빌드
-make build-all
+# 백업 목록 조회
+curl -X GET "http://localhost:9091/api/v1/velero/backups" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kubeconfig": "base64_encoded_kubeconfig"
+  }'
 ```
 
 ## 문제 해결
 
-### 1. 일반적인 문제
+### 일반적인 문제
 
-#### 연결 오류
-```
-Error: Kubernetes cluster unreachable
-```
-**해결방법**: KubeConfig가 올바른지 확인하고 클러스터에 접근 가능한지 확인
+1. **연결 실패**: kubeconfig가 올바른지 확인
+2. **인증 실패**: MinIO 자격 증명 확인
+3. **타임아웃**: 네트워크 연결 및 클러스터 상태 확인
 
-#### MinIO 연결 실패
-```
-Error: minio client not initialized
-```
-**해결방법**: MinIO 서버가 실행 중인지 확인하고 엔드포인트 설정 확인
-
-#### 메모리 사용량 높음
-```
-Warning: High memory usage detected
-```
-**해결방법**: 메모리 최적화 실행
-```bash
-curl -X POST http://localhost:9091/api/v1/memory/optimize
-```
-
-### 2. 로그 확인
+### 로그 확인
 
 ```bash
-# 디버그 로그 활성화
+# 서버 로그 확인
+tail -f logs/kubemigrate.log
+
+# 디버그 모드 실행
 LOG_LEVEL=debug ./kubemigrate
-
-# JSON 형식 로그
-LOG_FORMAT=json ./kubemigrate
 ```
 
-### 3. 성능 모니터링
+### 성능 모니터링
 
 ```bash
-# 메모리 통계 조회
-curl http://localhost:9091/api/v1/memory/stats
+# 캐시 통계 확인
+curl http://localhost:9091/api/v1/health
 
-# 캐시 통계 조회
-curl http://localhost:9091/api/v1/cache/stats
-
-# 메모리 사용률 조회
-curl http://localhost:9091/api/v1/memory/usage
+# 메모리 사용량 확인
+curl http://localhost:9091/api/v1/health | jq '.memory'
 ```
-
-## 고급 설정
-
-### 1. 커스텀 미들웨어
-
-미들웨어는 `internal/middleware/middleware.go`에서 설정할 수 있습니다.
-
-### 2. 캐시 설정
-
-LRU 캐시 설정은 `internal/constants/constants.go`에서 수정할 수 있습니다.
-
-### 3. 레이트 리미팅
-
-기본 설정:
-- 초당 100개 요청
-- 최대 50개 버스트
-- 1분 만료
 
 ## 다음 단계
 
-1. [API 문서](./API.md) 참조
-2. [개발 가이드](./DEVELOPMENT.md) 확인
+- [API 문서](API.md) - 모든 엔드포인트 상세 설명
+- [개발 가이드](DEVELOPMENT.md) - 개발 환경 설정
+- [예제 코드](../example/) - 실제 사용 예제들

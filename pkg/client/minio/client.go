@@ -39,6 +39,9 @@ type Client interface {
 	// Presigned URL
 	PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry int) (string, error)
 	PresignedPutObject(ctx context.Context, bucketName, objectName string, expiry int) (string, error)
+
+	// HealthCheck : MinIO 연결 확인
+	HealthCheck(ctx context.Context) error
 }
 
 // client MinIO 클라이언트 구현체
@@ -54,6 +57,16 @@ func NewClient() (Client, error) {
 
 // NewClientWithConfig 설정을 받아서 MinIO 클라이언트를 생성합니다
 func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
+	// 설정 검증
+	if cfg.Endpoint == "" {
+		return nil, fmt.Errorf("minio endpoint is required")
+	}
+	if cfg.AccessKey == "" {
+		return nil, fmt.Errorf("minio access key is required")
+	}
+	if cfg.SecretKey == "" {
+		return nil, fmt.Errorf("minio secret key is required")
+	}
 
 	// MinIO 클라이언트 초기화
 	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
@@ -61,11 +74,9 @@ func NewClientWithConfig(cfg config.MinioConfig) (Client, error) {
 		Secure: cfg.UseSSL,
 	})
 	if err != nil {
-		fmt.Printf("DEBUG: Failed to create MinIO client: %v\n", err)
-		return nil, fmt.Errorf("failed to create minio client: %w", err)
+		return nil, fmt.Errorf("failed to create minio client with endpoint '%s': %w", cfg.Endpoint, err)
 	}
 
-	fmt.Printf("DEBUG: MinIO client created successfully\n")
 	return &client{
 		minioClient: minioClient,
 	}, nil
@@ -253,4 +264,15 @@ func (c *client) PresignedPutObject(ctx context.Context, bucketName, objectName 
 	}
 
 	return url.String(), nil
+}
+
+// HealthCheck : MinIO 연결 확인
+func (c *client) HealthCheck(ctx context.Context) error {
+	if c.minioClient == nil {
+		return fmt.Errorf("minio client not initialized")
+	}
+
+	// 간단한 API 호출로 연결 상태 확인
+	_, err := c.minioClient.ListBuckets(ctx)
+	return err
 }

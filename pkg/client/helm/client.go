@@ -17,6 +17,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
@@ -35,6 +36,9 @@ type Client interface {
 	InstallChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error
 	UninstallChart(releaseName, namespace string, dryRun bool) error
 	UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error
+
+	// HealthCheck : Helm 연결 확인
+	HealthCheck(ctx context.Context) error
 }
 
 // helmClient : Helm 클라이언트
@@ -191,11 +195,11 @@ func (h *helmClient) IsChartInstalled(releaseName string) (bool, *release.Releas
 	return false, nil, nil
 }
 
-// InstallChart : Helm 차트를 URL에서 설치 (버전 지원)
+// InstallChart : Helm 차트를 URL에서 설치 (버전 지원, OCI 지원)
 func (h *helmClient) InstallChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
-	// chartURL이 URL인지 확인
-	if !strings.HasPrefix(chartURL, "http://") && !strings.HasPrefix(chartURL, "https://") {
-		return fmt.Errorf("chartURL must be a valid HTTP/HTTPS URL, got: %s", chartURL)
+	// chartURL이 URL인지 확인 (HTTP/HTTPS/OCI 지원)
+	if !strings.HasPrefix(chartURL, "http://") && !strings.HasPrefix(chartURL, "https://") && !strings.HasPrefix(chartURL, "oci://") {
+		return fmt.Errorf("chartURL must be a valid HTTP/HTTPS/OCI URL, got: %s", chartURL)
 	}
 
 	install := action.NewInstall(h.cfg)
@@ -234,8 +238,14 @@ func (h *helmClient) InstallChart(releaseName, chartURL, version, namespace stri
 	return nil
 }
 
-// loadChartFromURL : URL에서 차트를 다운로드하고 로드
+// loadChartFromURL : URL에서 차트를 다운로드하고 로드 (OCI 지원)
 func (h *helmClient) loadChartFromURL(chartURL, version string) (*chart.Chart, error) {
+	// OCI URL인 경우 별도 처리
+	if strings.HasPrefix(chartURL, "oci://") {
+		return h.loadChartFromOCI(chartURL, version)
+	}
+
+	// HTTP/HTTPS URL 처리
 	// 임시 디렉토리 생성
 	tmpDir, err := os.MkdirTemp("", "helm-chart-*")
 	if err != nil {
@@ -253,6 +263,60 @@ func (h *helmClient) loadChartFromURL(chartURL, version string) (*chart.Chart, e
 	chart, err := loader.Load(chartPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load downloaded chart: %w", err)
+	}
+
+	return chart, nil
+}
+
+// loadChartFromOCI : OCI 레지스트리에서 차트를 로드
+func (h *helmClient) loadChartFromOCI(chartURL, version string) (*chart.Chart, error) {
+	// 임시 디렉토리 생성
+	tmpDir, err := os.MkdirTemp("", "helm-oci-chart-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// 환경 설정 생성
+	settings := cli.New()
+
+	// OCI 차트 Pull 액션 생성 (WithConfig 옵션 사용)
+	pull := action.NewPullWithOpts(action.WithConfig(h.cfg))
+	pull.DestDir = tmpDir
+	pull.Version = version
+	pull.Settings = settings
+
+	// OCI URL에서 차트 다운로드
+	chartPath, err := pull.Run(chartURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull OCI chart from %s: %w", chartURL, err)
+	}
+
+	// chartPath가 비어있으면 tmpDir에서 다운로드된 파일 찾기
+	if chartPath == "" {
+		files, err := os.ReadDir(tmpDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read temp directory: %w", err)
+		}
+		if len(files) == 0 {
+			return nil, fmt.Errorf("no chart file downloaded in %s", tmpDir)
+		}
+		// 첫 번째 .tgz 파일 찾기
+		for _, file := range files {
+			if strings.HasSuffix(file.Name(), ".tgz") {
+				chartPath = filepath.Join(tmpDir, file.Name())
+				break
+			}
+		}
+		if chartPath == "" {
+			return nil, fmt.Errorf("no .tgz file found in %s", tmpDir)
+		}
+	}
+
+	// 차트 로드
+	chart, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load OCI chart from %s: %w", chartPath, err)
 	}
 
 	return chart, nil
@@ -341,17 +405,17 @@ func (h *helmClient) UninstallChart(releaseName, namespace string, dryRun bool) 
 	return nil
 }
 
-// UpgradeChart : Helm 차트 업그레이드
+// UpgradeChart : Helm 차트 업그레이드 (OCI 지원)
 func (h *helmClient) UpgradeChart(releaseName, chartURL, version, namespace string, values map[string]interface{}) error {
-	// chartURL이 URL인지 확인
-	if !strings.HasPrefix(chartURL, "http://") && !strings.HasPrefix(chartURL, "https://") {
-		return fmt.Errorf("chartURL must be a valid HTTP/HTTPS URL, got: %s", chartURL)
+	// chartURL이 URL인지 확인 (HTTP/HTTPS/OCI 지원)
+	if !strings.HasPrefix(chartURL, "http://") && !strings.HasPrefix(chartURL, "https://") && !strings.HasPrefix(chartURL, "oci://") {
+		return fmt.Errorf("chartURL must be a valid HTTP/HTTPS/OCI URL, got: %s", chartURL)
 	}
 
 	upgrade := action.NewUpgrade(h.cfg)
 	upgrade.Namespace = namespace
 
-	// URL에서 차트 다운로드 및 로드
+	// URL에서 차트 다운로드 및 로드 (OCI 지원)
 	chart, err := h.loadChartFromURL(chartURL, version)
 	if err != nil {
 		return fmt.Errorf("failed to load chart from URL: %w", err)

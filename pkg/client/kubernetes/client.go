@@ -41,6 +41,7 @@ import (
 	"github.com/taking/kubemigrate/internal/validator"
 	"github.com/taking/kubemigrate/pkg/config"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -90,6 +91,9 @@ type Client interface {
 
 	// Secret 생성
 	CreateSecret(ctx context.Context, namespace, name string, data map[string]string) (*v1.Secret, error)
+
+	// HealthCheck : Kubernetes 연결 확인
+	HealthCheck(ctx context.Context) error
 }
 
 // client Kubernetes 클라이언트 구현체
@@ -174,6 +178,48 @@ func NewClientWithConfig(cfg config.KubeConfig) (Client, error) {
 	}, nil
 }
 
+// stripManagedFieldsFromList : 리소스 목록에서 managedFields 제거
+func stripManagedFieldsFromList(items interface{}) {
+	switch list := items.(type) {
+	case *v1.PodList:
+		for i := range list.Items {
+			list.Items[i].SetManagedFields(nil)
+		}
+	case *v1.ConfigMapList:
+		for i := range list.Items {
+			list.Items[i].SetManagedFields(nil)
+		}
+	case *v1.SecretList:
+		for i := range list.Items {
+			list.Items[i].SetManagedFields(nil)
+		}
+	case *v1.NamespaceList:
+		for i := range list.Items {
+			list.Items[i].SetManagedFields(nil)
+		}
+	case *storagev1.StorageClassList:
+		for i := range list.Items {
+			list.Items[i].SetManagedFields(nil)
+		}
+	}
+}
+
+// stripManagedFieldsFromSingle : 단일 리소스에서 managedFields 제거
+func stripManagedFieldsFromSingle(obj interface{}) {
+	switch resource := obj.(type) {
+	case *v1.Pod:
+		resource.SetManagedFields(nil)
+	case *v1.ConfigMap:
+		resource.SetManagedFields(nil)
+	case *v1.Secret:
+		resource.SetManagedFields(nil)
+	case *v1.Namespace:
+		resource.SetManagedFields(nil)
+	case *storagev1.StorageClass:
+		resource.SetManagedFields(nil)
+	}
+}
+
 // GetPods : Pod를 조회합니다
 // name이 빈 문자열("")이면 목록을 조회하고, 있으면 단일 Pod를 조회합니다
 // namespace가 빈 문자열("")이면 모든 네임스페이스의 Pod를 조회합니다
@@ -192,10 +238,21 @@ func (c *client) GetPods(ctx context.Context, namespace, name string) (interface
 			return pods.Items[j].CreationTimestamp.Before(&pods.Items[i].CreationTimestamp)
 		})
 
+		// managedFields 제거
+		stripManagedFieldsFromList(pods)
+
 		return pods, nil
 	} else {
 		// 단일 조회
-		return c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+		pod, err := c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		// managedFields 제거
+		stripManagedFieldsFromSingle(pod)
+
+		return pod, nil
 	}
 }
 
@@ -214,10 +271,22 @@ func (c *client) GetStorageClasses(ctx context.Context, name string) (interface{
 		sort.Slice(storageClasses.Items, func(i, j int) bool {
 			return storageClasses.Items[j].CreationTimestamp.Before(&storageClasses.Items[i].CreationTimestamp)
 		})
+
+		// managedFields 제거
+		stripManagedFieldsFromList(storageClasses)
+
 		return storageClasses, nil
 	} else {
 		// 단일 조회
-		return c.clientset.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
+		storageClass, err := c.clientset.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		// managedFields 제거
+		stripManagedFieldsFromSingle(storageClass)
+
+		return storageClass, nil
 	}
 }
 
@@ -233,10 +302,22 @@ func (c *client) GetNamespaces(ctx context.Context, name string) (interface{}, e
 		sort.Slice(namespaces.Items, func(i, j int) bool {
 			return namespaces.Items[j].CreationTimestamp.Before(&namespaces.Items[i].CreationTimestamp)
 		})
+
+		// managedFields 제거
+		stripManagedFieldsFromList(namespaces)
+
 		return namespaces, nil
 	} else {
 		// 단일 조회
-		return c.clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+		namespace, err := c.clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		// managedFields 제거
+		stripManagedFieldsFromSingle(namespace)
+
+		return namespace, nil
 	}
 }
 
@@ -256,10 +337,22 @@ func (c *client) GetConfigMaps(ctx context.Context, namespace, name string) (int
 		sort.Slice(configMaps.Items, func(i, j int) bool {
 			return configMaps.Items[j].CreationTimestamp.Before(&configMaps.Items[i].CreationTimestamp)
 		})
+
+		// managedFields 제거
+		stripManagedFieldsFromList(configMaps)
+
 		return configMaps, nil
 	} else {
 		// 단일 조회
-		return c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+		configMap, err := c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		// managedFields 제거
+		stripManagedFieldsFromSingle(configMap)
+
+		return configMap, nil
 	}
 }
 
@@ -279,10 +372,22 @@ func (c *client) GetSecrets(ctx context.Context, namespace, name string) (interf
 		sort.Slice(secrets.Items, func(i, j int) bool {
 			return secrets.Items[j].CreationTimestamp.Before(&secrets.Items[i].CreationTimestamp)
 		})
+
+		// managedFields 제거
+		stripManagedFieldsFromList(secrets)
+
 		return secrets, nil
 	} else {
 		// 단일 조회
-		return c.clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+		secret, err := c.clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		// managedFields 제거
+		stripManagedFieldsFromSingle(secret)
+
+		return secret, nil
 	}
 }
 
@@ -323,4 +428,11 @@ func (c *client) DeleteNamespace(ctx context.Context, name string) error {
 // DeleteSecret : Secret 삭제
 func (c *client) DeleteSecret(ctx context.Context, namespace, name string) error {
 	return c.clientset.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// HealthCheck : Kubernetes 연결 확인
+func (c *client) HealthCheck(ctx context.Context) error {
+	// 간단한 API 호출로 연결 상태 확인
+	_, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 1})
+	return err
 }

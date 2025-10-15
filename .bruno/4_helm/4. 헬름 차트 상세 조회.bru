@@ -1,17 +1,18 @@
 meta {
-  name: 2_파드 목록 조회
+  name: 4_헬름 차트 상세 조회
   type: http
-  seq: 2
+  seq: 4
 }
 
 get {
-  url: {{host_ip}}:{{host_port}}/api/v1/kubernetes/pods?namespace=default
+  url: {{host_ip}}:{{host_port}}/api/v1/helm/charts/wordpress-test?namespace=default&version=0
   body: json
   auth: inherit
 }
 
 params:query {
   namespace: default
+  version: 0
 }
 
 body:json {

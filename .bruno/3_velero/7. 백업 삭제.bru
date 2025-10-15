@@ -1,11 +1,11 @@
 meta {
-  name: 4_복구 목록 조회
+  name: 7_백업 삭제
   type: http
-  seq: 4
+  seq: 7
 }
 
-get {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/restores
+delete {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups/{{backupName}}
   body: json
   auth: inherit
 }

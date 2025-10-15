@@ -1,0 +1,29 @@
+meta {
+  name: 6_백업 상세 조회
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/backups/{{backupName}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "kubeconfig": {
+      "kubeconfig": "{{base64_local_kubeconfig}}"
+    },
+    "minio": {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}

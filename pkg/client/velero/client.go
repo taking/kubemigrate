@@ -45,6 +45,9 @@ type Client interface {
 	// PodVolumeRestore 관련
 	GetPodVolumeRestores(ctx context.Context, namespace string) ([]velerov1.PodVolumeRestore, error)
 	GetPodVolumeRestore(ctx context.Context, namespace, name string) (*velerov1.PodVolumeRestore, error)
+
+	// HealthCheck : Velero 연결 확인
+	HealthCheck(ctx context.Context) error
 }
 
 // client Velero 클라이언트 구현체
@@ -290,4 +293,11 @@ func (c *client) DeleteBackupStorageLocation(ctx context.Context, namespace, nam
 	bsl.Name = name
 	bsl.Namespace = namespace
 	return c.k8sClient.Delete(ctx, bsl)
+}
+
+// HealthCheck : Velero 연결 확인
+func (c *client) HealthCheck(ctx context.Context) error {
+	// 간단한 API 호출로 Velero 연결 상태 확인
+	_, err := c.GetBackups(ctx, "velero")
+	return err
 }

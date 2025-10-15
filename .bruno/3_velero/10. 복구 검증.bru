@@ -1,0 +1,29 @@
+meta {
+  name: 10_복구 검증
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/restores/{{restoreName}}/validate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "kubeconfig": {
+      "kubeconfig": "{{base64_local_kubeconfig}}"
+    },
+    "minio": {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
