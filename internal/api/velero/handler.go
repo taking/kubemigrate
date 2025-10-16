@@ -254,21 +254,73 @@ func (h *Handler) ValidateRestore(c echo.Context) error {
 		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Restore name is required", "")
 	}
 
-	var req config.KubeConfig
-	if err := c.Bind(&req); err != nil {
-		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST_BODY", "Invalid request body format", err.Error())
+	return h.HandleResourceClient(c, "velero-restore-validation", func(client client.Client, ctx context.Context) (interface{}, error) {
+		namespace := h.ResolveNamespace(c, "velero")
+		return h.service.ValidateRestoreInternal(client, ctx, namespace, restoreName)
+	})
+}
+
+// DeleteRestore : Velero 복원 삭제
+// @Summary Delete Velero Restore
+// @Description Delete a specific Velero restore
+// @Tags velero
+// @Accept json
+// @Produce json
+// @Param request body types.DeleteRestoreRequest true "Delete restore request with kubeconfig and minio config"
+// @Param restoreName path string true "Restore name"
+// @Param namespace query string false "Namespace name (default: 'velero')"
+// @Success 200 {object} map[string]interface{} "Restore deletion result"
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/velero/restores/{restoreName} [delete]
+func (h *Handler) DeleteRestore(c echo.Context) error {
+	// 복원 이름 파라미터 추출
+	restoreName := c.Param("restoreName")
+	if restoreName == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "restoreName is required", "")
 	}
+
+	// 삭제 요청 바인딩
+	var deleteReq types.DeleteRestoreRequest
+	if err := c.Bind(&deleteReq); err != nil {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Invalid request body format", "")
+	}
+
+	// 필수 필드 검증
+	if deleteReq.KubeConfig.KubeConfig == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "kubeconfig is required", "")
+	}
+	if deleteReq.MinioConfig.Endpoint == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio endpoint is required", "")
+	}
+	if deleteReq.MinioConfig.AccessKey == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio accessKey is required", "")
+	}
+	if deleteReq.MinioConfig.SecretKey == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio secretKey is required", "")
+	}
+
+	// 컨텍스트 생성
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Minute)
+	defer cancel()
 
 	// 클라이언트 생성
-	client, err := client.NewClientWithConfig(req, "", "", "")
+	unifiedClient, err := client.NewClientWithConfig(
+		&deleteReq.KubeConfig,
+		&deleteReq.KubeConfig,
+		nil,
+		&deleteReq.MinioConfig,
+	)
 	if err != nil {
-		return response.RespondWithErrorModel(c, 500, "CLIENT_CREATION_FAILED", "Failed to create client", err.Error())
+		return h.HandleConnectionError(c, "velero", "client creation", err)
 	}
 
-	// 복원 검증
-	result, err := h.service.ValidateRestoreInternal(client, context.Background(), h.ResolveNamespace(c, "velero"), restoreName)
+	// 복원 삭제 실행 (MinIO 설정 포함)
+	namespace := h.ResolveNamespace(c, "velero")
+	result, err := h.service.DeleteRestoreInternal(unifiedClient, ctx, restoreName, namespace, &deleteReq.MinioConfig)
 	if err != nil {
-		return response.RespondWithErrorModel(c, 500, "RESTORE_VALIDATION_FAILED", "Failed to validate restore", err.Error())
+		return h.HandleInternalError(c, "velero", "restore deletion", err)
 	}
 
 	return response.RespondWithData(c, 200, result)
@@ -525,7 +577,7 @@ func (h *Handler) ValidateBackup(c echo.Context) error {
 // @Tags velero
 // @Accept json
 // @Produce json
-// @Param request body config.KubeConfig true "Kubernetes configuration"
+// @Param request body types.DeleteBackupRequest true "Delete backup request with kubeconfig and minio config"
 // @Param backupName path string true "Backup name"
 // @Param namespace query string false "Namespace name (default: 'velero')"
 // @Success 200 {object} map[string]interface{} "Backup deletion result"
@@ -540,8 +592,47 @@ func (h *Handler) DeleteBackup(c echo.Context) error {
 		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "backupName is required", "")
 	}
 
-	return h.HandleResourceClient(c, "velero-backup-deletion", func(client client.Client, ctx context.Context) (interface{}, error) {
-		namespace := h.ResolveNamespace(c, "velero")
-		return h.service.DeleteBackupInternal(client, ctx, backupName, namespace)
-	})
+	// 삭제 요청 바인딩
+	var deleteReq types.DeleteBackupRequest
+	if err := c.Bind(&deleteReq); err != nil {
+		return response.RespondWithErrorModel(c, 400, "INVALID_REQUEST", "Invalid request body format", "")
+	}
+
+	// 필수 필드 검증
+	if deleteReq.KubeConfig.KubeConfig == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "kubeconfig is required", "")
+	}
+	if deleteReq.MinioConfig.Endpoint == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio endpoint is required", "")
+	}
+	if deleteReq.MinioConfig.AccessKey == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio accessKey is required", "")
+	}
+	if deleteReq.MinioConfig.SecretKey == "" {
+		return response.RespondWithErrorModel(c, 400, "MISSING_PARAMETER", "minio secretKey is required", "")
+	}
+
+	// 컨텍스트 생성
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Minute)
+	defer cancel()
+
+	// 클라이언트 생성
+	unifiedClient, err := client.NewClientWithConfig(
+		&deleteReq.KubeConfig,
+		&deleteReq.KubeConfig,
+		nil,
+		&deleteReq.MinioConfig,
+	)
+	if err != nil {
+		return h.HandleConnectionError(c, "velero", "client creation", err)
+	}
+
+	// 백업 삭제 실행 (MinIO 설정 포함)
+	namespace := h.ResolveNamespace(c, "velero")
+	result, err := h.service.DeleteBackupInternal(unifiedClient, ctx, backupName, namespace, &deleteReq.MinioConfig)
+	if err != nil {
+		return h.HandleInternalError(c, "velero", "backup deletion", err)
+	}
+
+	return response.RespondWithData(c, 200, result)
 }

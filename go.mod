@@ -8,7 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/swaggo/swag v1.16.6
-	github.com/vmware-tanzu/velero v1.17.0
+	github.com/vmware-tanzu/velero v1.17.0 // renovate: ignore - pinned to v1.17.0 for stability
 	helm.sh/helm/v3 v3.19.0
 	k8s.io/api v0.34.1
 	k8s.io/apiextensions-apiserver v0.34.1
@@ -17,6 +17,9 @@ require (
 	k8s.io/client-go v0.34.1
 	sigs.k8s.io/controller-runtime v0.22.3
 )
+
+// Pin Velero to v1.17.0 for stability - do not auto-update
+replace github.com/vmware-tanzu/velero => github.com/vmware-tanzu/velero v1.17.0
 
 require (
 	dario.cat/mergo v1.0.1 // indirect

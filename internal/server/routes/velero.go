@@ -28,6 +28,7 @@ func SetupVeleroRoutes(e *echo.Echo, veleroHandler *velero.Handler) {
 	veleroGroup.GET("/restores", veleroHandler.GetRestores)
 	veleroGroup.GET("/restores/:restoreName", veleroHandler.GetRestore)
 	veleroGroup.POST("/restores", veleroHandler.CreateRestore)
+	veleroGroup.DELETE("/restores/:restoreName", veleroHandler.DeleteRestore)
 	veleroGroup.POST("/restores/:restoreName/validate", veleroHandler.ValidateRestore)
 
 	// Velero 리소스 조회 라우트

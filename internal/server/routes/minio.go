@@ -31,4 +31,8 @@ func SetupMinioRoutes(e *echo.Echo, minioHandler *minio.Handler) {
 	// Presigned URL 라우트
 	minioGroup.GET("/buckets/:bucket/objects/:object/presigned-get", minioHandler.PresignedGetObject) // Presigned GET URL 생성
 	minioGroup.PUT("/buckets/:bucket/objects/:object/presigned-put", minioHandler.PresignedPutObject) // Presigned PUT URL 생성
+
+	// 폴더 관리 라우트
+	minioGroup.GET("/buckets/:bucket/folders/*", minioHandler.ListObjectsInFolder) // 폴더 내 객체 목록 조회
+	minioGroup.DELETE("/buckets/:bucket/folders/*", minioHandler.DeleteFolder)     // 폴더 삭제
 }

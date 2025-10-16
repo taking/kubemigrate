@@ -187,19 +187,20 @@ type (
 
 	// BackupRequest : 백업 생성 요청 구조체
 	BackupRequest struct {
-		Name                    string            `json:"name" binding:"required" example:"my-backup-2024-01-15"`
-		Namespace               string            `json:"namespace,omitempty" example:"default"`
-		IncludeNamespaces       []string          `json:"includeNamespaces,omitempty" example:"default,kube-system"`
-		ExcludeNamespaces       []string          `json:"excludeNamespaces,omitempty" example:"kube-public"`
-		IncludeResources        []string          `json:"includeResources,omitempty" example:"pods,services,configmaps"`
-		ExcludeResources        []string          `json:"excludeResources,omitempty" example:"events"`
-		LabelSelector           map[string]string `json:"labelSelector,omitempty" example:"app=myapp"`
-		StorageLocation         string            `json:"storageLocation,omitempty" example:"default"`
-		VolumeSnapshotLocations []string          `json:"volumeSnapshotLocations,omitempty" example:"default"`
-		TTL                     string            `json:"ttl,omitempty" example:"720h0m0s"`
-		IncludeClusterResources *bool             `json:"includeClusterResources,omitempty" example:"true"`
-		Hooks                   *BackupHooks      `json:"hooks,omitempty"`
-		Metadata                map[string]string `json:"metadata,omitempty"`
+		Name                     string            `json:"name" binding:"required" example:"my-backup-2024-01-15"`
+		Namespace                string            `json:"namespace,omitempty" example:"default"`
+		IncludeNamespaces        []string          `json:"includeNamespaces,omitempty" example:"default,kube-system"`
+		ExcludeNamespaces        []string          `json:"excludeNamespaces,omitempty" example:"kube-public"`
+		IncludeResources         []string          `json:"includeResources,omitempty" example:"pods,services,configmaps"`
+		ExcludeResources         []string          `json:"excludeResources,omitempty" example:"events"`
+		LabelSelector            map[string]string `json:"labelSelector,omitempty" example:"app=myapp"`
+		StorageLocation          string            `json:"storageLocation,omitempty" example:"default"`
+		VolumeSnapshotLocations  []string          `json:"volumeSnapshotLocations,omitempty" example:"default"`
+		TTL                      string            `json:"ttl,omitempty" example:"720h0m0s"`
+		IncludeClusterResources  *bool             `json:"includeClusterResources,omitempty" example:"true"`
+		DefaultVolumesToFsBackup *bool             `json:"defaultVolumesToFsBackup,omitempty" example:"false"`
+		Hooks                    *BackupHooks      `json:"hooks,omitempty"`
+		Metadata                 map[string]string `json:"metadata,omitempty"`
 	}
 
 	// CreateBackupRequest : 백업 생성 전체 요청 구조체 (kubeconfig, minio 포함)
@@ -209,20 +210,34 @@ type (
 		Backup      BackupRequest      `json:"backup" binding:"required"`
 	}
 
+	// DeleteBackupRequest : 백업 삭제 전체 요청 구조체 (kubeconfig, minio 포함)
+	DeleteBackupRequest struct {
+		KubeConfig  config.KubeConfig  `json:"kubeconfig" binding:"required"`
+		MinioConfig config.MinioConfig `json:"minio" binding:"required"`
+	}
+
+	// DeleteRestoreRequest : 복원 삭제 전체 요청 구조체 (kubeconfig, minio 포함)
+	DeleteRestoreRequest struct {
+		KubeConfig  config.KubeConfig  `json:"kubeconfig" binding:"required"`
+		MinioConfig config.MinioConfig `json:"minio" binding:"required"`
+	}
+
 	// RestoreRequest : 복원 생성 요청 구조체
 	RestoreRequest struct {
 		Name                    string            `json:"name" binding:"required" example:"my-restore-2024-01-15"`
 		BackupName              string            `json:"backupName" binding:"required" example:"my-backup-2024-01-15"`
 		Namespace               string            `json:"namespace,omitempty" example:"default"`
-		IncludeNamespaces       []string          `json:"includeNamespaces,omitempty" example:"default,kube-system"`
+		IncludeNamespaces       []string          `json:"includeNamespaces" binding:"required" example:"default,kube-system"`
 		ExcludeNamespaces       []string          `json:"excludeNamespaces,omitempty" example:"kube-public"`
 		IncludeResources        []string          `json:"includeResources,omitempty" example:"pods,services,configmaps"`
 		ExcludeResources        []string          `json:"excludeResources,omitempty" example:"events"`
 		LabelSelector           map[string]string `json:"labelSelector,omitempty" example:"app=myapp"`
 		StorageLocation         string            `json:"storageLocation,omitempty" example:"default"`
 		VolumeSnapshotLocations []string          `json:"volumeSnapshotLocations,omitempty" example:"default"`
-		IncludeClusterResources *bool             `json:"includeClusterResources,omitempty" example:"true"`
-		RestorePVs              *bool             `json:"restorePVs,omitempty" example:"true"`
+		IncludeClusterResources bool              `json:"includeClusterResources" binding:"required" example:"true"`
+		RestorePVs              bool              `json:"restorePVs" binding:"required" example:"true"`
+		StorageClassMappings    map[string]string `json:"storageClassMappings,omitempty" example:"original-sc:new-sc"`
+		NamespaceMappings       map[string]string `json:"namespaceMappings,omitempty" example:"old-ns:new-ns"`
 		Hooks                   *RestoreHooks     `json:"hooks,omitempty"`
 		Metadata                map[string]string `json:"metadata,omitempty"`
 	}

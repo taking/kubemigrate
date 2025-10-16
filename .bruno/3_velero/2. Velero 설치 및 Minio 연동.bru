@@ -5,14 +5,14 @@ meta {
 }
 
 post {
-  url: {{host_ip}}:{{host_port}}/api/v1/velero/install?namespace=velero&force=false
+  url: {{host_ip}}:{{host_port}}/api/v1/velero/install?namespace=velero&force=true
   body: json
   auth: inherit
 }
 
 params:query {
   namespace: velero
-  force: false
+  force: true
 }
 
 body:json {

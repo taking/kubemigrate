@@ -168,7 +168,12 @@ func (v *VeleroInstaller) executeForceReinstall(ctx context.Context, client clie
 	fmt.Printf("Starting force cleanup (continuing on errors)...\n")
 	v.performCompleteCleanupWithForce(ctx, client, config.Namespace)
 
-	// 2. Fresh 설치
+	// 2. 정리 완료 후 잠시 대기 (Kubernetes API 안정화)
+	fmt.Printf("Waiting for cleanup to stabilize...\n")
+	time.Sleep(5 * time.Second)
+	fmt.Printf("Cleanup stabilization completed\n")
+
+	// 3. Fresh 설치
 	fmt.Printf("Starting fresh installation...\n")
 	return v.executeFreshInstall(ctx, client, config, result)
 }
@@ -182,6 +187,10 @@ func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client
 		fmt.Printf("    Error: Failed to ensure namespace: %v\n", err)
 	} else {
 		fmt.Printf("    ✓ Namespace ensured successfully\n")
+		// 네임스페이스 생성 후 안정화를 위한 대기
+		fmt.Printf("  - Waiting for namespace to be ready...\n")
+		time.Sleep(3 * time.Second)
+		fmt.Printf("    ✓ Namespace is ready\n")
 	}
 
 	// 2. MinIO Secret 생성
@@ -194,6 +203,12 @@ func (v *VeleroInstaller) executeFreshInstall(ctx context.Context, client client
 
 	// 3. Velero 설치
 	fmt.Printf("  - Installing Velero...\n")
+	// Helm 설치 전 네임스페이스 존재 재확인
+	if err := v.verifyNamespaceExists(ctx, client, config.Namespace); err != nil {
+		fmt.Printf("    Error: Namespace verification failed: %v\n", err)
+		return fmt.Errorf("namespace verification failed: %w", err)
+	}
+
 	if err := v.installVeleroViaHelmWithRetry(ctx, client, config.Namespace, config.MinioConfig); err != nil {
 		fmt.Printf("    Error: Failed to install velero: %v\n", err)
 		// Velero 설치 실패 시 더 이상 진행할 수 없음
@@ -346,14 +361,14 @@ region=minio
 
 // installVeleroViaHelm : Helm을 통한 Velero 설치
 func (v *VeleroInstaller) installVeleroViaHelm(ctx context.Context, client client.Client, namespace string, minioConfig config.MinioConfig) error {
-	chartURL := "https://github.com/vmware-tanzu/helm-charts/releases/download/velero-10.1.2/velero-10.1.2.tgz"
+	chartURL := "https://github.com/vmware-tanzu/helm-charts/releases/download/velero-11.1.0/velero-11.1.0.tgz"
 	releaseName := "velero"
-	version := "10.1.2"
+	version := "11.1.0"
 
 	values := map[string]interface{}{
 		"image": map[string]interface{}{
 			"repository": "docker.io/velero/velero",
-			"tag":        "v1.16.2",
+			"tag":        "v1.17.0",
 		},
 		"kubectl": map[string]interface{}{
 			"image": map[string]interface{}{
@@ -364,6 +379,9 @@ func (v *VeleroInstaller) installVeleroViaHelm(ctx context.Context, client clien
 			"useSecret":      true,
 			"existingSecret": "cloud-credentials",
 		},
+		"features":                 "EnableCSI",
+		"deployNodeAgent":          true,
+		"defaultVolumesToFsBackup": true,
 		"configuration": map[string]interface{}{
 			"backupStorageLocation": []interface{}{
 				map[string]interface{}{
@@ -398,7 +416,7 @@ func (v *VeleroInstaller) installVeleroViaHelm(ctx context.Context, client clien
 		"initContainers": []interface{}{
 			map[string]interface{}{
 				"name":            "velero-plugin-for-aws",
-				"image":           "docker.io/velero/velero-plugin-for-aws:v1.12.2",
+				"image":           "docker.io/velero/velero-plugin-for-aws:v1.13.0",
 				"imagePullPolicy": "IfNotPresent",
 				"volumeMounts": []interface{}{
 					map[string]interface{}{
@@ -560,6 +578,17 @@ func (v *VeleroInstaller) deleteNamespace(ctx context.Context, client client.Cli
 
 	fmt.Printf("Successfully deleted namespace: %s\n", namespace)
 	return nil
+}
+
+// verifyNamespaceExists : 네임스페이스 존재 확인 (재시도 포함)
+func (v *VeleroInstaller) verifyNamespaceExists(ctx context.Context, client client.Client, namespace string) error {
+	return v.retryOperation(func() error {
+		_, err := client.Kubernetes().GetNamespaces(ctx, namespace)
+		if err != nil {
+			return fmt.Errorf("namespace '%s' does not exist: %w", namespace, err)
+		}
+		return nil
+	}, 5, 2*time.Second)
 }
 
 // retryOperation : 재시도 로직을 포함한 작업 실행

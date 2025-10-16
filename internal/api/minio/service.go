@@ -224,3 +224,54 @@ func (s *Service) PresignedPutObjectInternal(client client.Client, ctx context.C
 		"status": "generated",
 	}, nil
 }
+
+// DeleteFolderInternal : MinIO에서 폴더와 그 안의 모든 객체를 삭제합니다 (내부 로직)
+func (s *Service) DeleteFolderInternal(client client.Client, ctx context.Context, bucketName, folderPath string) (interface{}, error) {
+	// 폴더 경로 정규화 (끝에 / 추가)
+	if folderPath != "" && folderPath[len(folderPath)-1] != '/' {
+		folderPath += "/"
+	}
+
+	// MinIO에서 폴더 삭제
+	err := client.Minio().DeleteFolder(ctx, bucketName, folderPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete folder %s in bucket %s: %w", folderPath, bucketName, err)
+	}
+
+	return map[string]interface{}{
+		"bucket":     bucketName,
+		"folderPath": folderPath,
+		"status":     "deleted",
+		"message":    fmt.Sprintf("Successfully deleted folder %s from bucket %s", folderPath, bucketName),
+	}, nil
+}
+
+// ListObjectsInFolderInternal : 폴더 내 객체 목록을 조회합니다 (내부 로직)
+func (s *Service) ListObjectsInFolderInternal(client client.Client, ctx context.Context, bucketName, folderPath string) (interface{}, error) {
+	// 폴더 경로 정규화 (끝에 / 추가)
+	if folderPath != "" && folderPath[len(folderPath)-1] != '/' {
+		folderPath += "/"
+	}
+
+	// MinIO에서 폴더 내 객체 목록 조회
+	objects, err := client.Minio().ListObjectsInFolder(ctx, bucketName, folderPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list objects in folder %s in bucket %s: %w", folderPath, bucketName, err)
+	}
+
+	// objects를 []interface{}로 변환
+	var objectList []interface{}
+	if objectsSlice, ok := objects.([]interface{}); ok {
+		objectList = objectsSlice
+	} else {
+		// 다른 타입인 경우 빈 슬라이스로 처리
+		objectList = []interface{}{}
+	}
+
+	return map[string]interface{}{
+		"bucket":     bucketName,
+		"folderPath": folderPath,
+		"objects":    objects,
+		"count":      len(objectList),
+	}, nil
+}
