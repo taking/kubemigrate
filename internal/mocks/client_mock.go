@@ -15,6 +15,7 @@ import (
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"helm.sh/helm/v3/pkg/release"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -118,7 +119,15 @@ func (m *MockKubernetesClient) CreateNamespace(ctx context.Context, namespace *v
 	return namespace, nil
 }
 
+func (m *MockKubernetesClient) CreateConfigMap(ctx context.Context, configMap *v1.ConfigMap) error {
+	return nil
+}
+
 func (m *MockKubernetesClient) DeleteSecret(ctx context.Context, namespace, name string) error {
+	return nil
+}
+
+func (m *MockKubernetesClient) DeleteConfigMap(ctx context.Context, namespace, name string) error {
 	return nil
 }
 
@@ -231,8 +240,79 @@ func (m *MockKubernetesClient) GetResource(ctx context.Context, resourceType, na
 	}, nil
 }
 
+func (m *MockKubernetesClient) GetPVCs(ctx context.Context, namespace, name string) (interface{}, error) {
+	if name == "" {
+		// 목록 조회
+		return &v1.PersistentVolumeClaimList{
+			Items: []v1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-pvc", Namespace: namespace},
+					Spec: v1.PersistentVolumeClaimSpec{
+						StorageClassName: stringPtr("local-path"),
+					},
+				},
+			},
+		}, nil
+	} else {
+		// 단일 조회
+		return &v1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			Spec: v1.PersistentVolumeClaimSpec{
+				StorageClassName: stringPtr("local-path"),
+			},
+		}, nil
+	}
+}
+
+func (m *MockKubernetesClient) PatchPVC(ctx context.Context, namespace, name string, patchData map[string]interface{}) (*v1.PersistentVolumeClaim, error) {
+	return &v1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: v1.PersistentVolumeClaimSpec{
+			StorageClassName: stringPtr("hostpath"),
+		},
+		Status: v1.PersistentVolumeClaimStatus{
+			Phase: v1.ClaimBound,
+		},
+	}, nil
+}
+
+func (m *MockKubernetesClient) DeletePVC(ctx context.Context, namespace, name string) error {
+	return nil
+}
+
+func (m *MockKubernetesClient) CreatePVC(ctx context.Context, pvc *v1.PersistentVolumeClaim) (*v1.PersistentVolumeClaim, error) {
+	return &v1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pvc.Name,
+			Namespace: pvc.Namespace,
+			Labels:    pvc.Labels,
+		},
+		Spec: v1.PersistentVolumeClaimSpec{
+			AccessModes:      pvc.Spec.AccessModes,
+			Resources:        pvc.Spec.Resources,
+			StorageClassName: pvc.Spec.StorageClassName,
+			VolumeMode:       pvc.Spec.VolumeMode,
+		},
+		Status: v1.PersistentVolumeClaimStatus{
+			Phase: v1.ClaimBound,
+		},
+	}, nil
+}
+
+func (m *MockKubernetesClient) GetCSIDrivers(ctx context.Context) (interface{}, error) {
+	// Mock implementation - return empty CSI driver list
+	return &storagev1.CSIDriverList{
+		Items: []storagev1.CSIDriver{},
+	}, nil
+}
+
 func (m *MockKubernetesClient) HealthCheck(ctx context.Context) error {
 	return nil
+}
+
+// stringPtr : 문자열 포인터 생성 헬퍼 함수
+func stringPtr(s string) *string {
+	return &s
 }
 
 // MockHelmClient : Mock Helm 클라이언트
@@ -368,6 +448,16 @@ func (m *MockMinioClient) PresignedPutObject(ctx context.Context, bucketName, ob
 
 func (m *MockMinioClient) HealthCheck(ctx context.Context) error {
 	return nil
+}
+
+func (m *MockMinioClient) DeleteFolder(ctx context.Context, bucketName, folderPath string) error {
+	return nil
+}
+
+func (m *MockMinioClient) ListObjectsInFolder(ctx context.Context, bucketName, folderPath string) (interface{}, error) {
+	return []miniosdk.ObjectInfo{
+		{Key: folderPath + "test-object", Size: 1024},
+	}, nil
 }
 
 // MockVeleroClient : Mock Velero 클라이언트

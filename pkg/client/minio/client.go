@@ -32,6 +32,10 @@ type Client interface {
 	DeleteObject(ctx context.Context, bucketName, objectName string) error
 	ListObjects(ctx context.Context, bucketName string) (interface{}, error)
 
+	// 폴더 관련
+	DeleteFolder(ctx context.Context, bucketName, folderPath string) error
+	ListObjectsInFolder(ctx context.Context, bucketName, folderPath string) (interface{}, error)
+
 	// Object 정보
 	StatObject(ctx context.Context, bucketName, objectName string) (interface{}, error)
 	CopyObject(ctx context.Context, srcBucket, srcObject, dstBucket, dstObject string) (interface{}, error)
@@ -275,4 +279,77 @@ func (c *client) HealthCheck(ctx context.Context) error {
 	// 간단한 API 호출로 연결 상태 확인
 	_, err := c.minioClient.ListBuckets(ctx)
 	return err
+}
+
+// DeleteFolder : 폴더와 그 안의 모든 객체를 삭제합니다
+func (c *client) DeleteFolder(ctx context.Context, bucketName, folderPath string) error {
+	if c.minioClient == nil {
+		return fmt.Errorf("minio client not initialized")
+	}
+
+	// 폴더 경로 정규화 (끝에 / 추가)
+	if folderPath != "" && folderPath[len(folderPath)-1] != '/' {
+		folderPath += "/"
+	}
+
+	// 폴더 내 모든 객체 조회
+	objectCh := c.minioClient.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+		Prefix:    folderPath,
+		Recursive: true,
+	})
+
+	// 모든 객체 삭제
+	var objectsToDelete []minio.ObjectInfo
+	for object := range objectCh {
+		if object.Err != nil {
+			return fmt.Errorf("failed to list objects in folder %s: %w", folderPath, object.Err)
+		}
+		objectsToDelete = append(objectsToDelete, object)
+	}
+
+	// 객체들을 일괄 삭제
+	if len(objectsToDelete) > 0 {
+		objectsCh := make(chan minio.ObjectInfo)
+		go func() {
+			defer close(objectsCh)
+			for _, obj := range objectsToDelete {
+				objectsCh <- obj
+			}
+		}()
+
+		// RemoveObjects로 일괄 삭제
+		errorCh := c.minioClient.RemoveObjects(ctx, bucketName, objectsCh, minio.RemoveObjectsOptions{})
+		for e := range errorCh {
+			return fmt.Errorf("failed to delete object %s: %w", e.ObjectName, e.Err)
+		}
+	}
+
+	return nil
+}
+
+// ListObjectsInFolder : 폴더 내 객체 목록을 조회합니다
+func (c *client) ListObjectsInFolder(ctx context.Context, bucketName, folderPath string) (interface{}, error) {
+	if c.minioClient == nil {
+		return nil, fmt.Errorf("minio client not initialized")
+	}
+
+	// 폴더 경로 정규화 (끝에 / 추가)
+	if folderPath != "" && folderPath[len(folderPath)-1] != '/' {
+		folderPath += "/"
+	}
+
+	var objects []minio.ObjectInfo
+	objectCh := c.minioClient.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+		Prefix:    folderPath,
+		Recursive: true,
+	})
+
+	for object := range objectCh {
+		if object.Err != nil {
+			return nil, fmt.Errorf("failed to list objects in folder %s: %w", folderPath, object.Err)
+		}
+		objects = append(objects, object)
+	}
+
+	return objects, nil
 }

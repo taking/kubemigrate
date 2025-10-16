@@ -19,6 +19,13 @@
       "matchUpdateTypes": ["major"],
       "groupName": "go major updates",
       "automerge": false
+    },
+    {
+      "matchPackageNames": [
+        "github.com/vmware-tanzu/velero"
+      ],
+      "enabled": false,
+      "description": "Pin Velero to v1.17.0 - do not auto-update"
     }
   ]
 }

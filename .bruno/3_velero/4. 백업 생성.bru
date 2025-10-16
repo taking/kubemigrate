@@ -22,12 +22,12 @@ body:json {
       "useSSL": false
     },
     "backup": {
-      "name": "ns-wordpress-test-backup-2025-10-15-7",
+      "name": "ns-wordpress-backup",
       "includeNamespaces": ["wordpress-test"],
   //     "excludeNamespaces": ["kube-system", "kube-public"],
-  //     "includeResources": [
-  //       "*"
-  //     ],
+      "includeResources": [
+        "*"
+      ],
   //     "includeResources": [
   //       "deployments", 
   //       "services", 
@@ -40,8 +40,9 @@ body:json {
   //     "excludeResources": ["events"],
   //     "labelSelector": {"app": "myapp"},
       "storageLocation": "minio",
-      "ttl": "720h0m0s"
-  //     "includeClusterResources": true
+      "ttl": "720h0m0s",
+  //     "includeClusterResources": true,
+      "defaultVolumesToFsBackup": true // (true: 파일 시스템 우선, false: 스냅샷 우선)
     }
   }
 }

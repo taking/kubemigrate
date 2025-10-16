@@ -25,16 +25,27 @@ body:json {
       "name": "{{backupName}}-to-restore",
       "backupName": "{{backupName}}",
       "includeNamespaces": ["wordpress-test"],
-      "excludeNamespaces": ["kube-system", "kube-public"],
-      "includeResources": ["deployments", "services", "configmaps", "secrets"],
-      "includeClusterResources": true,
-      "restorePVs": true
+  //     "excludeNamespaces": ["kube-system", "kube-public"],
+      "includeResources": [
+        "*"
+      ],
+  //     "includeResources": [
+  //       "deployments",
+  //       "services",
+  //       "configmaps",
+  //       "secrets"
+  //     ]
+      "restorePVs": true,
+      "includeClusterResources": true
+  //     "storageClassMappings":  // WIP
+  //       "local-path": "hostpath"
+  //     }
     }
   }
 }
 
 script:post-response {
-  bru.setEnvVar("restoreName", res.body.data.restore.metadata.name);
+  bru.setEnvVar("restoreName", res.body.data.restoreName);
   bru.setEnvVar("jobId", res.body.data.jobId);
 }
 

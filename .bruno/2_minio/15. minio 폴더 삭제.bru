@@ -1,0 +1,24 @@
+meta {
+  name: 15_minio 폴더 삭제
+  type: http
+  seq: 15
+}
+
+delete {
+  url: {{host_ip}}:{{host_port}}/api/v1/minio/buckets/test-bucket/folders/test
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "endpoint": "{{minio_url}}",
+      "accessKey": "{{minio_accesskey}}",
+      "secretKey": "{{minio_secretkey}}",
+      "useSSL": false
+  }
+}
+
+settings {
+  encodeUrl: true
+}

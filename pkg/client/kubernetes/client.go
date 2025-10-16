@@ -35,6 +35,7 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 
@@ -44,6 +45,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -72,11 +74,34 @@ type Client interface {
 	// - (*storagev1.StorageClass, error) when name is provided (single storage class)
 	GetStorageClasses(ctx context.Context, name string) (interface{}, error)
 
+	// GetPVCs returns:
+	// - (*v1.PersistentVolumeClaimList, error) when name is empty (list all PVCs)
+	// - (*v1.PersistentVolumeClaim, error) when name is provided (single PVC)
+	GetPVCs(ctx context.Context, namespace, name string) (interface{}, error)
+
+	// PatchPVC patches a PVC with the given data
+	PatchPVC(ctx context.Context, namespace, name string, patchData map[string]interface{}) (*v1.PersistentVolumeClaim, error)
+
+	// DeletePVC deletes a PVC
+	DeletePVC(ctx context.Context, namespace, name string) error
+
+	// CreatePVC creates a new PVC
+	CreatePVC(ctx context.Context, pvc *v1.PersistentVolumeClaim) (*v1.PersistentVolumeClaim, error)
+
+	// GetCSIDrivers returns CSI drivers
+	GetCSIDrivers(ctx context.Context) (interface{}, error)
+
 	// CreateNamespace creates a new namespace
 	CreateNamespace(ctx context.Context, namespace *v1.Namespace) (interface{}, error)
 
+	// CreateConfigMap creates a new configmap
+	CreateConfigMap(ctx context.Context, configMap *v1.ConfigMap) error
+
 	// DeleteSecret deletes a secret
 	DeleteSecret(ctx context.Context, namespace, name string) error
+
+	// DeleteConfigMap deletes a configmap
+	DeleteConfigMap(ctx context.Context, namespace, name string) error
 
 	// DeleteCRD deletes a custom resource definition
 	DeleteCRD(ctx context.Context, name string) error
@@ -197,6 +222,10 @@ func stripManagedFieldsFromList(items interface{}) {
 		for i := range list.Items {
 			list.Items[i].SetManagedFields(nil)
 		}
+	case *v1.PersistentVolumeClaimList:
+		for i := range list.Items {
+			list.Items[i].SetManagedFields(nil)
+		}
 	case *storagev1.StorageClassList:
 		for i := range list.Items {
 			list.Items[i].SetManagedFields(nil)
@@ -214,6 +243,8 @@ func stripManagedFieldsFromSingle(obj interface{}) {
 	case *v1.Secret:
 		resource.SetManagedFields(nil)
 	case *v1.Namespace:
+		resource.SetManagedFields(nil)
+	case *v1.PersistentVolumeClaim:
 		resource.SetManagedFields(nil)
 	case *storagev1.StorageClass:
 		resource.SetManagedFields(nil)
@@ -428,6 +459,109 @@ func (c *client) DeleteNamespace(ctx context.Context, name string) error {
 // DeleteSecret : Secret 삭제
 func (c *client) DeleteSecret(ctx context.Context, namespace, name string) error {
 	return c.clientset.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// CreateConfigMap : ConfigMap 생성
+func (c *client) CreateConfigMap(ctx context.Context, configMap *v1.ConfigMap) error {
+	_, err := c.clientset.CoreV1().ConfigMaps(configMap.Namespace).Create(ctx, configMap, metav1.CreateOptions{})
+	return err
+}
+
+// DeleteConfigMap : ConfigMap 삭제
+func (c *client) DeleteConfigMap(ctx context.Context, namespace, name string) error {
+	return c.clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// GetPVCs : PVC를 조회합니다
+// name이 빈 문자열("")이면 목록을 조회하고, 있으면 단일 PVC를 조회합니다
+// namespace가 빈 문자열("")이면 모든 네임스페이스의 PVC를 조회합니다
+// Returns:
+// - (*v1.PersistentVolumeClaimList, error) when name is empty (list all PVCs)
+// - (*v1.PersistentVolumeClaim, error) when name is provided (single PVC)
+func (c *client) GetPVCs(ctx context.Context, namespace, name string) (interface{}, error) {
+	if name == "" {
+		// 목록 조회
+		pvcs, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		sort.Slice(pvcs.Items, func(i, j int) bool {
+			return pvcs.Items[j].CreationTimestamp.Before(&pvcs.Items[i].CreationTimestamp)
+		})
+
+		// managedFields 제거
+		stripManagedFieldsFromList(pvcs)
+
+		return pvcs, nil
+	} else {
+		// 단일 조회
+		pvc, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		// managedFields 제거
+		stripManagedFieldsFromSingle(pvc)
+
+		return pvc, nil
+	}
+}
+
+// PatchPVC : PVC를 패치합니다
+func (c *client) PatchPVC(ctx context.Context, namespace, name string, patchData map[string]interface{}) (*v1.PersistentVolumeClaim, error) {
+	// JSON 패치 데이터 생성
+	patchBytes, err := json.Marshal(patchData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal patch data: %w", err)
+	}
+
+	// PVC 패치 실행 (merge-patch 사용)
+	pvc, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).Patch(
+		ctx,
+		name,
+		types.MergePatchType, // merge-patch 타입 사용
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to patch PVC %s/%s: %w", namespace, name, err)
+	}
+
+	// managedFields 제거
+	stripManagedFieldsFromSingle(pvc)
+
+	return pvc, nil
+}
+
+// DeletePVC : PVC를 삭제합니다
+func (c *client) DeletePVC(ctx context.Context, namespace, name string) error {
+	return c.clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// CreatePVC : PVC를 생성합니다
+func (c *client) CreatePVC(ctx context.Context, pvc *v1.PersistentVolumeClaim) (*v1.PersistentVolumeClaim, error) {
+	createdPVC, err := c.clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PVC %s/%s: %w", pvc.Namespace, pvc.Name, err)
+	}
+
+	// managedFields 제거
+	stripManagedFieldsFromSingle(createdPVC)
+
+	return createdPVC, nil
+}
+
+// GetCSIDrivers : CSI 드라이버 목록을 조회합니다
+func (c *client) GetCSIDrivers(ctx context.Context) (interface{}, error) {
+	drivers, err := c.clientset.StorageV1().CSIDrivers().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list CSI drivers: %w", err)
+	}
+
+	// managedFields 제거
+	stripManagedFieldsFromList(drivers)
+
+	return drivers, nil
 }
 
 // HealthCheck : Kubernetes 연결 확인

@@ -359,3 +359,55 @@ func (h *Handler) PresignedPutObject(c echo.Context) error {
 		return h.service.PresignedPutObjectInternal(client, ctx, bucketName, objectName, expiry)
 	})
 }
+
+// DeleteFolder : MinIO 폴더 삭제
+// @Summary Delete Folder
+// @Description Delete a folder and all its contents from MinIO bucket
+// @Tags minio
+// @Accept json
+// @Produce json
+// @Param request body config.MinioConfig true "MinIO configuration"
+// @Param bucket path string true "Bucket name"
+// @Param folder path string true "Folder path"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/minio/buckets/{bucket}/folders/{folder} [delete]
+func (h *Handler) DeleteFolder(c echo.Context) error {
+	return h.HandleResourceClient(c, "delete-folder", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// 버킷 이름과 폴더 경로 가져오기
+		bucketName := c.Param("bucket")
+		folderPath := c.Param("*")
+		if bucketName == "" || folderPath == "" {
+			return nil, echo.NewHTTPError(400, "bucket and folder parameters are required")
+		}
+
+		return h.service.DeleteFolderInternal(client, ctx, bucketName, folderPath)
+	})
+}
+
+// ListObjectsInFolder : MinIO 폴더 내 객체 목록 조회
+// @Summary List Objects in Folder
+// @Description Get a list of objects in a MinIO folder
+// @Tags minio
+// @Accept json
+// @Produce json
+// @Param request body config.MinioConfig true "MinIO configuration"
+// @Param bucket path string true "Bucket name"
+// @Param folder path string true "Folder path"
+// @Success 200 {object} response.SuccessResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /v1/minio/buckets/{bucket}/folders/{folder} [get]
+func (h *Handler) ListObjectsInFolder(c echo.Context) error {
+	return h.HandleResourceClient(c, "list-folder-objects", func(client client.Client, ctx context.Context) (interface{}, error) {
+		// 버킷 이름과 폴더 경로 가져오기
+		bucketName := c.Param("bucket")
+		folderPath := c.Param("*")
+		if bucketName == "" || folderPath == "" {
+			return nil, echo.NewHTTPError(400, "bucket and folder parameters are required")
+		}
+
+		return h.service.ListObjectsInFolderInternal(client, ctx, bucketName, folderPath)
+	})
+}
