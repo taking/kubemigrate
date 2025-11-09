@@ -6,7 +6,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kohkimakimoto/echo-openapidocs v0.3.0
 	github.com/labstack/echo/v4 v4.13.4
-	github.com/minio/minio-go/v7 v7.0.95
+	github.com/minio/minio-go/v7 v7.0.97
 	github.com/swaggo/swag v1.16.6
 	github.com/vmware-tanzu/velero v1.17.0 // renovate: ignore - pinned to v1.17.0 for stability
 	helm.sh/helm/v3 v3.19.0
@@ -15,7 +15,7 @@ require (
 	k8s.io/apimachinery v0.34.1
 	k8s.io/cli-runtime v0.34.1
 	k8s.io/client-go v0.34.1
-	sigs.k8s.io/controller-runtime v0.22.3
+	sigs.k8s.io/controller-runtime v0.22.4
 )
 
 // Pin Velero to v1.17.0 for stability - do not auto-update
@@ -74,6 +74,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
+	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
@@ -83,7 +84,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
-	github.com/minio/crc64nvme v1.0.2 // indirect
+	github.com/minio/crc64nvme v1.1.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
