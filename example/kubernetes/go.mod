@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	github.com/taking/kubemigrate v0.1.0
-	k8s.io/api v0.34.3
+	k8s.io/api v0.35.0
 )
 
 require (
