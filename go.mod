@@ -5,7 +5,7 @@ go 1.25.1
 require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kohkimakimoto/echo-openapidocs v0.3.0
-	github.com/labstack/echo/v5 v5.0.1
+	github.com/labstack/echo/v5 v5.0.3
 	github.com/minio/minio-go/v7 v7.0.98
 	github.com/swaggo/swag v1.16.6
 	github.com/vmware-tanzu/velero v1.17.0 // renovate: ignore - pinned to v1.17.0 for stability
