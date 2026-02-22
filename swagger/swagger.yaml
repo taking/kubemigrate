@@ -1,0 +1,1922 @@
+basePath: /api
+definitions:
+  config.KubeConfig:
+    properties:
+      kubeconfig:
+        description: '[필수] Base64 인코딩된 KubeConfig 값'
+        example: base64 인코딩된 KubeConfig 값
+        type: string
+    required:
+    - kubeconfig
+    type: object
+  config.MinioConfig:
+    properties:
+      accessKey:
+        description: '[필수] minio accessKey'
+        example: your_minio_accessKey
+        type: string
+      endpoint:
+        description: '[필수] minio endpoint 주소'
+        example: 127.0.0.1:9000
+        type: string
+      secretKey:
+        description: '[필수] minio secretKey'
+        example: your_minio_secretKey
+        type: string
+      useSSL:
+        description: '[필수] minio useSSL 여부 (false: http / true: https)'
+        example: false
+        type: boolean
+    required:
+    - accessKey
+    - endpoint
+    - secretKey
+    type: object
+  config.VeleroConfig:
+    properties:
+      kubeconfig:
+        $ref: '#/definitions/config.KubeConfig'
+      minio:
+        $ref: '#/definitions/config.MinioConfig'
+    required:
+    - kubeconfig
+    - minio
+    type: object
+  response.ErrorResponse:
+    properties:
+      code:
+        description: '에러 코드 (예: "VALIDATION_FAILED", "CONNECTION_FAILED")'
+        type: string
+      details:
+        description: 상세 에러 정보 (선택적)
+        type: string
+      message:
+        description: 사용자 친화적인 에러 메시지
+        type: string
+      request_id:
+        description: 요청 추적용 ID (선택적)
+        type: string
+      status:
+        description: 항상 "error"
+        type: string
+      timestamp:
+        description: 에러 발생 시각
+        type: string
+    type: object
+  response.SuccessResponse:
+    properties:
+      data:
+        description: 응답 데이터 (선택적)
+      message:
+        description: 성공 메시지 (선택적)
+        type: string
+      request_id:
+        description: 요청 추적용 ID (선택적)
+        type: string
+      status:
+        description: 항상 "success"
+        type: string
+      timestamp:
+        description: 응답 생성 시각
+        type: string
+    type: object
+  types.BackupResult:
+    properties:
+      backupName:
+        type: string
+      createdAt:
+        type: string
+      details:
+        additionalProperties: true
+        type: object
+      jobId:
+        type: string
+      logsUrl:
+        type: string
+      message:
+        type: string
+      namespace:
+        type: string
+      status:
+        type: string
+      statusUrl:
+        type: string
+    type: object
+  types.BackupSummary:
+    properties:
+      backupRepository:
+        type: string
+      duration:
+        type: string
+      endTime:
+        type: string
+      resourceCounts:
+        additionalProperties:
+          type: integer
+        type: object
+      startTime:
+        type: string
+      storageLocation:
+        type: string
+      totalItems:
+        type: integer
+      totalSize:
+        type: string
+      volumeSnapshots:
+        items:
+          type: string
+        type: array
+    type: object
+  types.BackupValidationResult:
+    properties:
+      backupName:
+        type: string
+      errors:
+        items:
+          type: string
+        type: array
+      isValid:
+        type: boolean
+      phase:
+        type: string
+      summary:
+        $ref: '#/definitions/types.BackupSummary'
+      validationDetails:
+        $ref: '#/definitions/types.ValidationDetails'
+      validationTime:
+        type: string
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  types.CreateBackupRequest:
+    type: object
+  types.DeleteBackupRequest:
+    properties:
+      kubeconfig:
+        $ref: '#/definitions/config.KubeConfig'
+      minio:
+        $ref: '#/definitions/config.MinioConfig'
+    required:
+    - kubeconfig
+    - minio
+    type: object
+  types.DeleteRestoreRequest:
+    properties:
+      kubeconfig:
+        $ref: '#/definitions/config.KubeConfig'
+      minio:
+        $ref: '#/definitions/config.MinioConfig'
+    required:
+    - kubeconfig
+    - minio
+    type: object
+  types.ValidationDetails:
+    properties:
+      backupRepositoryValid:
+        type: boolean
+      resourceCount:
+        type: integer
+      storageLocationErrors:
+        items:
+          type: string
+        type: array
+      storageLocationValid:
+        type: boolean
+      validationErrors:
+        items:
+          type: string
+        type: array
+      volumeCount:
+        type: integer
+      volumeSnapshotErrors:
+        items:
+          type: string
+        type: array
+      volumeSnapshotValid:
+        type: boolean
+    type: object
+  types.VeleroRestoreRequest:
+    type: object
+info:
+  contact:
+    email: taking@duck.com
+    name: API Support
+    url: github.com/taking/kubemigrate/issues
+  description: Kubernetes cluster migration and backup validation API with multi-cluster
+    support
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: KubeMigrate API Server
+  version: "1.0"
+paths:
+  /v1/helm/charts:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all Helm charts
+      parameters:
+      - description: 'Namespace name (default: ''default'', all namespaces: ''all'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Helm Charts
+      tags:
+      - helm
+    post:
+      consumes:
+      - application/json
+      description: Install a Helm chart asynchronously and return job ID for status
+        tracking
+      parameters:
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: Release name
+        in: query
+        name: releaseName
+        required: true
+        type: string
+      - description: Chart URL (must be HTTP/HTTPS)
+        in: query
+        name: chartURL
+        required: true
+        type: string
+      - description: Chart version (optional)
+        in: query
+        name: version
+        type: string
+      - description: 'Namespace name (default: ''default'')'
+        in: query
+        name: namespace
+        type: string
+      - description: Chart values as JSON string
+        in: query
+        name: values
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job started
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Install Helm Chart Asynchronously
+      tags:
+      - helm
+  /v1/helm/charts/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: Uninstall a specific Helm chart asynchronously and return job ID
+        for status tracking
+      parameters:
+      - description: Chart name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: 'Namespace name (default: ''default'')'
+        in: query
+        name: namespace
+        type: string
+      - description: 'Dry run mode (default: false)'
+        in: query
+        name: dryRun
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job started
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Uninstall Helm Chart Asynchronously
+      tags:
+      - helm
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific Helm chart
+      parameters:
+      - description: Chart name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 'Namespace name (default: ''default'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Helm Chart Details
+      tags:
+      - helm
+    put:
+      consumes:
+      - application/json
+      description: Upgrade a specific Helm chart asynchronously and return job ID
+        for status tracking
+      parameters:
+      - description: Chart name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: Chart URL (HTTP/HTTPS)
+        in: query
+        name: chartURL
+        type: string
+      - description: Chart local path
+        in: query
+        name: chartPath
+        type: string
+      - description: Chart version
+        in: query
+        name: version
+        type: string
+      - description: 'Namespace name (default: ''default'')'
+        in: query
+        name: namespace
+        type: string
+      - description: Chart values as JSON string
+        in: query
+        name: values
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job started
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Upgrade Helm Chart Asynchronously
+      tags:
+      - helm
+  /v1/helm/charts/{name}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get installation history of a specific Helm chart
+      parameters:
+      - description: Chart name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 'Namespace name (default: ''default'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Chart History
+      tags:
+      - helm
+  /v1/helm/charts/{name}/status:
+    get:
+      consumes:
+      - application/json
+      description: Get status information about a specific Helm chart
+      parameters:
+      - description: Chart name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 'Namespace name (default: ''default'')'
+        in: query
+        name: namespace
+        type: string
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Helm Chart Status
+      tags:
+      - helm
+  /v1/helm/charts/{name}/values:
+    get:
+      consumes:
+      - application/json
+      description: Get current values of a specific Helm chart
+      parameters:
+      - description: Chart name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 'Namespace name (default: ''default'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Chart Values
+      tags:
+      - helm
+  /v1/helm/charts/jobs:
+    get:
+      consumes:
+      - application/json
+      description: Get all jobs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All jobs
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get All Jobs
+      tags:
+      - helm
+  /v1/helm/charts/logs/{jobId}:
+    get:
+      consumes:
+      - application/json
+      description: Get the logs of a specific job
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job logs
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get Job Logs
+      tags:
+      - helm
+  /v1/helm/charts/status/{jobId}:
+    get:
+      consumes:
+      - application/json
+      description: Get the status of a specific job
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job status
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get Job Status
+      tags:
+      - helm
+  /v1/helm/health:
+    post:
+      consumes:
+      - application/json
+      description: Test Helm connection with provided configuration
+      parameters:
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Helm Connection Test
+      tags:
+      - helm
+  /v1/kubernetes/{kind}/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Get Kubernetes resources by kind, name (optional) and namespace
+      parameters:
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: Resource kind (pods, configmaps, secrets, storage-classes)
+        in: path
+        name: kind
+        required: true
+        type: string
+      - description: Resource name (empty for list, specific name for single resource)
+        in: path
+        name: name
+        type: string
+      - description: 'Namespace name (default: ''default'', all namespaces: ''all'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Kubernetes Resources
+      tags:
+      - kubernetes
+  /v1/kubernetes/health:
+    post:
+      consumes:
+      - application/json
+      description: Test Kubernetes connection with provided configuration
+      parameters:
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Kubernetes Connection Test
+      tags:
+      - kubernetes
+  /v1/minio/buckets:
+    post:
+      consumes:
+      - application/json
+      description: Get a list of MinIO buckets
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get MinIO Buckets
+      tags:
+      - minio
+  /v1/minio/buckets/{bucket}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a MinIO bucket
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete Bucket
+      tags:
+      - minio
+    get:
+      consumes:
+      - application/json
+      description: Check if a MinIO bucket exists
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Check Bucket Exists
+      tags:
+      - minio
+    post:
+      consumes:
+      - application/json
+      description: Create a new MinIO bucket
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create Bucket
+      tags:
+      - minio
+  /v1/minio/buckets/{bucket}/folders/{folder}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a folder and all its contents from MinIO bucket
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Folder path
+        in: path
+        name: folder
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete Folder
+      tags:
+      - minio
+    get:
+      consumes:
+      - application/json
+      description: Get a list of objects in a MinIO folder
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Folder path
+        in: path
+        name: folder
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List Objects in Folder
+      tags:
+      - minio
+  /v1/minio/buckets/{bucket}/objects:
+    post:
+      consumes:
+      - application/json
+      description: Get a list of objects in a MinIO bucket
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Objects
+      tags:
+      - minio
+  /v1/minio/buckets/{bucket}/objects/{object}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an object from MinIO bucket
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object name
+        in: path
+        name: object
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete Object
+      tags:
+      - minio
+    get:
+      consumes:
+      - application/json
+      description: Download an object from MinIO bucket
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object name
+        in: path
+        name: object
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Object
+      tags:
+      - minio
+    put:
+      consumes:
+      - multipart/form-data
+      description: Upload an object to MinIO bucket
+      parameters:
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object name
+        in: path
+        name: object
+        required: true
+        type: string
+      - description: MinIO configuration JSON
+        in: formData
+        name: config
+        required: true
+        type: string
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Put Object
+      tags:
+      - minio
+  /v1/minio/buckets/{bucket}/objects/{object}/presigned-get:
+    get:
+      consumes:
+      - application/json
+      description: Generate a presigned URL for downloading an object
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object name
+        in: path
+        name: object
+        required: true
+        type: string
+      - description: 'URL expiry in seconds (default: 3600)'
+        in: query
+        name: expiry
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Presigned Get Object
+      tags:
+      - minio
+  /v1/minio/buckets/{bucket}/objects/{object}/presigned-put:
+    put:
+      consumes:
+      - application/json
+      description: Generate a presigned URL for uploading an object
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object name
+        in: path
+        name: object
+        required: true
+        type: string
+      - description: 'URL expiry in seconds (default: 3600)'
+        in: query
+        name: expiry
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Presigned Put Object
+      tags:
+      - minio
+  /v1/minio/buckets/{bucket}/objects/{object}/stat:
+    get:
+      consumes:
+      - application/json
+      description: Get object information from MinIO bucket
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object name
+        in: path
+        name: object
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Stat Object
+      tags:
+      - minio
+  /v1/minio/buckets/{sourceBucket}/objects/{sourceObject}/copy/{destBucket}/{destObject}:
+    post:
+      consumes:
+      - application/json
+      description: Copy an object within MinIO
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      - description: Source bucket name
+        in: path
+        name: sourceBucket
+        required: true
+        type: string
+      - description: Source object name
+        in: path
+        name: sourceObject
+        required: true
+        type: string
+      - description: Destination bucket name
+        in: path
+        name: destBucket
+        required: true
+        type: string
+      - description: Destination object name
+        in: path
+        name: destObject
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Copy Object
+      tags:
+      - minio
+  /v1/minio/health:
+    post:
+      consumes:
+      - application/json
+      description: Test MinIO connection with provided configuration
+      parameters:
+      - description: MinIO configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.MinioConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: MinIO Connection Test
+      tags:
+      - minio
+  /v1/velero/backups:
+    get:
+      consumes:
+      - application/json
+      description: Get list of Velero backups
+      parameters:
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Velero Backups
+      tags:
+      - velero
+    post:
+      consumes:
+      - application/json
+      description: Create a new Velero backup with specified configuration
+      parameters:
+      - description: Backup configuration with kubeconfig and minio settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.CreateBackupRequest'
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.BackupResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create Velero Backup
+      tags:
+      - velero
+  /v1/velero/backups/{backupName}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific Velero backup
+      parameters:
+      - description: Delete backup request with kubeconfig and minio config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.DeleteBackupRequest'
+      - description: Backup name
+        in: path
+        name: backupName
+        required: true
+        type: string
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Backup deletion result
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete Velero Backup
+      tags:
+      - velero
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific Velero backup
+      parameters:
+      - description: Backup name
+        in: path
+        name: backupName
+        required: true
+        type: string
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Velero Backup Details
+      tags:
+      - velero
+  /v1/velero/backups/{backupName}/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validate a specific Velero backup and check its status
+      parameters:
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: Backup name
+        in: path
+        name: backupName
+        required: true
+        type: string
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.BackupValidationResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Validate Velero Backup
+      tags:
+      - velero
+  /v1/velero/health:
+    post:
+      consumes:
+      - application/json
+      description: Test Velero connection with provided configuration
+      parameters:
+      - description: Velero configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Velero Connection Test
+      tags:
+      - velero
+  /v1/velero/install:
+    post:
+      consumes:
+      - application/json
+      description: Install Velero and configure MinIO integration
+      parameters:
+      - description: Velero configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.VeleroConfig'
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      - description: 'Force recreate BSL and MinIO Secret (default: false)'
+        in: query
+        name: force
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Install Velero with MinIO
+      tags:
+      - velero
+  /v1/velero/jobs:
+    get:
+      consumes:
+      - application/json
+      description: Get all jobs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All jobs
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get All Jobs
+      tags:
+      - velero
+  /v1/velero/logs/{jobId}:
+    get:
+      consumes:
+      - application/json
+      description: Get the logs of a specific job
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job logs
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get Job Logs
+      tags:
+      - velero
+  /v1/velero/pod-volume-restores:
+    get:
+      consumes:
+      - application/json
+      description: Get list of pod volume restores
+      parameters:
+      - description: Velero configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Pod Volume Restores
+      tags:
+      - velero
+  /v1/velero/repositories:
+    get:
+      consumes:
+      - application/json
+      description: Get list of backup repositories
+      parameters:
+      - description: Velero configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Backup Repositories
+      tags:
+      - velero
+  /v1/velero/restores:
+    get:
+      consumes:
+      - application/json
+      description: Get list of Velero restores
+      parameters:
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Velero Restores
+      tags:
+      - velero
+    post:
+      consumes:
+      - application/json
+      description: Create a new Velero restore from a backup
+      parameters:
+      - description: Restore configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.VeleroRestoreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create Velero Restore
+      tags:
+      - velero
+  /v1/velero/restores/{restoreName}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific Velero restore
+      parameters:
+      - description: Delete restore request with kubeconfig and minio config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.DeleteRestoreRequest'
+      - description: Restore name
+        in: path
+        name: restoreName
+        required: true
+        type: string
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Restore deletion result
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete Velero Restore
+      tags:
+      - velero
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific Velero restore
+      parameters:
+      - description: Restore name
+        in: path
+        name: restoreName
+        required: true
+        type: string
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Velero Restore Details
+      tags:
+      - velero
+  /v1/velero/restores/{restoreName}/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validate a specific Velero restore
+      parameters:
+      - description: Restore name
+        in: path
+        name: restoreName
+        required: true
+        type: string
+      - description: Kubernetes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.KubeConfig'
+      - description: 'Namespace name (default: ''velero'')'
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Validate Velero Restore
+      tags:
+      - velero
+  /v1/velero/status/{jobId}:
+    get:
+      consumes:
+      - application/json
+      description: Get the status of a specific job
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job status
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get Job Status
+      tags:
+      - velero
+  /v1/velero/storage-locations:
+    get:
+      consumes:
+      - application/json
+      description: Get list of backup storage locations
+      parameters:
+      - description: Velero configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Backup Storage Locations
+      tags:
+      - velero
+  /v1/velero/volume-snapshot-locations:
+    get:
+      consumes:
+      - application/json
+      description: Get list of volume snapshot locations
+      parameters:
+      - description: Velero configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/config.VeleroConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Volume Snapshot Locations
+      tags:
+      - velero
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
