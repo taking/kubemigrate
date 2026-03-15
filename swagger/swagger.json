@@ -1,0 +1,2873 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Kubernetes cluster migration and backup validation API with multi-cluster support",
+        "title": "KubeMigrate API Server",
+        "contact": {
+            "name": "API Support",
+            "url": "github.com/taking/kubemigrate/issues",
+            "email": "taking@duck.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "basePath": "/api",
+    "paths": {
+        "/v1/helm/charts": {
+            "get": {
+                "description": "Get list of all Helm charts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get Helm Charts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Install a Helm chart asynchronously and return job ID for status tracking",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Install Helm Chart Asynchronously",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release name",
+                        "name": "releaseName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart URL (must be HTTP/HTTPS)",
+                        "name": "chartURL",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart version (optional)",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart values as JSON string",
+                        "name": "values",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job started",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/charts/jobs": {
+            "get": {
+                "description": "Get all jobs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get All Jobs",
+                "responses": {
+                    "200": {
+                        "description": "All jobs",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/charts/logs/{jobId}": {
+            "get": {
+                "description": "Get the logs of a specific job",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get Job Logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job logs",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/charts/status/{jobId}": {
+            "get": {
+                "description": "Get the status of a specific job",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get Job Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/charts/{name}": {
+            "get": {
+                "description": "Get detailed information about a specific Helm chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get Helm Chart Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chart name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Upgrade a specific Helm chart asynchronously and return job ID for status tracking",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Upgrade Helm Chart Asynchronously",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chart name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart URL (HTTP/HTTPS)",
+                        "name": "chartURL",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart local path",
+                        "name": "chartPath",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart version",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart values as JSON string",
+                        "name": "values",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job started",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Uninstall a specific Helm chart asynchronously and return job ID for status tracking",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Uninstall Helm Chart Asynchronously",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chart name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Dry run mode (default: false)",
+                        "name": "dryRun",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job started",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/charts/{name}/history": {
+            "get": {
+                "description": "Get installation history of a specific Helm chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get Chart History",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chart name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/charts/{name}/status": {
+            "get": {
+                "description": "Get status information about a specific Helm chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get Helm Chart Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chart name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/charts/{name}/values": {
+            "get": {
+                "description": "Get current values of a specific Helm chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Get Chart Values",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chart name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/helm/health": {
+            "post": {
+                "description": "Test Helm connection with provided configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helm"
+                ],
+                "summary": "Helm Connection Test",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/kubernetes/health": {
+            "post": {
+                "description": "Test Kubernetes connection with provided configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kubernetes"
+                ],
+                "summary": "Kubernetes Connection Test",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/kubernetes/{kind}/{name}": {
+            "get": {
+                "description": "Get Kubernetes resources by kind, name (optional) and namespace",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kubernetes"
+                ],
+                "summary": "Get Kubernetes Resources",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource kind (pods, configmaps, secrets, storage-classes)",
+                        "name": "kind",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource name (empty for list, specific name for single resource)",
+                        "name": "name",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'default', all namespaces: 'all')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets": {
+            "post": {
+                "description": "Get a list of MinIO buckets",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Get MinIO Buckets",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{bucket}": {
+            "get": {
+                "description": "Check if a MinIO bucket exists",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Check Bucket Exists",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Create Bucket",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Delete Bucket",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{bucket}/folders/{folder}": {
+            "get": {
+                "description": "Get a list of objects in a MinIO folder",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "List Objects in Folder",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Folder path",
+                        "name": "folder",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a folder and all its contents from MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Delete Folder",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Folder path",
+                        "name": "folder",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{bucket}/objects": {
+            "post": {
+                "description": "Get a list of objects in a MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Get Objects",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{bucket}/objects/{object}": {
+            "get": {
+                "description": "Download an object from MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Get Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Upload an object to MinIO bucket",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Put Object",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "MinIO configuration JSON",
+                        "name": "config",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File to upload",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an object from MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Delete Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{bucket}/objects/{object}/presigned-get": {
+            "get": {
+                "description": "Generate a presigned URL for downloading an object",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Presigned Get Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "URL expiry in seconds (default: 3600)",
+                        "name": "expiry",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{bucket}/objects/{object}/presigned-put": {
+            "put": {
+                "description": "Generate a presigned URL for uploading an object",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Presigned Put Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "URL expiry in seconds (default: 3600)",
+                        "name": "expiry",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{bucket}/objects/{object}/stat": {
+            "get": {
+                "description": "Get object information from MinIO bucket",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Stat Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object name",
+                        "name": "object",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/buckets/{sourceBucket}/objects/{sourceObject}/copy/{destBucket}/{destObject}": {
+            "post": {
+                "description": "Copy an object within MinIO",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "Copy Object",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source bucket name",
+                        "name": "sourceBucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source object name",
+                        "name": "sourceObject",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Destination bucket name",
+                        "name": "destBucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Destination object name",
+                        "name": "destObject",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/minio/health": {
+            "post": {
+                "description": "Test MinIO connection with provided configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "minio"
+                ],
+                "summary": "MinIO Connection Test",
+                "parameters": [
+                    {
+                        "description": "MinIO configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.MinioConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/backups": {
+            "get": {
+                "description": "Get list of Velero backups",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Velero Backups",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new Velero backup with specified configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Create Velero Backup",
+                "parameters": [
+                    {
+                        "description": "Backup configuration with kubeconfig and minio settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.CreateBackupRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.BackupResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/backups/{backupName}": {
+            "get": {
+                "description": "Get detailed information about a specific Velero backup",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Velero Backup Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Backup name",
+                        "name": "backupName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a specific Velero backup",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Delete Velero Backup",
+                "parameters": [
+                    {
+                        "description": "Delete backup request with kubeconfig and minio config",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.DeleteBackupRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Backup name",
+                        "name": "backupName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Backup deletion result",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/backups/{backupName}/validate": {
+            "post": {
+                "description": "Validate a specific Velero backup and check its status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Validate Velero Backup",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Backup name",
+                        "name": "backupName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.BackupValidationResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/health": {
+            "post": {
+                "description": "Test Velero connection with provided configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Velero Connection Test",
+                "parameters": [
+                    {
+                        "description": "Velero configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.VeleroConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/install": {
+            "post": {
+                "description": "Install Velero and configure MinIO integration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Install Velero with MinIO",
+                "parameters": [
+                    {
+                        "description": "Velero configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.VeleroConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Force recreate BSL and MinIO Secret (default: false)",
+                        "name": "force",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/jobs": {
+            "get": {
+                "description": "Get all jobs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get All Jobs",
+                "responses": {
+                    "200": {
+                        "description": "All jobs",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/logs/{jobId}": {
+            "get": {
+                "description": "Get the logs of a specific job",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Job Logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job logs",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/pod-volume-restores": {
+            "get": {
+                "description": "Get list of pod volume restores",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Pod Volume Restores",
+                "parameters": [
+                    {
+                        "description": "Velero configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.VeleroConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/repositories": {
+            "get": {
+                "description": "Get list of backup repositories",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Backup Repositories",
+                "parameters": [
+                    {
+                        "description": "Velero configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.VeleroConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/restores": {
+            "get": {
+                "description": "Get list of Velero restores",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Velero Restores",
+                "parameters": [
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new Velero restore from a backup",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Create Velero Restore",
+                "parameters": [
+                    {
+                        "description": "Restore configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.VeleroRestoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/restores/{restoreName}": {
+            "get": {
+                "description": "Get detailed information about a specific Velero restore",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Velero Restore Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Restore name",
+                        "name": "restoreName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a specific Velero restore",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Delete Velero Restore",
+                "parameters": [
+                    {
+                        "description": "Delete restore request with kubeconfig and minio config",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.DeleteRestoreRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Restore name",
+                        "name": "restoreName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Restore deletion result",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/restores/{restoreName}/validate": {
+            "post": {
+                "description": "Validate a specific Velero restore",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Validate Velero Restore",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Restore name",
+                        "name": "restoreName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kubernetes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.KubeConfig"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Namespace name (default: 'velero')",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/status/{jobId}": {
+            "get": {
+                "description": "Get the status of a specific job",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Job Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/storage-locations": {
+            "get": {
+                "description": "Get list of backup storage locations",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Backup Storage Locations",
+                "parameters": [
+                    {
+                        "description": "Velero configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.VeleroConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/velero/volume-snapshot-locations": {
+            "get": {
+                "description": "Get list of volume snapshot locations",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "velero"
+                ],
+                "summary": "Get Volume Snapshot Locations",
+                "parameters": [
+                    {
+                        "description": "Velero configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.VeleroConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "config.KubeConfig": {
+            "type": "object",
+            "required": [
+                "kubeconfig"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "description": "[필수] Base64 인코딩된 KubeConfig 값",
+                    "type": "string",
+                    "example": "base64 인코딩된 KubeConfig 값"
+                }
+            }
+        },
+        "config.MinioConfig": {
+            "type": "object",
+            "required": [
+                "accessKey",
+                "endpoint",
+                "secretKey"
+            ],
+            "properties": {
+                "accessKey": {
+                    "description": "[필수] minio accessKey",
+                    "type": "string",
+                    "example": "your_minio_accessKey"
+                },
+                "endpoint": {
+                    "description": "[필수] minio endpoint 주소",
+                    "type": "string",
+                    "example": "127.0.0.1:9000"
+                },
+                "secretKey": {
+                    "description": "[필수] minio secretKey",
+                    "type": "string",
+                    "example": "your_minio_secretKey"
+                },
+                "useSSL": {
+                    "description": "[필수] minio useSSL 여부 (false: http / true: https)",
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "config.VeleroConfig": {
+            "type": "object",
+            "required": [
+                "kubeconfig",
+                "minio"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "$ref": "#/definitions/config.KubeConfig"
+                },
+                "minio": {
+                    "$ref": "#/definitions/config.MinioConfig"
+                }
+            }
+        },
+        "response.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "에러 코드 (예: \"VALIDATION_FAILED\", \"CONNECTION_FAILED\")",
+                    "type": "string"
+                },
+                "details": {
+                    "description": "상세 에러 정보 (선택적)",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "사용자 친화적인 에러 메시지",
+                    "type": "string"
+                },
+                "request_id": {
+                    "description": "요청 추적용 ID (선택적)",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "항상 \"error\"",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "에러 발생 시각",
+                    "type": "string"
+                }
+            }
+        },
+        "response.SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "응답 데이터 (선택적)"
+                },
+                "message": {
+                    "description": "성공 메시지 (선택적)",
+                    "type": "string"
+                },
+                "request_id": {
+                    "description": "요청 추적용 ID (선택적)",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "항상 \"success\"",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "응답 생성 시각",
+                    "type": "string"
+                }
+            }
+        },
+        "types.BackupResult": {
+            "type": "object",
+            "properties": {
+                "backupName": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "jobId": {
+                    "type": "string"
+                },
+                "logsUrl": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "statusUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.BackupSummary": {
+            "type": "object",
+            "properties": {
+                "backupRepository": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "resourceCounts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "storageLocation": {
+                    "type": "string"
+                },
+                "totalItems": {
+                    "type": "integer"
+                },
+                "totalSize": {
+                    "type": "string"
+                },
+                "volumeSnapshots": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "types.BackupValidationResult": {
+            "type": "object",
+            "properties": {
+                "backupName": {
+                    "type": "string"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "isValid": {
+                    "type": "boolean"
+                },
+                "phase": {
+                    "type": "string"
+                },
+                "summary": {
+                    "$ref": "#/definitions/types.BackupSummary"
+                },
+                "validationDetails": {
+                    "$ref": "#/definitions/types.ValidationDetails"
+                },
+                "validationTime": {
+                    "type": "string"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "types.CreateBackupRequest": {
+            "type": "object"
+        },
+        "types.DeleteBackupRequest": {
+            "type": "object",
+            "required": [
+                "kubeconfig",
+                "minio"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "$ref": "#/definitions/config.KubeConfig"
+                },
+                "minio": {
+                    "$ref": "#/definitions/config.MinioConfig"
+                }
+            }
+        },
+        "types.DeleteRestoreRequest": {
+            "type": "object",
+            "required": [
+                "kubeconfig",
+                "minio"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "$ref": "#/definitions/config.KubeConfig"
+                },
+                "minio": {
+                    "$ref": "#/definitions/config.MinioConfig"
+                }
+            }
+        },
+        "types.ValidationDetails": {
+            "type": "object",
+            "properties": {
+                "backupRepositoryValid": {
+                    "type": "boolean"
+                },
+                "resourceCount": {
+                    "type": "integer"
+                },
+                "storageLocationErrors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "storageLocationValid": {
+                    "type": "boolean"
+                },
+                "validationErrors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "volumeCount": {
+                    "type": "integer"
+                },
+                "volumeSnapshotErrors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "volumeSnapshotValid": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "types.VeleroRestoreRequest": {
+            "type": "object"
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
