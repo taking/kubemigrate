@@ -22,7 +22,7 @@ require (
 replace github.com/vmware-tanzu/velero => github.com/vmware-tanzu/velero v1.17.0
 
 require (
-	github.com/labstack/echo/v4 v4.15.1
+	github.com/labstack/echo/v4 v4.13.4
 	helm.sh/helm/v3 v3.20.2
 )
 
