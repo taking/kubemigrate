@@ -9,7 +9,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.100
 	github.com/swaggo/swag v1.16.6
 	github.com/vmware-tanzu/velero v1.17.0 // renovate: ignore - pinned to v1.17.0 for stability
-	helm.sh/helm/v4 v4.1.3
+	helm.sh/helm/v4 v4.1.4
 	k8s.io/api v0.35.3
 	k8s.io/apiextensions-apiserver v0.35.3
 	k8s.io/apimachinery v0.35.3
@@ -23,7 +23,7 @@ replace github.com/vmware-tanzu/velero => github.com/vmware-tanzu/velero v1.17.0
 
 require (
 	github.com/labstack/echo/v4 v4.15.1
-	helm.sh/helm/v3 v3.20.1
+	helm.sh/helm/v3 v3.20.2
 )
 
 require (
