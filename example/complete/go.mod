@@ -3,9 +3,9 @@ module complete-example
 go 1.25.1
 
 require (
-	github.com/minio/minio-go/v7 v7.0.100
+	github.com/minio/minio-go/v7 v7.1.0
 	github.com/taking/kubemigrate v0.1.0
-	k8s.io/api v0.35.3
+	k8s.io/api v0.36.0
 )
 
 require (
